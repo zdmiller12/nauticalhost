@@ -99,6 +99,43 @@ Static content site — the main failure modes are build-time, not runtime:
   test yet. If interactive tool islands are added later, add component tests
   at that point.
 
+## Content migration (from previous GitHub Pages site)
+
+Source: `zdmiller12.github.io` (Jekyll/beautiful-jekyll), checked out locally at
+`/home/miller/git/zdmiller12.github.io`. That site is a skeleton — most pages
+have headers but little written prose — so this is a facts/assets migration,
+not a copy-paste port. Reusable material:
+
+- **Headshot**: `assets/img/2018_grad-composite.jpeg` — reuse as the About page
+  photo pending a preferred replacement.
+- **Education & professional timeline**: BS (2017) and MS (2018) in
+  Engineering Mechanics from Virginia Tech, with the MS thesis PDF
+  (`assets/img/academic/Miller_ZD_T_2018.pdf`); professional experience at Torc
+  Robotics (Blacksburg, VA, from 2018). Fold these into the About/Resume pages
+  as a timeline, rather than the old site's separate timeline pages per entry.
+- **Projects**: two existing entries carry into the new `/projects` content
+  collection — *Good Robot* (`github.com/zdmiller12/good-robot`, "robot
+  training in python") and *OSM Scene* (`github.com/zdmiller12/osm-scene`).
+  Word API (`github.com/zdmiller12/word-api`) is added as a third entry now
+  (linking to its GitHub repo), ready to point at a hosted demo once the
+  tool-hosting sub-project exists.
+- **Social/contact links**: GitHub, LinkedIn, and email (all `zdmiller12`)
+  carry directly into the footer. Thingiverse and Spotify are optional
+  carry-overs — confirm during implementation whether to include them.
+- **Favicon set**: `assets/img/icon/` is already generated at the needed sizes
+  and can be reused as-is.
+
+**Not carried over**: the old site's "Attainments" page (Certifications /
+Licenses / Patents) is empty in the source and is dropped for v1 — revisit
+only once there's real content for it. Jekyll-specific structure
+(`_config.yml`, `_posts`, `_layouts`, `_data/ui-text.yml`) is not reused —
+this is a framework switch (Jekyll → Astro), not a port; only content and
+static assets move over.
+
+**Still needed from the user**: actual About-page bio prose and a real resume
+document — the old site had placeholders/structure but not written content for
+either.
+
 ## Explicitly out of scope for this spec
 
 - `tools/` (Word API and other hosted tools) — separate design/spec later.
