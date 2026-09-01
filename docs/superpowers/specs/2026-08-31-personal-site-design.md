@@ -113,12 +113,15 @@ not a copy-paste port. Reusable material:
   (`assets/img/academic/Miller_ZD_T_2018.pdf`); professional experience at Torc
   Robotics (Blacksburg, VA, from 2018). Fold these into the About/Resume pages
   as a timeline, rather than the old site's separate timeline pages per entry.
-- **Projects**: two existing entries carry into the new `/projects` content
-  collection — *Good Robot* (`github.com/zdmiller12/good-robot`, "robot
-  training in python") and *OSM Scene* (`github.com/zdmiller12/osm-scene`).
-  Word API (`github.com/zdmiller12/word-api`) is added as a third entry now
-  (linking to its GitHub repo), ready to point at a hosted demo once the
-  tool-hosting sub-project exists.
+- **Projects**: two entries carry into the new `/projects` content collection
+  — *OSM Scene* (`github.com/zdmiller12/osm-scene`, "Transforming OpenStreetMap
+  data.") and *Word API* (`github.com/zdmiller12/word-api`, "Crossword data
+  garden and API"), using each repo's current GitHub description. Word API
+  links to its GitHub repo for now, ready to point at a hosted demo once the
+  tool-hosting sub-project exists. *Good Robot*, referenced on the old site,
+  is dropped — its repo (`zdmiller12/good-robot`) returns 404 on GitHub as of
+  2026-08-31 and isn't in the account's current repo list, so it's a dead
+  link rather than reusable content.
 - **Social/contact links**: GitHub, LinkedIn, and email (all `zdmiller12`)
   carry directly into the footer. Thingiverse and Spotify are optional
   carry-overs — confirm during implementation whether to include them.
