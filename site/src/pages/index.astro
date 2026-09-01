@@ -1,6 +1,23 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
-<BaseLayout title="Home">
-  <h1>Zack Miller</h1>
+<BaseLayout title="Home" description="Zack Miller — engineer at Torc Robotics, Virginia Tech alum.">
+  <section class="hero">
+    <img src="/images/headshot.jpg" alt="Zack Miller" width="240" />
+    <h1>Zack Miller</h1>
+    <p>
+      I'm an engineer with a B.S. and M.S. in Engineering Mechanics from
+      Virginia Tech, currently working at Torc Robotics in Blacksburg, VA.
+      Outside of work I build small tools and side projects — see
+      <a href="/projects">Projects</a> for a few of them.
+    </p>
+  </section>
+  <section class="timeline">
+    <h2>Timeline</h2>
+    <ul>
+      <li><strong>2018–present</strong> — Torc Robotics, Blacksburg, VA</li>
+      <li><strong>2018</strong> — M.S., Engineering Mechanics, Virginia Tech</li>
+      <li><strong>2017</strong> — B.S., Engineering Mechanics, Virginia Tech</li>
+    </ul>
+  </section>
 </BaseLayout>
