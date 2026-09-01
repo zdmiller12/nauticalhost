@@ -16,6 +16,11 @@ Astro static site for zdmiller12's personal/portfolio page.
 
     npm test
 
+## Before first deploy
+
+**Important:** `site/public/resume.pdf` must be added before deploying. The Resume page
+includes a download link to `/resume.pdf`, which will return a 404 if the file is missing.
+
 ## Deployment (Cloudflare Pages)
 
 This site deploys via Cloudflare Pages' direct GitHub integration — no
@@ -29,3 +34,7 @@ GitHub Actions needed.
 5. Deploy. Cloudflare auto-deploys on every push to `main`.
 6. Point the custom domain (already on Cloudflare DNS) at the Pages project
    from the Pages project's "Custom domains" tab.
+
+**Note:** `.nvmrc` pins the Node build version to 22.12.0 for Cloudflare Pages.
+Cloudflare automatically reads this file and uses the specified version, ensuring
+consistency between local and cloud builds.
