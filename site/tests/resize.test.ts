@@ -33,4 +33,20 @@ describe('resizePhoto', () => {
 
     expect(lightboxMeta.width).toBeLessThanOrEqual(800);
   });
+
+  it('applies EXIF orientation so a rotated source produces a correctly-oriented output', async () => {
+    const landscapeSource = await sharp({
+      create: { width: 3000, height: 2000, channels: 3, background: { r: 100, g: 150, b: 200 } },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 }) // EXIF: rotate 90deg CW to display correctly
+      .toBuffer();
+
+    const { thumb } = await resizePhoto(landscapeSource);
+    const thumbMeta = await sharp(thumb).metadata();
+
+    // A landscape source with orientation 6 should auto-rotate to portrait output.
+    expect(thumbMeta.width).toBe(GRID_THUMB_WIDTH);
+    expect(thumbMeta.height).toBeGreaterThan(thumbMeta.width!);
+  });
 });
