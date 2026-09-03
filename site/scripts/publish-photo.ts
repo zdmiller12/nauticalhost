@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extractExif, type PhotoExif } from './lib/exif';
 import { resizePhoto } from './lib/resize';
 import { createR2Client, uploadObject } from './lib/r2';
@@ -9,6 +9,7 @@ export interface PublishDeps {
   extractExif: (buffer: Buffer) => Promise<PhotoExif>;
   resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
+  mkdir: (path: string) => Promise<unknown>;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
 
@@ -52,6 +53,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   await deps.uploadObject(args.bucket, lightboxKey, lightbox, 'image/jpeg');
 
   const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, exif);
+  await deps.mkdir(args.contentDir);
   await deps.writeFile(`${args.contentDir}/${args.slug}.yaml`, yaml);
 }
 
@@ -80,6 +82,7 @@ async function main() {
       extractExif,
       resizePhoto,
       uploadObject: (b, key, body, contentType) => uploadObject(client, b, key, body, contentType),
+      mkdir: (path) => mkdir(path, { recursive: true }),
       writeFile,
     },
     { sourcePath, slug, r2KeyPrefix, bucket, contentDir: 'src/content/photos' }

@@ -17,6 +17,7 @@ describe('publishPhoto', () => {
       extractExif: vi.fn().mockResolvedValue(exif),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
       uploadObject: vi.fn().mockResolvedValue(undefined),
+      mkdir: vi.fn().mockResolvedValue(undefined),
       writeFile: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -41,10 +42,15 @@ describe('publishPhoto', () => {
       Buffer.from('l'),
       'image/jpeg'
     );
+    expect(deps.mkdir).toHaveBeenCalledWith('src/content/photos');
     expect(deps.writeFile).toHaveBeenCalledWith(
       'src/content/photos/2026-06-14-osprey-nest.yaml',
       expect.stringContaining('camera: "Sony A7 IV"')
     );
+
+    const mkdirOrder = deps.mkdir.mock.invocationCallOrder[0];
+    const writeFileOrder = deps.writeFile.mock.invocationCallOrder[0];
+    expect(mkdirOrder).toBeLessThan(writeFileOrder);
   });
 });
 
