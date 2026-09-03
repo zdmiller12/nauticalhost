@@ -32,13 +32,13 @@ export const photoSchema = z.object({
   slug: z.string(),
   file: z.string(),
   date: z.coerce.date(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  camera: z.string(),
-  lens: z.string(),
+  latitude: z.number().min(-90).max(90).nullable(),
+  longitude: z.number().min(-180).max(180).nullable(),
+  camera: z.string().min(1),
+  lens: z.string().min(1),
   rating: z.number().int().min(1).max(5),
   objects: z.array(photoObjectSchema).min(1),
-  notes: z.string().optional(),
+  notes: z.string().nullish(),
 });
 
 export type Photo = z.infer<typeof photoSchema>;

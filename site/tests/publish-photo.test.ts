@@ -1,13 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
+import { load } from 'js-yaml';
 import { publishPhoto, buildMetadataYaml } from '../scripts/publish-photo';
 import type { PhotoExif } from '../scripts/lib/exif';
+import { photoSchema } from '../src/content/schema';
 
 describe('publishPhoto', () => {
   it('uploads thumb+lightbox to the derived keys and writes a scaffolded metadata file', async () => {
     const exif: PhotoExif = {
       camera: 'Sony A7 IV',
       lens: '100-400mm GM',
-      date: new Date('2026-06-14T00:00:00Z'),
+      // exifr builds Date objects from local time components (not UTC), so
+      // tests must too — the Date constructor's (year, month, day, ...)
+      // overload always uses local time.
+      date: new Date(2026, 5, 14, 12, 0, 0),
       latitude: 38.9784,
       longitude: -76.4922,
     };
@@ -51,6 +56,13 @@ describe('publishPhoto', () => {
     const mkdirOrder = deps.mkdir.mock.invocationCallOrder[0];
     const writeFileOrder = deps.writeFile.mock.invocationCallOrder[0];
     expect(mkdirOrder).toBeLessThan(writeFileOrder);
+
+    // The spec's core ordering invariant: both R2 uploads (thumb and
+    // lightbox) happen before the metadata file is written, so a committed
+    // entry never points at a nonexistent object.
+    const [thumbUploadOrder, lightboxUploadOrder] = deps.uploadObject.mock.invocationCallOrder;
+    expect(thumbUploadOrder).toBeLessThan(writeFileOrder);
+    expect(lightboxUploadOrder).toBeLessThan(writeFileOrder);
   });
 });
 
@@ -59,7 +71,8 @@ describe('buildMetadataYaml', () => {
     const exif: PhotoExif = {
       camera: 'Sony A7 IV',
       lens: '100-400mm GM',
-      date: new Date('2026-06-14T00:00:00Z'),
+      // Local-time construction, matching exifr's Date semantics.
+      date: new Date(2026, 5, 14, 12, 0, 0),
       latitude: 38.9784,
       longitude: -76.4922,
     };
@@ -82,5 +95,55 @@ describe('buildMetadataYaml', () => {
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
     expect(yaml).toContain('slug: untitled');
     expect(yaml).toContain('date: \n');
+  });
+});
+
+describe('buildMetadataYaml round-trip through the schema', () => {
+  it('produces a scaffold that, once rating/objects are filled in, passes photoSchema (GPS present)', () => {
+    const exif: PhotoExif = {
+      camera: 'Sony A7 IV',
+      lens: '100-400mm GM',
+      date: new Date('2026-06-14T21:00:00'), // local time, no notes filled in
+      latitude: 38.9784,
+      longitude: -76.4922,
+    };
+
+    const yaml = buildMetadataYaml('2026-06-14-osprey-nest', 'ospreys/osprey-nest-01', exif);
+    const parsed = load(yaml) as Record<string, unknown>;
+
+    // Fill in the placeholder fields the same way a human completing the
+    // scaffold would — leave `notes` untouched (the scaffold's literal
+    // `notes: # optional` placeholder, which js-yaml parses as `null`).
+    parsed.rating = 4;
+    parsed.objects = [
+      {
+        object_type: 'organism',
+        details: { common_name: 'Osprey', scientific_name: 'Pandion haliaetus', description: null },
+      },
+    ];
+
+    const result = photoSchema.safeParse(parsed);
+    expect(result.success).toBe(true);
+  });
+
+  it('produces a valid scaffold for a GPS-less camera (latitude/longitude null)', () => {
+    const exif: PhotoExif = {
+      camera: 'Canon R5',
+      lens: '24-70mm f/2.8',
+      date: new Date('2026-05-20T10:00:00'),
+      latitude: null,
+      longitude: null,
+    };
+
+    const yaml = buildMetadataYaml('2026-05-20-lighthouse', 'landmarks/lighthouse-01', exif);
+    const parsed = load(yaml) as Record<string, unknown>;
+
+    parsed.rating = 5;
+    parsed.objects = [
+      { object_type: 'landmark', details: { description: 'Cape Charles Lighthouse' } },
+    ];
+
+    const result = photoSchema.safeParse(parsed);
+    expect(result.success).toBe(true);
   });
 });

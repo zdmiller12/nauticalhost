@@ -31,8 +31,13 @@ GitHub Actions needed.
 2. Set **Root directory** to `site`.
 3. Set **Build command** to `npm run build`.
 4. Set **Build output directory** to `dist`.
-5. Deploy. Cloudflare auto-deploys on every push to `main`.
-6. Point the custom domain (already on Cloudflare DNS) at the Pages project
+5. In the Cloudflare Pages project settings, add `PUBLIC_R2_BASE_URL` as a
+   **build** environment variable — it must be present at `astro build` time
+   so the compendium page can construct image URLs. If it's missing, the
+   build still succeeds but every photo image URL silently breaks in
+   production (no build error or warning beyond a build-log line).
+6. Deploy. Cloudflare auto-deploys on every push to `main`.
+7. Point the custom domain (already on Cloudflare DNS) at the Pages project
    from the Pages project's "Custom domains" tab.
 
 **Note:** `.nvmrc` pins the Node build version to 22.12.0 for Cloudflare Pages.
@@ -41,17 +46,30 @@ consistency between local and cloud builds.
 
 ## Publishing a photo to the Compendium
 
-1. Copy `.env.example` to `.env` and fill in your R2 credentials (see
-   `docs/superpowers/specs/2026-09-02-photo-compendium-design.md` for how to
-   create them).
-2. Run:
+1. One-time R2 setup (Cloudflare dashboard):
+   1. Create an R2 bucket (e.g. `photos`).
+   2. Give it public read access — either its `r2.dev` subdomain or a custom
+      domain bound to the bucket. This becomes `PUBLIC_R2_BASE_URL`.
+   3. Create an R2 API token (Account → R2 → Manage API Tokens) scoped to
+      that bucket with Object Read & Write permission. This gives
+      `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
+   4. Set `PUBLIC_R2_BASE_URL` as a build environment variable in the
+      Cloudflare Pages project settings (see "Deployment" above) — without
+      it, image URLs on the compendium page silently break in production.
+2. Copy `.env.example` to `.env` and fill in the four R2 values from step 1
+   plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
+3. Run:
 
        npm run publish-photo -- <path-to-source-image> <slug> <r2-key-prefix>
 
    e.g. `npm run publish-photo -- ~/photos/osprey.jpg 2026-06-14-osprey-nest ospreys/osprey-nest-01`
 
-3. This uploads two resized JPEGs to R2 and scaffolds
+4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in.
-4. Edit that file to fill in `rating`, `objects` (species/landmark
-   identification), and optional `notes`.
-5. Commit and push — Cloudflare Pages deploys automatically.
+5. Edit that file to fill in `rating`, `objects` (species/landmark
+   identification), and optional `notes`. `latitude`/`longitude` may be left
+   as `null` for cameras without GPS (most non-phone cameras). `camera` and
+   `lens` must not be left blank — if EXIF extraction failed to find them,
+   the build will fail with a clear reason rather than silently accepting an
+   empty value.
+6. Commit and push — Cloudflare Pages deploys automatically.

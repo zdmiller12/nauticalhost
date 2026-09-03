@@ -5,6 +5,9 @@ import { sortPhotos, type PhotoSummary } from '../lib/photo-sort';
 
 const allPhotos = await getCollection('photos');
 const r2Base = import.meta.env.PUBLIC_R2_BASE_URL ?? '';
+if (!r2Base) {
+  console.warn('PUBLIC_R2_BASE_URL is not set — photo images will 404.');
+}
 
 const summaries: PhotoSummary[] = allPhotos.map((p) => ({
   slug: p.data.slug,
