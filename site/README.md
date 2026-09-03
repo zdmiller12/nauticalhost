@@ -38,3 +38,20 @@ GitHub Actions needed.
 **Note:** `.nvmrc` pins the Node build version to 22.12.0 for Cloudflare Pages.
 Cloudflare automatically reads this file and uses the specified version, ensuring
 consistency between local and cloud builds.
+
+## Publishing a photo to the Compendium
+
+1. Copy `.env.example` to `.env` and fill in your R2 credentials (see
+   `docs/superpowers/specs/2026-09-02-photo-compendium-design.md` for how to
+   create them).
+2. Run:
+
+       npm run publish-photo -- <path-to-source-image> <slug> <r2-key-prefix>
+
+   e.g. `npm run publish-photo -- ~/photos/osprey.jpg 2026-06-14-osprey-nest ospreys/osprey-nest-01`
+
+3. This uploads two resized JPEGs to R2 and scaffolds
+   `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in.
+4. Edit that file to fill in `rating`, `objects` (species/landmark
+   identification), and optional `notes`.
+5. Commit and push — Cloudflare Pages deploys automatically.
