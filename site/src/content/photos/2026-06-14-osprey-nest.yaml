@@ -1,0 +1,18 @@
+slug: 2026-06-14-osprey-nest
+file: ospreys/osprey-nest-01
+date: 2026-06-14
+latitude: 38.9784
+longitude: -76.4922
+camera: "Sony A7 IV"
+lens: "100-400mm GM"
+rating: 4
+objects:
+  - object_type: organism
+    details:
+      common_name: "Osprey"
+      scientific_name: "Pandion haliaetus"
+      description: null
+  - object_type: landmark
+    details:
+      description: "Osprey platform, Chesapeake Bay"
+notes: "Nesting platform, low tide."
