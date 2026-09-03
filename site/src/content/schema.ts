@@ -10,3 +10,36 @@ export const projectSchema = z.object({
 });
 
 export type Project = z.infer<typeof projectSchema>;
+
+export const photoObjectSchema = z.discriminatedUnion('object_type', [
+  z.object({
+    object_type: z.literal('landmark'),
+    details: z.object({
+      description: z.string(),
+    }),
+  }),
+  z.object({
+    object_type: z.literal('organism'),
+    details: z.object({
+      common_name: z.string(),
+      scientific_name: z.string(),
+      description: z.string().nullable(),
+    }),
+  }),
+]);
+
+export const photoSchema = z.object({
+  slug: z.string(),
+  file: z.string(),
+  date: z.coerce.date(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  camera: z.string(),
+  lens: z.string(),
+  rating: z.number().int().min(1).max(5),
+  objects: z.array(photoObjectSchema).min(1),
+  notes: z.string().optional(),
+});
+
+export type Photo = z.infer<typeof photoSchema>;
+export type PhotoObject = z.infer<typeof photoObjectSchema>;
