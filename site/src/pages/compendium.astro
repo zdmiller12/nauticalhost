@@ -13,7 +13,6 @@ const summaries: PhotoSummary[] = allPhotos.map((p) => ({
   slug: p.data.slug,
   date: p.data.date.toISOString().slice(0, 10),
   rating: p.data.rating,
-  camera: p.data.camera,
 }));
 
 const orderedSlugs = sortPhotos(summaries, 'date').map((p) => p.slug);
@@ -28,7 +27,6 @@ const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
       <select id="sort-select">
         <option value="date">Date</option>
         <option value="rating">Rating</option>
-        <option value="camera">Camera</option>
       </select>
     </label>
   </div>

@@ -3,9 +3,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PhotoSummary } from '../src/lib/photo-sort';
 
 const photos: PhotoSummary[] = [
-  { slug: 'a', date: '2026-06-01', rating: 3, camera: 'Sony A7 IV' },
-  { slug: 'b', date: '2026-06-15', rating: 5, camera: 'Canon R5' },
-  { slug: 'c', date: '2026-05-20', rating: 4, camera: 'Nikon Z9' },
+  { slug: 'a', date: '2026-06-01', rating: 3 },
+  { slug: 'b', date: '2026-06-15', rating: 5 },
+  { slug: 'c', date: '2026-05-20', rating: 4 },
 ];
 
 function renderMarkup(): void {
@@ -14,7 +14,6 @@ function renderMarkup(): void {
     <select id="sort-select">
       <option value="date">Date</option>
       <option value="rating">Rating</option>
-      <option value="camera">Camera</option>
     </select>
     <div id="photo-grid">
       <div data-slug="a"></div>

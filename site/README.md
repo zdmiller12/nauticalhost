@@ -76,11 +76,17 @@ consistency between local and cloud builds.
    e.g. `npm run publish-photo -- ~/photos/osprey.jpg 2026-06-14-osprey-nest ospreys/osprey-nest-01`
 
 4. This uploads two resized JPEGs to R2 and scaffolds
-   `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in.
+   `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
+   including `camera`/`lens` if EXIF extraction found them.
 5. Edit that file to fill in `rating`, `objects` (species/landmark
    identification), and optional `notes`. `latitude`/`longitude` may be left
-   as `null` for cameras without GPS (most non-phone cameras). `camera` and
-   `lens` must not be left blank — if EXIF extraction failed to find them,
-   the build will fail with a clear reason rather than silently accepting an
-   empty value.
+   as `null` for cameras without GPS (most non-phone cameras).
+
+   `camera`/`lens` are **not** part of `photoSchema` — they're written into
+   the scaffold as informational text only and aren't validated, typed, or
+   shown anywhere on the site yet. Leave them as-is, edit them, or delete
+   the lines entirely; none of it affects the build. They're deliberately
+   deferred: reintroducing them as a real, displayed feature (with a
+   nullable schema field, since EXIF doesn't always have them) is future
+   work, not a bug.
 6. Commit and push — Cloudflare Pages deploys automatically.

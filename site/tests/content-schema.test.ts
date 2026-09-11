@@ -40,8 +40,6 @@ describe('photoSchema', () => {
     date: '2026-06-14',
     latitude: 38.9784,
     longitude: -76.4922,
-    camera: 'Sony A7 IV',
-    lens: '100-400mm GM',
     rating: 4,
   };
 
