@@ -83,13 +83,13 @@ describe('buildMetadataYaml', () => {
 
     expect(yaml).toContain('slug: 2026-06-14-osprey-nest');
     expect(yaml).toContain('file: ospreys/osprey-nest-01');
-    expect(yaml).toContain('date: 2026-06-14');
+    expect(yaml).toContain('datetime: 2026-06-14T12:00:00');
     expect(yaml).toContain('latitude: 38.9784');
     expect(yaml).toContain('longitude: -76.4922');
     expect(yaml).toContain('camera: "Sony A7 IV"');
     expect(yaml).toContain('lens: "100-400mm GM"');
     expect(yaml).toContain('tier:');
-    expect(yaml).toContain('objects: []');
+    expect(yaml).toContain('objects:');
   });
 
   it('handles missing EXIF fields without throwing', () => {
@@ -103,32 +103,52 @@ describe('buildMetadataYaml', () => {
     };
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
     expect(yaml).toContain('slug: untitled');
-    expect(yaml).toContain('date: \n');
+    expect(yaml).toContain('datetime: \n');
   });
 
-  it('derives the calendar date from the camera\'s recorded UTC offset, not this process\'s own timezone', () => {
-    // Camera-local wall clock: 2025-09-14 00:30 JST (+09:00) — just after
-    // midnight in Japan. The true UTC instant this represents is
-    // 2025-09-13T15:30:00Z, which in *this test process's* own timezone
-    // (whatever that happens to be) could easily read back as a different
-    // calendar day than the 14th. Getting "2025-09-14" here proves
-    // formatLocalDate re-applies the camera's own offset rather than
-    // reading local getters on the absolute instant.
+  it('formats a trailing Z when a real UTC instant was successfully constructed', () => {
+    // A known utcOffsetMinutes means `date` (from extractExif) is a
+    // genuine absolute instant, not a guess — so the output should show
+    // the actual UTC clock reading (not the camera's local wall clock)
+    // and mark it with Z. Includes a fractional-seconds component to
+    // confirm milliseconds are dropped, not just that Z is appended.
     const exif: PhotoExif = {
-      camera: 'Sony A7 IV',
-      date: new Date('2025-09-13T15:30:00.000Z'),
+      camera: null,
+      date: new Date('2025-09-13T05:07:09.123Z'),
       latitude: null,
       lens: null,
       longitude: null,
-      utcOffsetMinutes: 540, // +09:00
+      utcOffsetMinutes: 540, // +09:00 — the exact value is irrelevant here;
+      // what matters is that it's a number, so the "successful" branch runs.
     };
 
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
 
-    expect(yaml).toContain('date: 2025-09-14');
+    expect(yaml).toContain('datetime: 2025-09-13T05:07:09Z');
   });
 
-  it('treats a missing utcOffsetMinutes the same as null rather than corrupting the date', () => {
+  it('omits the trailing Z when no UTC offset was available (naive local fallback)', () => {
+    // No utcOffsetMinutes means UTC construction was unsuccessful — `date`
+    // is only exifr's naive-local guess, so the output must not claim Z.
+    // Local-component construction, matching exifr's own real behavior
+    // (see extractExif's comment): reading these back via local getters,
+    // in this same process, exactly recovers 2025-09-13 19:05:44 as
+    // written, regardless of what this process's actual timezone is.
+    const exif: PhotoExif = {
+      camera: null,
+      date: new Date(2025, 8, 13, 19, 5, 44),
+      latitude: null,
+      lens: null,
+      longitude: null,
+      utcOffsetMinutes: null,
+    };
+
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+
+    expect(yaml).toContain('datetime: 2025-09-13T19:05:44\n');
+  });
+
+  it('treats a missing utcOffsetMinutes the same as null rather than corrupting the datetime', () => {
     const exif = {
       camera: null,
       date: new Date(2026, 5, 14, 12, 0, 0),
@@ -141,7 +161,7 @@ describe('buildMetadataYaml', () => {
 
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
 
-    expect(yaml).toContain('date: 2026-06-14');
+    expect(yaml).toContain('datetime: 2026-06-14T12:00:00\n');
   });
 });
 

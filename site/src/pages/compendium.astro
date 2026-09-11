@@ -10,7 +10,7 @@ if (!r2Base) {
 }
 
 const summaries: PhotoSummary[] = allPhotos.map((p) => ({
-  date: p.data.date.toISOString().slice(0, 10),
+  date: p.data.datetime.toISOString().slice(0, 10),
   slug: p.data.slug,
   tier: p.data.tier,
 }));
@@ -38,7 +38,7 @@ const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
           alt={photo.data.notes ?? photo.data.slug}
           loading="lazy"
         />
-        <p>{photo.data.date.toISOString().slice(0, 10)} &middot; Tier {photo.data.tier}</p>
+        <p>{photo.data.datetime.toISOString().slice(0, 10)} &middot; Tier {photo.data.tier}</p>
         <ul class="objects">
           {photo.data.objects.map((obj) => (
             <li>{obj.object_type === 'organism' ? obj.details.common_name : obj.details.description}</li>

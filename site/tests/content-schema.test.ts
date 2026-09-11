@@ -35,7 +35,7 @@ describe('projectSchema', () => {
 
 describe('photoSchema', () => {
   const basePhoto = {
-    date: '2026-06-14',
+    datetime: '2026-06-14T18:30:00Z',
     file: 'ospreys/osprey-nest-01',
     latitude: 38.9784,
     longitude: -76.4922,

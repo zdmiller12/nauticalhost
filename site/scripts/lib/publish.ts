@@ -17,32 +17,38 @@ export interface PublishArgs {
   sourcePath: string;
 }
 
-function formatLocalDate(date: Date, utcOffsetMinutes: number | null): string {
+function formatDatetime(date: Date, utcOffsetMinutes: number | null): string {
   if (typeof utcOffsetMinutes === 'number') {
-    // `date` is a genuine absolute instant (see extractExif) — re-apply the
-    // camera's own recorded offset and read UTC getters to recover its
-    // local calendar date, independent of whatever timezone this process
-    // itself happens to be running in.
-    const local = new Date(date.getTime() + utcOffsetMinutes * 60_000);
-    const year = local.getUTCFullYear();
-    const month = String(local.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(local.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    // `date` is a genuine absolute instant (see extractExif) — format its
+    // actual UTC clock reading directly (no offset reapplication) and mark
+    // it with a trailing Z, since we can honestly claim this is UTC.
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
   }
   // No known offset: `date` is only exifr's naive-local guess (this
   // process's timezone applied to the camera's raw, timezone-less
-  // wall-clock string), so local getters are the best available signal.
+  // wall-clock string). Local getters recover that original wall-clock
+  // reading, but since it's not a verified UTC instant, omit the Z rather
+  // than falsely claim one.
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 export function buildMetadataYaml(slug: string, file: string, exif: PhotoExif): string {
-  const dateStr = exif.date ? formatLocalDate(exif.date, exif.utcOffsetMinutes) : '';
+  const datetimeStr = exif.date ? formatDatetime(exif.date, exif.utcOffsetMinutes) : '';
   return `---
 camera: ${JSON.stringify(exif.camera ?? '')}
-date: ${dateStr}
+datetime: ${datetimeStr}
 file: ${file}
 latitude: ${exif.latitude ?? 'null'}
 lens: ${JSON.stringify(exif.lens ?? '')}

@@ -29,7 +29,7 @@ export const photoObjectSchema = z.discriminatedUnion('object_type', [
 ]);
 
 export const photoSchema = z.object({
-  date: z.coerce.date(),
+  datetime: z.coerce.date(),
   file: z.string(),
   latitude: z.number().min(-90).max(90).nullable(),
   longitude: z.number().min(-180).max(180).nullable(),
