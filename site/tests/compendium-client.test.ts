@@ -3,9 +3,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PhotoSummary } from '../src/lib/photo-sort';
 
 const photos: PhotoSummary[] = [
-  { slug: 'a', date: '2026-06-01', rating: 3 },
-  { slug: 'b', date: '2026-06-15', rating: 5 },
-  { slug: 'c', date: '2026-05-20', rating: 4 },
+  { slug: 'a', date: '2026-06-01', tier: 'S' },
+  { slug: 'b', date: '2026-06-15', tier: 'C' },
+  { slug: 'c', date: '2026-05-20', tier: 'B' },
 ];
 
 function renderMarkup(): void {
@@ -13,7 +13,7 @@ function renderMarkup(): void {
     <script type="application/json" id="photo-data">${JSON.stringify(photos)}</script>
     <select id="sort-select">
       <option value="date">Date</option>
-      <option value="rating">Rating</option>
+      <option value="tier">Tier</option>
     </select>
     <div id="photo-grid">
       <div data-slug="a"></div>
@@ -40,11 +40,11 @@ describe('compendium-client', () => {
     const select = document.getElementById('sort-select') as HTMLSelectElement;
     const grid = document.getElementById('photo-grid') as HTMLDivElement;
 
-    select.value = 'rating';
+    select.value = 'tier';
     select.dispatchEvent(new Event('change'));
 
     const order = Array.from(grid.children).map((el) => el.getAttribute('data-slug'));
-    expect(order).toEqual(['b', 'c', 'a']);
+    expect(order).toEqual(['a', 'c', 'b']);
   });
 
   it('does nothing when the required elements are missing from the page', async () => {

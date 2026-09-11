@@ -86,7 +86,7 @@ describe('buildMetadataYaml', () => {
     expect(yaml).toContain('longitude: -76.4922');
     expect(yaml).toContain('camera: "Sony A7 IV"');
     expect(yaml).toContain('lens: "100-400mm GM"');
-    expect(yaml).toContain('rating:');
+    expect(yaml).toContain('tier:');
     expect(yaml).toContain('objects: []');
   });
 
@@ -99,7 +99,7 @@ describe('buildMetadataYaml', () => {
 });
 
 describe('buildMetadataYaml round-trip through the schema', () => {
-  it('produces a scaffold that, once rating/objects are filled in, passes photoSchema (GPS present)', () => {
+  it('produces a scaffold that, once tier/objects are filled in, passes photoSchema (GPS present)', () => {
     const exif: PhotoExif = {
       camera: 'Sony A7 IV',
       lens: '100-400mm GM',
@@ -114,7 +114,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
     // Fill in the placeholder fields the same way a human completing the
     // scaffold would — leave `notes` untouched (the scaffold's literal
     // `notes: # optional` placeholder, which js-yaml parses as `null`).
-    parsed.rating = 4;
+    parsed.tier = 'B';
     parsed.objects = [
       {
         object_type: 'organism',
@@ -138,7 +138,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
     const yaml = buildMetadataYaml('2026-05-20-lighthouse', 'landmarks/lighthouse-01', exif);
     const parsed = load(yaml) as Record<string, unknown>;
 
-    parsed.rating = 5;
+    parsed.tier = 'A';
     parsed.objects = [
       { object_type: 'landmark', details: { description: 'Cape Charles Lighthouse' } },
     ];

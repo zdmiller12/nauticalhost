@@ -33,7 +33,7 @@ latitude: ${exif.latitude ?? 'null'}
 longitude: ${exif.longitude ?? 'null'}
 camera: ${JSON.stringify(exif.camera ?? '')}
 lens: ${JSON.stringify(exif.lens ?? '')}
-rating: # TODO: 1-5
+tier: # TODO: S/A/B/C/D/E/F
 objects: [] # TODO: add organism/landmark entries, e.g.
   # - object_type: organism
   #   details:

@@ -34,7 +34,7 @@ export const photoSchema = z.object({
   date: z.coerce.date(),
   latitude: z.number().min(-90).max(90).nullable(),
   longitude: z.number().min(-180).max(180).nullable(),
-  rating: z.number().int().min(1).max(5),
+  tier: z.enum(['S', 'A', 'B', 'C', 'D', 'E', 'F']),
   objects: z.array(photoObjectSchema).min(1),
   notes: z.string().nullish(),
 });

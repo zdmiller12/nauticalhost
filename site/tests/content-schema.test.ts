@@ -40,7 +40,7 @@ describe('photoSchema', () => {
     date: '2026-06-14',
     latitude: 38.9784,
     longitude: -76.4922,
-    rating: 4,
+    tier: 'B',
   };
 
   it('accepts a valid photo with an organism object', () => {
@@ -71,10 +71,10 @@ describe('photoSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects a rating outside 1-5', () => {
+  it('rejects a tier value outside S-F', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
-      rating: 6,
+      tier: 'Z',
       objects: [{ object_type: 'landmark', details: { description: 'x' } }],
     });
     expect(result.success).toBe(false);

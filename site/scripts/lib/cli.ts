@@ -78,5 +78,5 @@ export async function runCli(io: CliIo): Promise<void> {
     { sourcePath, slug, r2KeyPrefix, bucket, contentDir: 'src/content/photos' }
   );
 
-  io.log(`Published ${slug}. Fill in rating/objects/notes in src/content/photos/${slug}.yaml`);
+  io.log(`Published ${slug}. Fill in tier/objects/notes in src/content/photos/${slug}.yaml`);
 }

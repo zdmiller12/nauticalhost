@@ -87,9 +87,11 @@ consistency between local and cloud builds.
 4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
    including `camera`/`lens` if EXIF extraction found them.
-5. Edit that file to fill in `rating`, `objects` (species/landmark
-   identification), and optional `notes`. `latitude`/`longitude` may be left
-   as `null` for cameras without GPS (most non-phone cameras).
+5. Edit that file to fill in `tier` (one of `S`, `A`, `B`, `C`, `D`, `E`, `F`,
+   descending rank — see [tier list](https://en.wikipedia.org/wiki/Tier_list)),
+   `objects` (species/landmark identification), and optional `notes`.
+   `latitude`/`longitude` may be left as `null` for cameras without GPS
+   (most non-phone cameras).
 
    `camera`/`lens` are **not** part of `photoSchema` — they're written into
    the scaffold as informational text only and aren't validated, typed, or
