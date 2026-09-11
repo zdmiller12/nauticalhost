@@ -26,6 +26,7 @@ describe('extractExif', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      utcOffsetMinutes: null,
     });
   });
 
@@ -34,7 +35,14 @@ describe('extractExif', () => {
 
     const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
 
-    expect(result).toEqual({ camera: null, date: null, latitude: null, lens: null, longitude: null });
+    expect(result).toEqual({
+      camera: null,
+      date: null,
+      latitude: null,
+      lens: null,
+      longitude: null,
+      utcOffsetMinutes: null,
+    });
   });
 
   it('falls back to Model alone when Make is missing', async () => {
@@ -51,5 +59,57 @@ describe('extractExif', () => {
     const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
 
     expect(result.camera).toBeNull();
+  });
+
+  it('computes a true UTC instant from DateTimeOriginal + OffsetTimeOriginal (west of UTC)', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      // Local-component construction, matching exifr's own real behavior:
+      // it parses EXIF's naive "YYYY:MM:DD HH:mm:ss" wall-clock string
+      // using this process's local timezone. Reading it back with local
+      // getters here recovers the same wall-clock numbers regardless of
+      // what that local timezone actually is — see extractExif's comment.
+      DateTimeOriginal: new Date(2025, 8, 13, 19, 5, 44),
+      OffsetTimeOriginal: '-04:00',
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.utcOffsetMinutes).toBe(-240);
+    expect(result.date?.toISOString()).toBe('2025-09-13T23:05:44.000Z');
+  });
+
+  it('computes a true UTC instant from DateTimeOriginal + OffsetTimeOriginal (east of UTC)', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2025, 8, 13, 9, 0, 0),
+      OffsetTimeOriginal: '+09:00',
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.utcOffsetMinutes).toBe(540);
+    expect(result.date?.toISOString()).toBe('2025-09-13T00:00:00.000Z');
+  });
+
+  it('falls back to the naive local Date when OffsetTimeOriginal is missing', async () => {
+    const wallClock = new Date(2025, 8, 13, 19, 5, 44);
+    vi.mocked(exifr.parse).mockResolvedValue({ DateTimeOriginal: wallClock });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.utcOffsetMinutes).toBeNull();
+    expect(result.date).toEqual(wallClock);
+  });
+
+  it('treats a malformed OffsetTimeOriginal as unknown rather than throwing', async () => {
+    const wallClock = new Date(2025, 8, 13, 19, 5, 44);
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: wallClock,
+      OffsetTimeOriginal: 'not-an-offset',
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.utcOffsetMinutes).toBeNull();
+    expect(result.date).toEqual(wallClock);
   });
 });

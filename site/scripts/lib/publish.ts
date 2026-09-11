@@ -17,7 +17,21 @@ export interface PublishArgs {
   sourcePath: string;
 }
 
-function formatLocalDate(date: Date): string {
+function formatLocalDate(date: Date, utcOffsetMinutes: number | null): string {
+  if (typeof utcOffsetMinutes === 'number') {
+    // `date` is a genuine absolute instant (see extractExif) — re-apply the
+    // camera's own recorded offset and read UTC getters to recover its
+    // local calendar date, independent of whatever timezone this process
+    // itself happens to be running in.
+    const local = new Date(date.getTime() + utcOffsetMinutes * 60_000);
+    const year = local.getUTCFullYear();
+    const month = String(local.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(local.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  // No known offset: `date` is only exifr's naive-local guess (this
+  // process's timezone applied to the camera's raw, timezone-less
+  // wall-clock string), so local getters are the best available signal.
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -25,8 +39,9 @@ function formatLocalDate(date: Date): string {
 }
 
 export function buildMetadataYaml(slug: string, file: string, exif: PhotoExif): string {
-  const dateStr = exif.date ? formatLocalDate(exif.date) : '';
-  return `camera: ${JSON.stringify(exif.camera ?? '')}
+  const dateStr = exif.date ? formatLocalDate(exif.date, exif.utcOffsetMinutes) : '';
+  return `---
+camera: ${JSON.stringify(exif.camera ?? '')}
 date: ${dateStr}
 file: ${file}
 latitude: ${exif.latitude ?? 'null'}

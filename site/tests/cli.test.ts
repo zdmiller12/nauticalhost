@@ -18,6 +18,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      utcOffsetMinutes: null,
     }),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
     createR2Client: vi.fn().mockReturnValue({ send: vi.fn() } as unknown as Pick<S3Client, 'send'>),

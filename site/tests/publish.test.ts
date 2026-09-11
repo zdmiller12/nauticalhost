@@ -15,6 +15,7 @@ describe('publishPhoto', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      utcOffsetMinutes: null,
     };
 
     const deps = {
@@ -75,6 +76,7 @@ describe('buildMetadataYaml', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      utcOffsetMinutes: null,
     };
 
     const yaml = buildMetadataYaml('2026-06-14-osprey-nest', 'ospreys/osprey-nest-01', exif);
@@ -91,10 +93,55 @@ describe('buildMetadataYaml', () => {
   });
 
   it('handles missing EXIF fields without throwing', () => {
-    const exif: PhotoExif = { camera: null, date: null, latitude: null, lens: null, longitude: null };
+    const exif: PhotoExif = {
+      camera: null,
+      date: null,
+      latitude: null,
+      lens: null,
+      longitude: null,
+      utcOffsetMinutes: null,
+    };
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
     expect(yaml).toContain('slug: untitled');
     expect(yaml).toContain('date: \n');
+  });
+
+  it('derives the calendar date from the camera\'s recorded UTC offset, not this process\'s own timezone', () => {
+    // Camera-local wall clock: 2025-09-14 00:30 JST (+09:00) — just after
+    // midnight in Japan. The true UTC instant this represents is
+    // 2025-09-13T15:30:00Z, which in *this test process's* own timezone
+    // (whatever that happens to be) could easily read back as a different
+    // calendar day than the 14th. Getting "2025-09-14" here proves
+    // formatLocalDate re-applies the camera's own offset rather than
+    // reading local getters on the absolute instant.
+    const exif: PhotoExif = {
+      camera: 'Sony A7 IV',
+      date: new Date('2025-09-13T15:30:00.000Z'),
+      latitude: null,
+      lens: null,
+      longitude: null,
+      utcOffsetMinutes: 540, // +09:00
+    };
+
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+
+    expect(yaml).toContain('date: 2025-09-14');
+  });
+
+  it('treats a missing utcOffsetMinutes the same as null rather than corrupting the date', () => {
+    const exif = {
+      camera: null,
+      date: new Date(2026, 5, 14, 12, 0, 0),
+      latitude: null,
+      lens: null,
+      longitude: null,
+      // Deliberately omitted, unlike every other fixture in this file —
+      // simulates a caller that doesn't (or can't) supply this field.
+    } as unknown as PhotoExif;
+
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+
+    expect(yaml).toContain('date: 2026-06-14');
   });
 });
 
@@ -106,6 +153,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      utcOffsetMinutes: null,
     };
 
     const yaml = buildMetadataYaml('2026-06-14-osprey-nest', 'ospreys/osprey-nest-01', exif);
@@ -133,6 +181,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
       latitude: null,
       lens: '24-70mm f/2.8',
       longitude: null,
+      utcOffsetMinutes: null,
     };
 
     const yaml = buildMetadataYaml('2026-05-20-lighthouse', 'landmarks/lighthouse-01', exif);
