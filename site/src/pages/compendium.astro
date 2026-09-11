@@ -1,0 +1,52 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { sortPhotos, type PhotoSummary } from '../lib/photo-sort';
+
+const allPhotos = await getCollection('photos');
+const r2Base = import.meta.env.PUBLIC_R2_BASE_URL ?? '';
+if (!r2Base) {
+  console.warn('PUBLIC_R2_BASE_URL is not set — photo images will 404.');
+}
+
+const summaries: PhotoSummary[] = allPhotos.map((p) => ({
+  date: p.data.datetime.toISOString().slice(0, 10),
+  slug: p.data.slug,
+  tier: p.data.tier,
+}));
+
+const orderedSlugs = sortPhotos(summaries, 'date').map((p) => p.slug);
+const photosBySlug = new Map(allPhotos.map((p) => [p.data.slug, p]));
+const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
+---
+<BaseLayout title="Compendium" description="A browsable compendium of photography by Zack Miller.">
+  <h1>Compendium</h1>
+  <div class="controls">
+    <label>
+      Sort by
+      <select id="sort-select">
+        <option value="date">Date</option>
+        <option value="tier">Tier</option>
+      </select>
+    </label>
+  </div>
+  <ul id="photo-grid" class="photo-grid">
+    {orderedPhotos.map((photo) => (
+      <li class="photo-card" data-slug={photo.data.slug}>
+        <img
+          src={`${r2Base}/${photo.data.file}-thumb.jpg`}
+          alt={photo.data.notes ?? photo.data.slug}
+          loading="lazy"
+        />
+        <p>{photo.data.datetime.toISOString().slice(0, 10)} &middot; Tier {photo.data.tier}</p>
+        <ul class="objects">
+          {photo.data.objects.map((obj) => (
+            <li>{obj.object_type === 'organism' ? obj.details.common_name : obj.details.description}</li>
+          ))}
+        </ul>
+      </li>
+    ))}
+  </ul>
+  <script type="application/json" id="photo-data" set:html={JSON.stringify(summaries)} />
+  <script src="../scripts/compendium-client.ts"></script>
+</BaseLayout>

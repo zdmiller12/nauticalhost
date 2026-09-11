@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { projectSchema } from '../src/content/schema';
+import { photoSchema } from '../src/content/schema';
 
 describe('projectSchema', () => {
   it('accepts a valid project entry', () => {
     const result = projectSchema.safeParse({
-      title: 'OSM Scene',
       description: 'Transforming OpenStreetMap data.',
       githubUrl: 'https://github.com/zdmiller12/osm-scene',
       tags: ['python', 'gis'],
+      title: 'OSM Scene',
     });
     expect(result.success).toBe(true);
   });
@@ -23,10 +24,82 @@ describe('projectSchema', () => {
 
   it('rejects an entry with an invalid githubUrl', () => {
     const result = projectSchema.safeParse({
-      title: 'Bad URL',
       description: 'Has a non-URL githubUrl.',
       githubUrl: 'not-a-url',
       tags: [],
+      title: 'Bad URL',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('photoSchema', () => {
+  const basePhoto = {
+    datetime: '2026-06-14T18:30:00Z',
+    file: 'ospreys/osprey-nest-01',
+    latitude: 38.9784,
+    longitude: -76.4922,
+    slug: '2026-06-14-osprey-nest',
+    tier: 'B',
+  };
+
+  it('accepts a valid photo with an organism object', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          details: {
+            common_name: 'Osprey',
+            description: null,
+            scientific_name: 'Pandion haliaetus',
+          },
+          object_type: 'organism',
+        },
+      ],
+      notes: 'Nesting platform, low tide.',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a valid photo with a landmark object and no notes', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        { details: { description: 'Osprey platform, Chesapeake Bay' }, object_type: 'landmark' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a tier value outside S-F', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+      tier: 'Z',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an empty objects array', () => {
+    const result = photoSchema.safeParse({ ...basePhoto, objects: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an organism object missing scientific_name', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        { details: { common_name: 'Osprey', description: null }, object_type: 'organism' },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects latitude out of range', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      latitude: 200,
+      objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
     });
     expect(result.success).toBe(false);
   });

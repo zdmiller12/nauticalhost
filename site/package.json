@@ -6,11 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
     "astro": "astro",
-    "test": "vitest run"
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview",
+    "publish-photo": "tsx scripts/publish-photo.ts",
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "astro": "^7.2.10",
@@ -20,6 +21,15 @@
     "esbuild": true
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.650.0",
+    "@types/js-yaml": "^4.0.9",
+    "@vitest/coverage-v8": "^4.1.11",
+    "dotenv": "^17.4.2",
+    "exifr": "^7.1.3",
+    "happy-dom": "^20.14.3",
+    "js-yaml": "^4.3.2",
+    "sharp": "^0.35.4",
+    "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   }
 }
