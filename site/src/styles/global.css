@@ -37,25 +37,6 @@
   --color-tier-f: #d8d4c8;
 }
 
-:root {
-  --color-paper: #faf6ef;
-  --color-ink: #2b2823;
-  --color-ink-muted: #6b655a;
-  --color-line: #e4dcc9;
-  --color-clay: #b5654a;
-  --color-amber: #c99a4a;
-  --color-slate: #5c6b73;
-  --color-sage: #8a9a6e;
-  --color-lavender: #8d7a93;
-  --color-tier-s: #5f7a4a;
-  --color-tier-a: #748a5c;
-  --color-tier-b: #8a9a6e;
-  --color-tier-c: #9fa98c;
-  --color-tier-d: #b4b8a6;
-  --color-tier-e: #c7c7be;
-  --color-tier-f: #d8d4c8;
-}
-
 .dark {
   --color-paper: #211e1a;
   --color-ink: #ede8de;
