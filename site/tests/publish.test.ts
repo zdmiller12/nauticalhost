@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { load } from 'js-yaml';
-import { publishPhoto, buildMetadataYaml } from '../scripts/publish-photo';
+import { publishPhoto, buildMetadataYaml } from '../scripts/lib/publish';
 import type { PhotoExif } from '../scripts/lib/exif';
 import { photoSchema } from '../src/content/schema';
 

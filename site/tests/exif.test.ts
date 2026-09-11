@@ -44,4 +44,12 @@ describe('extractExif', () => {
 
     expect(result.camera).toBe('A7 IV');
   });
+
+  it('reports a null camera when EXIF data has neither Make nor Model', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({ LensModel: '100-400mm GM' });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.camera).toBeNull();
+  });
 });

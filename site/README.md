@@ -16,6 +16,17 @@ Astro static site for zdmiller12's personal/portfolio page.
 
     npm test
 
+`npm test` runs Vitest with V8 coverage and enforces a 100% threshold
+(statements/branches/functions/lines) on every file under `scripts/` and
+`src/`, checked per-file — a single undertested file fails the run even if
+the overall average looks fine. A handful of lines that would require
+tricking the process into actually exiting or exec'ing the real CLI (e.g.
+`scripts/publish-photo.ts`'s `import.meta.url` bootstrap guard, and
+`process.exit` in `scripts/lib/cli.ts`) are marked with narrow
+`/* v8 ignore */` comments rather than tested; everything else is real
+coverage. `.astro` files are not included in the coverage scope. After a
+run, `coverage/index.html` has a line-by-line report.
+
 ## Before first deploy
 
 **Important:** `site/public/resume.pdf` must be added before deploying. The Resume page

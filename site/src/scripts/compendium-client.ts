@@ -5,7 +5,7 @@ const gridEl = document.getElementById('photo-grid');
 const selectEl = document.getElementById('sort-select') as HTMLSelectElement | null;
 
 if (dataEl && gridEl && selectEl) {
-  const photos: PhotoSummary[] = JSON.parse(dataEl.textContent ?? '[]');
+  const photos: PhotoSummary[] = JSON.parse(dataEl.textContent || '[]');
 
   selectEl.addEventListener('change', () => {
     const key = selectEl.value as SortKey;

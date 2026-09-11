@@ -4,6 +4,9 @@ dist/
 .astro/
 worker-configuration.d.ts
 
+# test coverage reports
+coverage/
+
 # wrangler local dev state
 .wrangler/
 
