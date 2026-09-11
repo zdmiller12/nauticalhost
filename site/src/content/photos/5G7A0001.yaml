@@ -1,0 +1,16 @@
+---
+camera: "Canon Canon EOS R7"
+date: 2025-09-13
+file: compendium/alpha/5G7A0001.JPG
+latitude: 37.162349
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.447362
+notes: # optional
+objects: [] # TODO: add organism/landmark entries, e.g.
+  # - object_type: organism
+  #   details:
+  #     common_name: ""
+  #     scientific_name: ""
+  #     description: null
+rating: 1
+slug: 5G7A0001
