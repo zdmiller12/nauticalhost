@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PhotoCard from '../components/PhotoCard.astro';
 import { sortPhotos, type PhotoSummary } from '../lib/photo-sort';
 
 const allPhotos = await getCollection('photos');
@@ -20,31 +21,19 @@ const photosBySlug = new Map(allPhotos.map((p) => [p.data.slug, p]));
 const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
 ---
 <BaseLayout title="Compendium" description="A browsable compendium of photography by Zack Miller.">
-  <h1>Compendium</h1>
-  <div class="controls">
-    <label>
+  <h1 class="text-2xl font-semibold">Compendium</h1>
+  <div class="mt-4 text-sm text-ink-muted">
+    <label class="flex items-center gap-2">
       Sort by
-      <select id="sort-select">
+      <select id="sort-select" class="rounded border border-line bg-paper px-2 py-1 text-ink">
         <option value="date">Date</option>
         <option value="tier">Tier</option>
       </select>
     </label>
   </div>
-  <ul id="photo-grid" class="photo-grid">
+  <ul id="photo-grid" class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
     {orderedPhotos.map((photo) => (
-      <li class="photo-card" data-slug={photo.data.slug}>
-        <img
-          src={`${r2Base}/${photo.data.file}-thumb.jpg`}
-          alt={photo.data.notes ?? photo.data.slug}
-          loading="lazy"
-        />
-        <p>{photo.data.datetime.toISOString().slice(0, 10)} &middot; Tier {photo.data.tier}</p>
-        <ul class="objects">
-          {photo.data.objects.map((obj) => (
-            <li>{obj.object_type === 'organism' ? obj.details.common_name : obj.details.description}</li>
-          ))}
-        </ul>
-      </li>
+      <PhotoCard photo={photo} r2Base={r2Base} />
     ))}
   </ul>
   <script type="application/json" id="photo-data" set:html={JSON.stringify(summaries)} />
