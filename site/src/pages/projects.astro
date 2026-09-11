@@ -8,6 +8,8 @@ const projects = (await getCollection('projects')).sort(
 );
 ---
 <BaseLayout title="Projects" description="Projects by Zack Miller.">
-  <h1>Projects</h1>
-  {projects.map((project) => <ProjectCard project={project} />)}
+  <h1 class="text-2xl font-semibold">Projects</h1>
+  <div class="mt-6">
+    {projects.map((project) => <ProjectCard project={project} />)}
+  </div>
 </BaseLayout>
