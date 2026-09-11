@@ -48,14 +48,14 @@ latitude: ${exif.latitude ?? 'null'}
 lens: ${JSON.stringify(exif.lens ?? '')}
 longitude: ${exif.longitude ?? 'null'}
 notes: # optional
-objects: [] # TODO: add organism/landmark entries, e.g.
-  # - object_type: organism
-  #   details:
+objects:
+  # - details:
   #     common_name: ""
-  #     scientific_name: ""
   #     description: null
+  #     scientific_name: ""
+  #   object_type: organism
 slug: ${slug}
-tier: # TODO: S/A/B/C/D/E/F
+tier: E
 `;
 }
 
