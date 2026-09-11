@@ -2,21 +2,23 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 <BaseLayout title="Home" description="Zack Miller — engineer at Torc Robotics, Virginia Tech alum.">
-  <section class="hero">
-    <img src="/images/headshot.jpg" alt="Zack Miller" width="240" />
-    <h1>Zack Miller</h1>
-    <p>
-      I'm an engineer with a B.S. and M.S. in Engineering Mechanics from
-      Virginia Tech, currently working at Torc Robotics in Blacksburg, VA.
-      See <a href="/projects">Projects</a> for a sample of my work.
-    </p>
+  <section class="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+    <img src="/images/headshot.jpg" alt="Zack Miller" width="240" class="rounded-lg border border-line" />
+    <div>
+      <h1 class="text-3xl font-semibold">Zack Miller</h1>
+      <p class="mt-2 text-ink-muted">
+        I'm an engineer with a B.S. and M.S. in Engineering Mechanics from
+        Virginia Tech, currently working at Torc Robotics in Blacksburg, VA.
+        See <a href="/projects" class="text-clay hover:opacity-75">Projects</a> for a sample of my work.
+      </p>
+    </div>
   </section>
-  <section class="timeline">
-    <h2>Timeline</h2>
-    <ul>
-      <li><strong>2018–present</strong> — Torc Robotics, Blacksburg, VA</li>
-      <li><strong>2018</strong> — M.S., Engineering Mechanics, Virginia Tech</li>
-      <li><strong>2017</strong> — B.S., Engineering Mechanics, Virginia Tech</li>
+  <section class="mt-12">
+    <h2 class="text-xl font-semibold">Timeline</h2>
+    <ul class="mt-4 space-y-3 border-l border-line pl-4">
+      <li><span class="font-semibold text-clay">2018–present</span> — Torc Robotics, Blacksburg, VA</li>
+      <li><span class="font-semibold text-clay">2018</span> — M.S., Engineering Mechanics, Virginia Tech</li>
+      <li><span class="font-semibold text-clay">2017</span> — B.S., Engineering Mechanics, Virginia Tech</li>
     </ul>
   </section>
 </BaseLayout>
