@@ -1,0 +1,12 @@
+{
+  "name": "nauticalhost",
+  // Bumping this date opts into newer Workers runtime defaults; it does not
+  // need to track "today" on every deploy. Change it deliberately, not
+  // reflexively.
+  "compatibility_date": "2026-09-11",
+  // Static site, no Worker script: this deploys site/dist/ (the astro build
+  // output) as a Workers-served static assets bundle.
+  "assets": {
+    "directory": "./dist"
+  }
+}

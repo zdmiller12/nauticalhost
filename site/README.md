@@ -32,26 +32,35 @@ run, `coverage/index.html` has a line-by-line report.
 **Important:** `site/public/resume.pdf` must be added before deploying. The Resume page
 includes a download link to `/resume.pdf`, which will return a 404 if the file is missing.
 
-## Deployment (Cloudflare Pages)
+## Deployment (Cloudflare Workers, git-connected build)
 
-This site deploys via Cloudflare Pages' direct GitHub integration — no
-GitHub Actions needed.
+This site deploys via Cloudflare's git-connected CI — no GitHub Actions
+needed. Cloudflare runs a **build command** (`npm run build`, producing
+`dist/`) and then a **deploy command** (`npx wrangler versions upload`,
+Cloudflare's own default). The deploy command relies on `site/wrangler.jsonc`
+to know it's uploading a static-assets bundle rather than a Worker script —
+without that file, the deploy step fails with "Missing entry-point to Worker
+script or to assets directory" even though the build succeeded.
 
-1. In the Cloudflare dashboard, create a new Pages project connected to this
-   GitHub repo.
+1. In the Cloudflare dashboard, create a new Workers project (Workers &
+   Pages → Import a repository) connected to this GitHub repo.
 2. Set **Root directory** to `site`.
 3. Set **Build command** to `npm run build`.
-4. Set **Build output directory** to `dist`.
-5. In the Cloudflare Pages project settings, add `PUBLIC_R2_BASE_URL` as a
-   **build** environment variable — it must be present at `astro build` time
-   so the compendium page can construct image URLs. If it's missing, the
-   build still succeeds but every photo image URL silently breaks in
-   production (no build error or warning beyond a build-log line).
-6. Deploy. Cloudflare auto-deploys on every push to `main`.
-7. Point the custom domain (already on Cloudflare DNS) at the Pages project
-   from the Pages project's "Custom domains" tab.
+4. Leave the **deploy command** at its default (`npx wrangler versions
+   upload`) — `site/wrangler.jsonc` already tells it to serve `./dist` as
+   static assets under the Worker name `nauticalhost`. If the project's
+   actual Worker name in the dashboard ever differs, update the `name`
+   field in `wrangler.jsonc` to match.
+5. Add `PUBLIC_R2_BASE_URL` as a **build** environment variable — it must
+   be present at `astro build` time so the compendium page can construct
+   image URLs. If it's missing, the build still succeeds but every photo
+   image URL silently breaks in production (no build error or warning
+   beyond a build-log line).
+6. Deploy. Cloudflare auto-builds on every push to `main`.
+7. Point the custom domain (already on Cloudflare DNS) at this Worker from
+   its "Custom domains" / "Triggers" tab.
 
-**Note:** `.nvmrc` pins the Node build version to 22.12.0 for Cloudflare Pages.
+**Note:** `.nvmrc` pins the Node build version to 22.12.0 for Cloudflare's build environment.
 Cloudflare automatically reads this file and uses the specified version, ensuring
 consistency between local and cloud builds.
 
@@ -65,7 +74,7 @@ consistency between local and cloud builds.
       that bucket with Object Read & Write permission. This gives
       `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
    4. Set `PUBLIC_R2_BASE_URL` as a build environment variable in the
-      Cloudflare Pages project settings (see "Deployment" above) — without
+      Cloudflare project settings (see "Deployment" above) — without
       it, image URLs on the compendium page silently break in production.
 2. Copy `.env.example` to `.env` and fill in the four R2 values from step 1
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
@@ -89,4 +98,4 @@ consistency between local and cloud builds.
    deferred: reintroducing them as a real, displayed feature (with a
    nullable schema field, since EXIF doesn't always have them) is future
    work, not a bug.
-6. Commit and push — Cloudflare Pages deploys automatically.
+6. Commit and push — Cloudflare deploys automatically.
