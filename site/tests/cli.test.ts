@@ -14,9 +14,9 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     mkdir: vi.fn().mockResolvedValue(undefined),
     extractExif: vi.fn().mockResolvedValue({
       camera: 'Sony A7 IV',
-      lens: '100-400mm GM',
       date: new Date(2026, 5, 14),
       latitude: 38.9784,
+      lens: '100-400mm GM',
       longitude: -76.4922,
     }),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
@@ -54,9 +54,9 @@ describe('runCli', () => {
     const io = makeIo({
       argv: ['node', 'publish-photo.ts', '/tmp/source.jpg', '2026-06-14-osprey-nest', 'ospreys/osprey-nest-01'],
       env: {
-        R2_BUCKET_NAME: 'photos',
-        R2_ACCOUNT_ID: 'acct',
         R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
         R2_SECRET_ACCESS_KEY: 'secret',
       },
     });
@@ -64,10 +64,10 @@ describe('runCli', () => {
     await runCli(io);
 
     expect(io.createR2Client).toHaveBeenCalledWith({
-      accountId: 'acct',
       accessKeyId: 'key',
-      secretAccessKey: 'secret',
+      accountId: 'acct',
       bucket: 'photos',
+      secretAccessKey: 'secret',
     });
     expect(io.readFile).toHaveBeenCalledWith('/tmp/source.jpg');
     expect(io.uploadObject).toHaveBeenCalledWith(

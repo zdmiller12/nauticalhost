@@ -22,9 +22,9 @@ describe('extractExif', () => {
 
     expect(result).toEqual({
       camera: 'Sony A7 IV',
-      lens: '100-400mm GM',
       date: new Date('2026-06-14T10:30:00Z'),
       latitude: 38.9784,
+      lens: '100-400mm GM',
       longitude: -76.4922,
     });
   });
@@ -34,7 +34,7 @@ describe('extractExif', () => {
 
     const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
 
-    expect(result).toEqual({ camera: null, lens: null, date: null, latitude: null, longitude: null });
+    expect(result).toEqual({ camera: null, date: null, latitude: null, lens: null, longitude: null });
   });
 
   it('falls back to Model alone when Make is missing', async () => {

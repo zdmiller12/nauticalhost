@@ -10,8 +10,8 @@ if (!r2Base) {
 }
 
 const summaries: PhotoSummary[] = allPhotos.map((p) => ({
-  slug: p.data.slug,
   date: p.data.date.toISOString().slice(0, 10),
+  slug: p.data.slug,
   tier: p.data.tier,
 }));
 

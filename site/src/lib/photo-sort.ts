@@ -1,10 +1,12 @@
+// Deliberately in tier-list rank order (best to worst), not alphabetical —
+// that ordering *is* the point of this type.
 export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 
 const TIER_RANK: Record<Tier, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, E: 5, F: 6 };
 
 export interface PhotoSummary {
-  slug: string;
   date: string;
+  slug: string;
   tier: Tier;
 }
 

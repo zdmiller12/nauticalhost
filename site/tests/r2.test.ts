@@ -5,10 +5,10 @@ import { createR2Client, buildPutObjectCommand, uploadObject } from '../scripts/
 describe('createR2Client', () => {
   it('returns an S3Client instance', () => {
     const client = createR2Client({
-      accountId: 'acct123',
       accessKeyId: 'key',
-      secretAccessKey: 'secret',
+      accountId: 'acct123',
       bucket: 'photos',
+      secretAccessKey: 'secret',
     });
     expect(client).toBeInstanceOf(S3Client);
   });

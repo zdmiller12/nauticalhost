@@ -6,12 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
     "astro": "astro",
-    "test": "vitest run --coverage",
-    "publish-photo": "tsx scripts/publish-photo.ts"
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview",
+    "publish-photo": "tsx scripts/publish-photo.ts",
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "astro": "^7.2.10",
