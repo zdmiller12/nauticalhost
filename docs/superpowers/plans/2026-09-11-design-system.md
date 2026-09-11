@@ -1,6 +1,6 @@
 # Design System Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Restyle the personal site with a cohesive, modern-minimalist design system (earthy/clay palette, system-font stack, Tailwind v4 tokens) built as a single reusable token layer, per `docs/superpowers/specs/2026-09-11-design-system-design.md`.
 
@@ -38,7 +38,7 @@
   `<html>` re-resolves `paper`/`ink`/`ink-muted`/`line`/`clay` to their dark-mode
   values — later tasks rely on this contract without redefining it.
 
-- [ ] **Step 1: Install Tailwind v4 packages**
+- [x] **Step 1: Install Tailwind v4 packages**
 
 Run (from `site/`):
 ```bash
@@ -46,7 +46,7 @@ cd site && npm install tailwindcss@^4 @tailwindcss/vite@^4
 ```
 Expected: `package.json` now lists `tailwindcss` and `@tailwindcss/vite` under `dependencies`.
 
-- [ ] **Step 2: Wire the Tailwind Vite plugin into Astro config**
+- [x] **Step 2: Wire the Tailwind Vite plugin into Astro config**
 
 Replace the full contents of `site/astro.config.mjs` with:
 
@@ -69,7 +69,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Create the token file**
+- [x] **Step 3: Create the token file**
 
 Create `site/src/styles/global.css`:
 
@@ -122,7 +122,7 @@ Create `site/src/styles/global.css`:
 }
 ```
 
-- [ ] **Step 4: Verify the build compiles the tokens**
+- [x] **Step 4: Verify the build compiles the tokens**
 
 Run:
 ```bash
@@ -134,7 +134,7 @@ grep -r "b5654a" site/dist/_astro/*.css
 ```
 returns at least one match, confirming the token compiled into the output CSS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add site/package.json site/package-lock.json site/astro.config.mjs site/src/styles/global.css
@@ -158,7 +158,7 @@ git commit -m "Add Tailwind v4 and design-token layer"
   page content-column convention: `<main>` carries `mx-auto max-w-3xl px-4 py-12` —
   pages render inside it and don't need their own width styling.
 
-- [ ] **Step 1: Replace BaseLayout.astro**
+- [x] **Step 1: Replace BaseLayout.astro**
 
 Replace the full contents of `site/src/layouts/BaseLayout.astro`:
 
@@ -201,7 +201,7 @@ const { title, description = 'Zack Miller — engineer, builder.' } = Astro.prop
 </html>
 ```
 
-- [ ] **Step 2: Verify no flash-of-wrong-theme and base colors apply**
+- [x] **Step 2: Verify no flash-of-wrong-theme and base colors apply**
 
 Run (from `site/`):
 ```bash
@@ -212,7 +212,7 @@ dark on first load (no flash of a light page before it switches). Toggle OS them
 reload: it should follow `prefers-color-scheme` since no `theme` key is in
 `localStorage` yet. Then run `astro dev stop`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add site/src/layouts/BaseLayout.astro
@@ -234,7 +234,7 @@ git commit -m "Wire design tokens and dark-mode init into BaseLayout"
   active-link convention (`text-clay underline underline-offset-4` when the link's
   `href` matches `Astro.url.pathname`).
 
-- [ ] **Step 1: Replace Header.astro**
+- [x] **Step 1: Replace Header.astro**
 
 Replace the full contents of `site/src/components/Header.astro`:
 
@@ -271,14 +271,14 @@ const linkClass = (href: string) =>
 </script>
 ```
 
-- [ ] **Step 2: Verify the toggle and active state**
+- [x] **Step 2: Verify the toggle and active state**
 
 Run `astro dev --background`, open the site. Click the 🌓 button: the page should
 flip between light and dark instantly and persist across a reload (check
 `localStorage.theme` in devtools). Navigate to `/projects`: the "Projects" link
 should be clay-colored and underlined while the others aren't. Run `astro dev stop`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add site/src/components/Header.astro
@@ -298,7 +298,7 @@ git commit -m "Restyle Header with active nav state and dark-mode toggle"
   (`border-line`, `text-ink-muted`, `text-clay`).
 - Produces: nothing new consumed elsewhere.
 
-- [ ] **Step 1: Replace Footer.astro**
+- [x] **Step 1: Replace Footer.astro**
 
 Replace the full contents of `site/src/components/Footer.astro`:
 
@@ -318,13 +318,13 @@ import { socialLinks } from '../data/social-links';
 </footer>
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run `astro dev --background`, confirm the footer shows GitHub/LinkedIn/Email links
 with a hairline top border, links turn clay on hover, and the copyright line sits at
 the right edge on desktop width. Run `astro dev stop`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add site/src/components/Footer.astro
@@ -344,7 +344,7 @@ git commit -m "Restyle Footer"
   (`border-line`, `bg-paper`, `text-clay`, `bg-line`, `text-ink-muted`).
 - Produces: nothing new consumed elsewhere.
 
-- [ ] **Step 1: Replace ProjectCard.astro**
+- [x] **Step 1: Replace ProjectCard.astro**
 
 Replace the full contents of `site/src/components/ProjectCard.astro`:
 
@@ -374,7 +374,7 @@ const { title, description, githubUrl, demoUrl, tags } = project.data;
 </article>
 ```
 
-- [ ] **Step 2: Update projects.astro's heading**
+- [x] **Step 2: Update projects.astro's heading**
 
 Replace the full contents of `site/src/pages/projects.astro`:
 
@@ -396,13 +396,13 @@ const projects = (await getCollection('projects')).sort(
 </BaseLayout>
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run `astro dev --background`, open `/projects`: both project cards should show as
 bordered/shadowed cards with gray tag chips and clay-colored links, in both light and
 dark mode. Run `astro dev stop`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add site/src/components/ProjectCard.astro site/src/pages/projects.astro
@@ -420,7 +420,7 @@ git commit -m "Restyle ProjectCard and Projects page"
 - Consumes: Task 1 tokens only (`text-clay`, `text-ink-muted`, `border-line`).
 - Produces: nothing new consumed elsewhere.
 
-- [ ] **Step 1: Replace index.astro**
+- [x] **Step 1: Replace index.astro**
 
 Replace the full contents of `site/src/pages/index.astro`:
 
@@ -451,13 +451,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run `astro dev --background`, open `/`: headshot + name + intro should sit side by
 side on desktop and stack on mobile width (~400px); timeline entries should show
 clay-colored year markers against a left hairline border. Run `astro dev stop`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add site/src/pages/index.astro
@@ -475,7 +475,7 @@ git commit -m "Restyle Home page"
 - Consumes: Task 1 tokens only (`text-clay`, `text-ink-muted`).
 - Produces: nothing new consumed elsewhere.
 
-- [ ] **Step 1: Replace resume.astro**
+- [x] **Step 1: Replace resume.astro**
 
 Replace the full contents of `site/src/pages/resume.astro`:
 
@@ -504,12 +504,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run `astro dev --background`, open `/resume`: heading hierarchy and spacing should
 match the rest of the site; download link is clay-colored. Run `astro dev stop`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add site/src/pages/resume.astro
@@ -535,7 +535,7 @@ git commit -m "Restyle Resume page"
   Task 1 tokens: `border-line`, `bg-paper`, `text-ink-muted`, `bg-line`, `bg-tier-s`…`bg-tier-f`.
 - Produces: `PhotoCard` component with `Props = { photo: CollectionEntry<'photos'>; r2Base: string }`.
 
-- [ ] **Step 1: Create PhotoCard.astro**
+- [x] **Step 1: Create PhotoCard.astro**
 
 Create `site/src/components/PhotoCard.astro`:
 
@@ -585,7 +585,7 @@ const tierDotClass: Record<string, string> = {
 </li>
 ```
 
-- [ ] **Step 2: Update compendium.astro to use PhotoCard**
+- [x] **Step 2: Update compendium.astro to use PhotoCard**
 
 Replace the full contents of `site/src/pages/compendium.astro`:
 
@@ -633,7 +633,7 @@ const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
 </BaseLayout>
 ```
 
-- [ ] **Step 3: Run the existing client-sort test to confirm the DOM contract held**
+- [x] **Step 3: Run the existing client-sort test to confirm the DOM contract held**
 
 Run:
 ```bash
@@ -643,14 +643,14 @@ Expected: all 4 existing tests in `compendium-client.test.ts` still pass — the
 depend on `#photo-grid`/`[data-slug]`/`#sort-select`/`#photo-data`, none of which
 changed.
 
-- [ ] **Step 4: Manually verify the grid**
+- [x] **Step 4: Manually verify the grid**
 
 Run `astro dev --background`, open `/compendium`: photos render as bordered cards
 in a responsive grid (2 columns on mobile, up to 4 on desktop), each with a small
 colored dot next to "Tier X" (darker/greener dot for S, fading toward gray for F).
 Switch the sort dropdown to "Tier" and confirm the grid reorders. Run `astro dev stop`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add site/src/components/PhotoCard.astro site/src/pages/compendium.astro
@@ -667,7 +667,7 @@ git commit -m "Extract PhotoCard component and restyle Compendium page"
 - Consumes: everything from Tasks 1–8.
 - Produces: final verified state of the branch.
 
-- [ ] **Step 1: Run the full existing test suite**
+- [x] **Step 1: Run the full existing test suite**
 
 ```bash
 cd site && npm test
@@ -676,14 +676,14 @@ Expected: all existing suites pass unchanged (`photo-sort`, `compendium-client`,
 `content-schema`, `content-config`, `social-links`, `cli`, `exif`, `publish`, `r2`,
 `resize`).
 
-- [ ] **Step 2: Run a full production build**
+- [x] **Step 2: Run a full production build**
 
 ```bash
 cd site && npm run build
 ```
 Expected: succeeds with no errors or warnings about the Tailwind plugin.
 
-- [ ] **Step 3: Manual cross-page check**
+- [x] **Step 3: Manual cross-page check**
 
 Run `astro dev --background`. For each of `/`, `/projects`, `/resume`, `/compendium`:
 check in both light and dark mode (toggle via the header button) and at ~400px width
@@ -691,7 +691,7 @@ check in both light and dark mode (toggle via the header button) and at ~400px w
 appears, and the clay accent is the only color used for links/active states outside
 the photo-tier dots. Run `astro dev stop`.
 
-- [ ] **Step 4: Fix or commit**
+- [x] **Step 4: Fix or commit**
 
 If Step 3 surfaces any issue, fix it in the relevant file from Tasks 1–8 and commit
 with a message describing the fix (e.g. `git commit -m "Fix mobile overflow on Home hero"`).

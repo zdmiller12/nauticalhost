@@ -10,9 +10,15 @@ public/private repos, stitched under one domain).
 
 ## Context
 
-- Site: static Astro 7 app (`site/`), no CSS framework installed, deployed as a
-  Cloudflare Worker via `@astrojs/cloudflare` + `wrangler deploy` (Workers Builds, not
-  Pages).
+- Site: static Astro 7 app (`site/`), no CSS framework installed, no Astro adapter
+  configured (`astro.config.mjs` was a bare `defineConfig({})` as of this spec).
+  Deployed as flat static assets via `wrangler` (Workers Builds, not Pages) —
+  `wrangler.jsonc`'s `assets.directory` points at the plain `astro build` output
+  (`./dist`), no Worker script. (`site/README.md`'s "Deployment (Cloudflare Workers
+  Builds)" section describes an earlier `@astrojs/cloudflare`-adapter-based setup;
+  that description is stale relative to the actual current config as of this spec
+  and predates this correction — corrected here after the design-system
+  implementation branch's final review caught the mismatch.)
 - Current pages: Home (hero + timeline), Projects (`ProjectCard` list from a Zod-typed
   content collection), Resume, Compendium (photo grid with client-side sort, from the
   photo content collection — see `2026-09-02-photo-compendium-design.md`). None of the
