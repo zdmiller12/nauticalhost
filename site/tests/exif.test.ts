@@ -21,7 +21,7 @@ describe('extractExif', () => {
     const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
 
     expect(result).toEqual({
-      camera: 'Sony A7 IV',
+      camera: 'Sony: A7 IV',
       date: new Date('2026-06-14T10:30:00Z'),
       latitude: 38.9784,
       lens: '100-400mm GM',

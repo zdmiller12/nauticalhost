@@ -35,7 +35,7 @@ export async function extractExif(buffer: Buffer): Promise<PhotoExif> {
     return { camera: null, date: null, latitude: null, lens: null, longitude: null, utcOffsetMinutes: null };
   }
 
-  const camera = data.Make && data.Model ? `${data.Make} ${data.Model}`.trim() : (data.Model ?? null);
+  const camera = data.Make && data.Model ? `${data.Make}: ${data.Model}`.trim() : (data.Model ?? null);
   const utcOffsetMinutes = parseUtcOffsetMinutes(data.OffsetTimeOriginal);
 
   // exifr parses EXIF's naive "YYYY:MM:DD HH:mm:ss" DateTimeOriginal string
