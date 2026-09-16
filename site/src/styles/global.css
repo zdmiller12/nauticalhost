@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Fonts — system stack only, no self-hosted webfonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* Type scale (12/14/16/20/24/32/40px). xs/sm/base already match Tailwind's
+     defaults; only lg/xl/2xl/3xl need overriding. */
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+
+  /* Neutrals (light mode default) */
+  --color-paper: #faf6ef;
+  --color-ink: #2b2823;
+  --color-ink-muted: #6b655a;
+  --color-line: #e4dcc9;
+
+  /* Accent — the only color used for links, buttons, active/hover states */
+  --color-clay: #a45539;
+
+  /* Reserved data-viz hues — not wired into general UI this pass */
+  --color-amber: #c99a4a;
+  --color-slate: #5c6b73;
+  --color-sage: #8a9a6e;
+  --color-lavender: #8d7a93;
+
+  /* Photo tier ordinal ramp, S (best) -> F (worst) */
+  --color-tier-s: #5f7a4a;
+  --color-tier-a: #748a5c;
+  --color-tier-b: #8a9a6e;
+  --color-tier-c: #9fa98c;
+  --color-tier-d: #b4b8a6;
+  --color-tier-e: #c7c7be;
+  --color-tier-f: #d8d4c8;
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-paper: #211e1a;
+  --color-ink: #ede8de;
+  --color-ink-muted: #b8b0a0;
+  --color-line: #3a352c;
+  --color-clay: #c97a5e;
+}

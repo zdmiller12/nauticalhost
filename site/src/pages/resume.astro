@@ -2,18 +2,20 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 <BaseLayout title="Resume" description="Zack Miller's resume.">
-  <h1>Resume</h1>
-  <p><a href="/resume.pdf">Download PDF</a></p>
-  <section>
-    <h2>Education</h2>
-    <ul>
+  <h1 class="text-2xl font-semibold">Resume</h1>
+  <p class="mt-2">
+    <a href="/resume.pdf" class="text-clay hover:underline hover:underline-offset-4">Download PDF</a>
+  </p>
+  <section class="mt-8">
+    <h2 class="text-lg font-semibold">Education</h2>
+    <ul class="mt-2 space-y-1 text-ink-muted">
       <li>M.S., Engineering Mechanics — Virginia Tech, 2018</li>
       <li>B.S., Engineering Mechanics — Virginia Tech, 2017</li>
     </ul>
   </section>
-  <section>
-    <h2>Experience</h2>
-    <ul>
+  <section class="mt-8">
+    <h2 class="text-lg font-semibold">Experience</h2>
+    <ul class="mt-2 space-y-1 text-ink-muted">
       <li>Torc Robotics — Blacksburg, VA (2018–present)</li>
     </ul>
   </section>
