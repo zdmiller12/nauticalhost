@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { basename, extname } from 'node:path';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { extractExif, type PhotoExif } from './exif';
 import { resizePhoto } from './resize';
@@ -46,12 +47,16 @@ export function createRealCliIo(): CliIo {
 }
 
 export async function runCli(io: CliIo): Promise<void> {
-  const [sourcePath, slug, r2KeyPrefix] = io.argv.slice(2);
-  if (!sourcePath || !slug || !r2KeyPrefix) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <slug> <r2KeyPrefix>');
+  const [sourcePath, r2KeyPrefixArg] = io.argv.slice(2);
+  if (!sourcePath || !r2KeyPrefixArg) {
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix>');
     io.exit(1);
     return;
   }
+
+  const fileName = basename(sourcePath);
+  const slug = fileName.slice(0, fileName.length - extname(fileName).length);
+  const r2KeyPrefix = `${r2KeyPrefixArg.replace(/\/+$/, '')}/${fileName}`;
 
   const accessKeyId = io.env.R2_ACCESS_KEY_ID;
   const accountId = io.env.R2_ACCOUNT_ID;

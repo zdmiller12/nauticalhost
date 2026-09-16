@@ -80,9 +80,13 @@ consistency between local and cloud builds.
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
 3. Run:
 
-       npm run publish-photo -- <path-to-source-image> <slug> <r2-key-prefix>
+       npm run publish-photo -- <path-to-source-image> <r2-key-prefix>
 
-   e.g. `npm run publish-photo -- ~/photos/osprey.jpg 2026-06-14-osprey-nest ospreys/osprey-nest-01`
+   e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys`
+
+   The slug is always the source image's file stem (its file name without
+   extension), and the R2 key is always `<r2-key-prefix>/<file name>`
+   (any trailing slashes on `<r2-key-prefix>` are stripped first).
 
 4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
