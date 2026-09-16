@@ -29,7 +29,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
 
 describe('runCli', () => {
   it('prints usage and exits 1 when a required argument is missing', async () => {
-    const io = makeIo({ argv: ['node', 'publish-photo.ts', 'only-one-arg'] });
+    const io = makeIo({ argv: ['node', 'publish-photo.ts', '/tmp/only-one-arg.jpg'] });
 
     await runCli(io);
 
@@ -40,7 +40,7 @@ describe('runCli', () => {
 
   it('prints a missing-env-vars error and exits 1 when R2 config is absent', async () => {
     const io = makeIo({
-      argv: ['node', 'publish-photo.ts', '/tmp/source.jpg', 'slug', 'prefix'],
+      argv: ['node', 'publish-photo.ts', '/tmp/source.jpg', 'prefix'],
       env: {},
     });
 
@@ -53,7 +53,7 @@ describe('runCli', () => {
 
   it('wires deps from env/argv, publishes the photo, and logs success', async () => {
     const io = makeIo({
-      argv: ['node', 'publish-photo.ts', '/tmp/source.jpg', '2026-06-14-osprey-nest', 'ospreys/osprey-nest-01'],
+      argv: ['node', 'publish-photo.ts', '/tmp/2026-06-14-osprey-nest.jpg', 'ospreys/osprey-nest-01'],
       env: {
         R2_ACCESS_KEY_ID: 'key',
         R2_ACCOUNT_ID: 'acct',
@@ -70,11 +70,11 @@ describe('runCli', () => {
       bucket: 'photos',
       secretAccessKey: 'secret',
     });
-    expect(io.readFile).toHaveBeenCalledWith('/tmp/source.jpg');
+    expect(io.readFile).toHaveBeenCalledWith('/tmp/2026-06-14-osprey-nest.jpg');
     expect(io.uploadObject).toHaveBeenCalledWith(
       expect.anything(),
       'photos',
-      'ospreys/osprey-nest-01-thumb.jpg',
+      'ospreys/osprey-nest-01/2026-06-14-osprey-nest.jpg-thumb.jpg',
       Buffer.from('t'),
       'image/jpeg'
     );
@@ -84,5 +84,27 @@ describe('runCli', () => {
     );
     expect(io.log).toHaveBeenCalledWith(expect.stringContaining('Published 2026-06-14-osprey-nest'));
     expect(io.exit).not.toHaveBeenCalled();
+  });
+
+  it('strips any number of trailing slashes from the r2KeyPrefix argument', async () => {
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/2026-06-14-osprey-nest.jpg', 'ospreys/osprey-nest-01///'],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+    });
+
+    await runCli(io);
+
+    expect(io.uploadObject).toHaveBeenCalledWith(
+      expect.anything(),
+      'photos',
+      'ospreys/osprey-nest-01/2026-06-14-osprey-nest.jpg-thumb.jpg',
+      Buffer.from('t'),
+      'image/jpeg'
+    );
   });
 });
