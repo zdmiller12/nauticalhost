@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PhotoCard from '../components/PhotoCard.astro';
-import { sortPhotos, type PhotoSummary } from '../lib/photo-sort';
+import { DEFAULT_SORT, SORT_KEYS, SORT_LABELS, sortPhotos, toPhotoSummary } from '../lib/photo-sort';
 
 const allPhotos = await getCollection('photos');
 const r2Base = import.meta.env.PUBLIC_R2_BASE_URL ?? '';
@@ -10,13 +10,9 @@ if (!r2Base) {
   console.warn('PUBLIC_R2_BASE_URL is not set — photo images will 404.');
 }
 
-const summaries: PhotoSummary[] = allPhotos.map((p) => ({
-  date: p.data.datetime.toISOString().slice(0, 10),
-  slug: p.data.slug,
-  tier: p.data.tier,
-}));
+const summaries = allPhotos.map((p) => toPhotoSummary(p.data));
 
-const orderedSlugs = sortPhotos(summaries, 'date').map((p) => p.slug);
+const orderedSlugs = sortPhotos(summaries, DEFAULT_SORT).map((p) => p.slug);
 const photosBySlug = new Map(allPhotos.map((p) => [p.data.slug, p]));
 const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
 ---
@@ -30,8 +26,7 @@ const orderedPhotos = orderedSlugs.map((slug) => photosBySlug.get(slug)!);
     <label class="flex items-center gap-2">
       Sort by
       <select id="sort-select" class="rounded border border-line bg-paper px-2 py-1 text-ink">
-        <option value="date">Date</option>
-        <option value="tier">Tier</option>
+        {SORT_KEYS.map((key) => <option value={key}>{SORT_LABELS[key]}</option>)}
       </select>
     </label>
   </div>

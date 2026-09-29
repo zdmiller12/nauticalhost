@@ -1,0 +1,127 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PhotoNav from '../../../components/PhotoNav.astro';
+import PhotoViewer from '../../../components/PhotoViewer.astro';
+import TierBadge from '../../../components/TierBadge.astro';
+import {
+  formatCamera,
+  formatCaptureDate,
+  formatCaptureTime,
+  formatLocation,
+  photoTitle,
+} from '../../../lib/photo-display';
+import { SORT_KEYS, photoPositions, toPhotoSummary, type SortNav } from '../../../lib/photo-sort';
+
+export async function getStaticPaths() {
+  const photos = await getCollection('photos');
+  const summaries = photos.map((p) => toPhotoSummary(p.data));
+  const titles = new Map(photos.map((p) => [p.data.slug, photoTitle(p.data.objects)]));
+  const neighbor = (slug: string | null) => (slug ? { slug, title: titles.get(slug)! } : null);
+  const positionsByKey = SORT_KEYS.map((key) => [key, photoPositions(summaries, key)] as const);
+
+  return photos.map((photo) => ({
+    params: { slug: photo.data.slug },
+    props: {
+      navs: positionsByKey.map(([key, positions]): SortNav => {
+        const { index, next, prev, total } = positions.get(photo.data.slug)!;
+        return { index, key, next: neighbor(next), prev: neighbor(prev), total };
+      }),
+      photo,
+    },
+  }));
+}
+
+interface Props {
+  navs: SortNav[];
+  photo: CollectionEntry<'photos'>;
+}
+
+const { navs, photo } = Astro.props;
+const { camera, datetime, file, latitude, lens, longitude, notes, objects, slug, tier } = photo.data;
+
+const r2Base = import.meta.env.PUBLIC_R2_BASE_URL ?? '';
+const title = photoTitle(objects);
+const [firstObject] = objects;
+const subtitle = objects.length === 1 && firstObject.object_type === 'organism' ? firstObject.details.scientific_name : null;
+const cameraLabel = formatCamera(camera);
+const lensLabel = lens?.trim() || null;
+const location = formatLocation(latitude, longitude);
+
+const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text-ink-muted';
+---
+<BaseLayout title={title} description={notes ?? `${title}, from Zack Miller's photo compendium.`}>
+  <PhotoNav navs={navs} slug={slug} />
+
+  <header class="mt-8">
+    <h1 class="text-2xl font-semibold">{title}</h1>
+    {subtitle && <p class="mt-1 italic text-ink-muted">{subtitle}</p>}
+  </header>
+
+  <div class="mt-6">
+    <PhotoViewer src={`${r2Base}/${file}-lg.jpg`} alt={notes ?? title} />
+  </div>
+
+  {notes && <p class="mt-6 text-lg">{notes}</p>}
+
+  <div class="mt-10 grid gap-10 border-t border-line pt-8 sm:grid-cols-2">
+    <section aria-labelledby="subjects-heading">
+      <h2 id="subjects-heading" class={sectionHeadingClass}>{objects.length === 1 ? 'Subject' : 'Subjects'}</h2>
+      <ul class="mt-4 space-y-5">
+        {objects.map((obj) => (
+          <li>
+            {obj.object_type === 'organism' ? (
+              <>
+                <p class="font-semibold">{obj.details.common_name}</p>
+                <p class="italic text-ink-muted">{obj.details.scientific_name}</p>
+                {obj.details.description && <p class="mt-1 text-sm text-ink-muted">{obj.details.description}</p>}
+              </>
+            ) : (
+              <>
+                <p class="font-semibold">{obj.details.description}</p>
+                <p class="text-sm text-ink-muted">Landmark</p>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section aria-labelledby="details-heading">
+      <h2 id="details-heading" class={sectionHeadingClass}>Details</h2>
+      <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
+        <dt class="text-ink-muted">Taken</dt>
+        <dd>
+          <time datetime={datetime.toISOString()}>{formatCaptureDate(datetime)}</time>
+          <span class="text-ink-muted">· {formatCaptureTime(datetime)}</span>
+        </dd>
+
+        <dt class="text-ink-muted">Tier</dt>
+        <dd><TierBadge tier={tier} /></dd>
+
+        {cameraLabel && (
+          <>
+            <dt class="text-ink-muted">Camera</dt>
+            <dd>{cameraLabel}</dd>
+          </>
+        )}
+
+        {lensLabel && (
+          <>
+            <dt class="text-ink-muted">Lens</dt>
+            <dd>{lensLabel}</dd>
+          </>
+        )}
+
+        {location && (
+          <>
+            <dt class="text-ink-muted">Location</dt>
+            <dd>
+              <a href={location.mapUrl} class="text-clay hover:underline hover:underline-offset-4">{location.label}</a>
+            </dd>
+          </>
+        )}
+      </dl>
+    </section>
+  </div>
+</BaseLayout>

@@ -1,0 +1,45 @@
+---
+interface Props {
+  alt: string;
+  src: string;
+}
+
+const { alt, src } = Astro.props;
+
+const buttonClass =
+  'flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper/90 text-ink shadow-sm transition-colors hover:text-clay disabled:opacity-40 disabled:hover:text-ink';
+---
+<figure
+  data-photo-viewer
+  aria-label="Photo viewer"
+  class="group relative data-expanded:fixed data-expanded:inset-0 data-expanded:z-50 data-expanded:bg-black/95"
+>
+  <div
+    data-viewer-stage
+    class="relative cursor-zoom-in touch-pan-y overflow-hidden rounded-lg bg-line/40 group-data-expanded:h-full group-data-expanded:rounded-none group-data-expanded:bg-transparent group-data-zoomed:cursor-grab group-data-zoomed:active:cursor-grabbing"
+  >
+    <img
+      data-viewer-image
+      src={src}
+      alt={alt}
+      draggable="false"
+      class="block h-auto max-h-[75vh] w-full origin-top-left select-none object-contain group-data-expanded:h-full group-data-expanded:max-h-none"
+    />
+  </div>
+  <div class="absolute bottom-3 right-3 flex gap-2">
+    <button type="button" data-viewer-action="zoom-out" aria-label="Zoom out" class={buttonClass}>
+      <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h12" /></svg>
+    </button>
+    <button type="button" data-viewer-action="zoom-in" aria-label="Zoom in" class={buttonClass}>
+      <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h12M10 4v12" /></svg>
+    </button>
+    <button type="button" data-viewer-action="reset" aria-label="Reset zoom" class={buttonClass}>
+      <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8V4h4M16 12v4h-4M16 8V4h-4M4 12v4h4" /></svg>
+    </button>
+    <button type="button" data-viewer-action="expand" aria-label="Open full view" aria-pressed="false" class={buttonClass}>
+      <svg viewBox="0 0 20 20" class="h-4 w-4 group-data-expanded:hidden" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4h4v4M8 16H4v-4M16 4l-5 5M4 16l5-5" /></svg>
+      <svg viewBox="0 0 20 20" class="hidden h-4 w-4 group-data-expanded:block" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+    </button>
+  </div>
+</figure>
+<script src="../scripts/photo-viewer.ts"></script>
