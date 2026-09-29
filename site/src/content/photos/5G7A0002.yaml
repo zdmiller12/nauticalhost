@@ -1,0 +1,16 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-09-13T23:06:26Z
+file: compendium/alpha/5G7A0002.JPG
+latitude: 37.162349
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.447362
+notes: Second shot!
+objects:
+  - details:
+      common_name: "Black Walnut"
+      description: Hammock swing for scale...
+      scientific_name: "Juglans nigra"
+    object_type: organism
+slug: 5G7A0002
+tier: E

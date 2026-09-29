@@ -1,0 +1,16 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-09-13T23:19:31Z
+file: compendium/alpha/5G7A0007.JPG
+latitude: 37.162349
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.447362
+notes: Spikey boy
+objects:
+  - details:
+      common_name: "Domestic dog"
+      description: "Full name: Dr. Spike Jones Rodgers Miller"
+      scientific_name: "Canis familiaris"
+    object_type: organism
+slug: 5G7A0007
+tier: E

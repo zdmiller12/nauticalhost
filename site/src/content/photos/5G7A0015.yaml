@@ -1,0 +1,16 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-09-30T22:08:33Z
+file: compendium/alpha/5G7A0015.JPG
+latitude: 36.158918
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.100112
+notes: Tom Gray (STORYBOOK) Trail
+objects:
+  - details:
+      common_name: "Great Rhododendron"
+      description: With bud.
+      scientific_name: "Rhododendron maximum"
+    object_type: organism
+slug: 5G7A0015
+tier: E
