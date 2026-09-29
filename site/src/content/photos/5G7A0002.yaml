@@ -9,6 +9,7 @@ notes: Second shot!
 objects:
   - details:
       common_name: "Black Walnut"
+      description: Hammock swing for scale...
       scientific_name: "Juglans nigra"
     object_type: organism
 slug: 5G7A0002
