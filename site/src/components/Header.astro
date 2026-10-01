@@ -1,7 +1,9 @@
 ---
 const path = Astro.url.pathname;
+const isActive = (href: string) =>
+  path === href || (href !== '/' && path.startsWith(`${href}/`));
 const linkClass = (href: string) =>
-  path === href ? 'text-clay underline underline-offset-4' : 'hover:text-clay';
+  isActive(href) ? 'text-clay underline underline-offset-4' : 'hover:text-clay';
 ---
 <header class="border-b border-line">
   <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 text-sm">

@@ -1,0 +1,23 @@
+---
+import type { Tier } from '../lib/photo-sort';
+
+interface Props {
+  tier: Tier;
+}
+
+const { tier } = Astro.props;
+
+const tierDotClass: Record<Tier, string> = {
+  S: 'bg-tier-s',
+  A: 'bg-tier-a',
+  B: 'bg-tier-b',
+  C: 'bg-tier-c',
+  D: 'bg-tier-d',
+  E: 'bg-tier-e',
+  F: 'bg-tier-f',
+};
+---
+<span class="flex items-center gap-1.5">
+  <span class={`h-2 w-2 rounded-full ${tierDotClass[tier]}`}></span>
+  Tier {tier}
+</span>

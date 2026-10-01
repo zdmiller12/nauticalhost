@@ -29,9 +29,11 @@ export const photoObjectSchema = z.discriminatedUnion('object_type', [
 ]);
 
 export const photoSchema = z.object({
+  camera: z.string().nullish(),
   datetime: z.coerce.date(),
   file: z.string(),
   latitude: z.number().min(-90).max(90).nullable(),
+  lens: z.string().nullish(),
   longitude: z.number().min(-180).max(180).nullable(),
   notes: z.string().nullish(),
   objects: z.array(photoObjectSchema).min(1),

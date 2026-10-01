@@ -1,5 +1,9 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import TierBadge from './TierBadge.astro';
+import { photoCardId, photoHref } from '../lib/compendium-routes';
+import { objectName, photoTitle } from '../lib/photo-display';
+import { DEFAULT_SORT } from '../lib/photo-sort';
 
 interface Props {
   photo: CollectionEntry<'photos'>;
@@ -8,36 +12,27 @@ interface Props {
 
 const { photo, r2Base } = Astro.props;
 const { file, datetime, tier, notes, objects, slug } = photo.data;
-
-const tierDotClass: Record<string, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
 ---
-<li class="rounded-lg border border-line bg-paper p-3 shadow-sm" data-slug={slug}>
-  <img
-    src={`${r2Base}/${file}-thumb.jpg`}
-    alt={notes ?? slug}
-    loading="lazy"
-    class="w-full rounded-md object-cover"
-  />
-  <p class="mt-2 flex items-center justify-between text-xs text-ink-muted">
-    <span>{datetime.toISOString().slice(0, 10)}</span>
-    <span class="flex items-center gap-1.5">
-      <span class={`h-2 w-2 rounded-full ${tierDotClass[tier]}`}></span>
-      Tier {tier}
-    </span>
-  </p>
-  <ul class="mt-2 flex flex-wrap gap-1">
-    {objects.map((obj) => (
-      <li class="rounded-full bg-line/50 px-2 py-0.5 text-xs text-ink-muted">
-        {obj.object_type === 'organism' ? obj.details.common_name : obj.details.description}
-      </li>
-    ))}
-  </ul>
+<li id={photoCardId(slug)}>
+  <a
+    href={photoHref(slug, DEFAULT_SORT)}
+    data-photo-link={slug}
+    class="block h-full rounded-lg border border-line bg-paper p-3 shadow-sm transition-colors hover:border-clay focus-visible:border-clay focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay"
+  >
+    <img
+      src={`${r2Base}/${file}-thumb.jpg`}
+      alt={notes ?? photoTitle(objects)}
+      loading="lazy"
+      class="w-full rounded-md object-cover"
+    />
+    <p class="mt-2 flex items-center justify-between text-xs text-ink-muted">
+      <span>{datetime.toISOString().slice(0, 10)}</span>
+      <TierBadge tier={tier} />
+    </p>
+    <ul class="mt-2 flex flex-wrap gap-1">
+      {objects.map((obj) => (
+        <li class="rounded-full bg-line/50 px-2 py-0.5 text-xs text-ink-muted">{objectName(obj)}</li>
+      ))}
+    </ul>
+  </a>
 </li>

@@ -1,0 +1,83 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const linkClass = 'text-clay hover:underline hover:underline-offset-4';
+---
+<BaseLayout title="About the Compendium" description="How photos in Zack Miller's compendium are identified, and how it relates to iNaturalist.">
+  <p class="text-sm"><a href="/compendium" class={linkClass}>&larr; Compendium</a></p>
+  <h1 class="mt-4 text-2xl font-semibold">About the Compendium</h1>
+  <p class="mt-4 text-ink-muted">
+    The compendium is a curated collection of my photography: mostly living
+    things, plus the occasional place worth remembering. It's meant to be
+    browsed like an exhibition, not audited like a checklist.
+  </p>
+
+  <section class="mt-12">
+    <h2 class="text-xl font-semibold">Identifications</h2>
+    <p class="mt-4 text-ink-muted">
+      Organisms are identified to the most specific level I can stand behind.
+      Where possible, the photo is also posted to
+      <a href="https://www.inaturalist.org" class={linkClass}>iNaturalist</a>,
+      where other naturalists can review the identification.
+    </p>
+    <ul class="mt-4 space-y-3 border-l border-line pl-4 text-ink-muted">
+      <li>
+        <span class="font-semibold text-ink">iNaturalist is the evidence; the compendium is the claim.</span>
+        Community consensus informs each entry but never overwrites it
+        automatically. Changes are reviewed before they appear here.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Disagreement means less specificity, not a guess.</span>
+        When identifiers disagree, the entry is recorded at the level they
+        share: <em>Quercus</em> sp. rather than a coin flip between two oaks.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Unconfirmed isn't excluded.</span>
+        Photos without a community-confirmed ID still appear, labeled as
+        unconfirmed. Difficult subjects shouldn't disappear for being difficult.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Dissent is noted.</span>
+        If I disagree with the community, my identification stands and the
+        entry says why.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Cultivated plants stop at species.</span>
+        Garden cultivars and topiary are recorded as their species, with the
+        cultivar in the notes.
+      </li>
+    </ul>
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-xl font-semibold">Why not just iNaturalist?</h2>
+    <p class="mt-4 text-ink-muted">
+      If the goal were a verified species list, iNaturalist already does that
+      better. It's a scientific record: every observation counts equally,
+      photos exist to support an identification, and only living things
+      qualify. The compendium is the other half.
+    </p>
+    <ul class="mt-4 space-y-3 border-l border-line pl-4 text-ink-muted">
+      <li>
+        <span class="font-semibold text-ink">Curation.</span>
+        Every photo is ranked by tier. iNaturalist has no notion of a good photo.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Photography.</span>
+        Full-resolution images with camera and lens details. The photo is the
+        point, not the proof.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">More than organisms.</span>
+        Places, several subjects in one frame, and the notes behind a shot.
+      </li>
+      <li>
+        <span class="font-semibold text-ink">Different ways to browse.</span>
+        By quality, by date, and eventually by where each subject sits on the
+        tree of life, including how it relates to everything else in the
+        collection.
+      </li>
+    </ul>
+    <p class="mt-6 text-ink-muted">iNaturalist verifies. The compendium exhibits.</p>
+  </section>
+</BaseLayout>

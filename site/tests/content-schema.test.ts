@@ -104,3 +104,25 @@ describe('photoSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('photoSchema camera and lens', () => {
+  const photo = {
+    datetime: '2025-09-13T23:05:44Z',
+    file: 'compendium/alpha/5G7A0001.JPG',
+    latitude: null,
+    longitude: null,
+    objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+    slug: '5G7A0001',
+    tier: 'D',
+  };
+
+  it('keeps camera and lens from the publish script', () => {
+    const result = photoSchema.parse({ ...photo, camera: 'Canon: Canon EOS R7', lens: 'RF70-200mm F2.8 L IS USM' });
+    expect(result.camera).toBe('Canon: Canon EOS R7');
+    expect(result.lens).toBe('RF70-200mm F2.8 L IS USM');
+  });
+
+  it('treats camera and lens as optional', () => {
+    expect(photoSchema.safeParse(photo).success).toBe(true);
+  });
+});
