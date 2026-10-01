@@ -1,12 +1,64 @@
 import exifr from 'exifr';
 
+export type ExifScalar = string | number | boolean;
+
 export interface PhotoExif {
   camera: string | null;
   date: Date | null;
   latitude: number | null;
   lens: string | null;
   longitude: number | null;
+  other: Record<string, ExifScalar>;
   utcOffsetMinutes: number | null;
+}
+
+// Tags already surfaced as their own typed field above — excluded from
+// `other` so the same value never appears twice.
+const TYPED_TAGS = new Set([
+  'DateTimeOriginal',
+  'LensModel',
+  'Make',
+  'Model',
+  'OffsetTimeOriginal',
+  'latitude',
+  'longitude',
+]);
+
+// Tags that identify the specific camera/lens/photographer (serials, owner
+// info) or are otherwise never useful — dropped rather than written into a
+// published, world-readable photo page.
+const OTHER_DENYLIST = new Set([
+  'BodySerialNumber',
+  'CameraOwnerName',
+  'ImageUniqueID',
+  'InternalSerialNumber',
+  'LensSerialNumber',
+  'MakerNote',
+  'OwnerName',
+  'UserComment',
+]);
+
+function isExifScalar(value: unknown): value is ExifScalar {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+/**
+ * Everything exifr found that isn't one of the typed fields above, isn't
+ * denylisted, and is representable as a plain scalar (binary data like an
+ * embedded thumbnail, or nested objects/arrays, is dropped rather than
+ * forced into a shape that doesn't serialize sensibly into YAML).
+ */
+function buildOther(data: Record<string, unknown>): Record<string, ExifScalar> {
+  const other: Record<string, ExifScalar> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (TYPED_TAGS.has(key) || OTHER_DENYLIST.has(key)) continue;
+    if (value instanceof Date) {
+      other[key] = value.toISOString();
+    } else if (isExifScalar(value)) {
+      other[key] = value;
+    }
+  }
+  return other;
 }
 
 /**
@@ -26,13 +78,10 @@ function parseUtcOffsetMinutes(offset: unknown): number | null {
 }
 
 export async function extractExif(buffer: Buffer): Promise<PhotoExif> {
-  const data = await exifr.parse(buffer, {
-    gps: true,
-    pick: ['Make', 'Model', 'LensModel', 'DateTimeOriginal', 'OffsetTimeOriginal', 'latitude', 'longitude'],
-  });
+  const data = await exifr.parse(buffer, { gps: true });
 
   if (!data) {
-    return { camera: null, date: null, latitude: null, lens: null, longitude: null, utcOffsetMinutes: null };
+    return { camera: null, date: null, latitude: null, lens: null, longitude: null, other: {}, utcOffsetMinutes: null };
   }
 
   const camera = data.Make && data.Model ? `${data.Make}: ${data.Model}`.trim() : (data.Model ?? null);
@@ -71,6 +120,7 @@ export async function extractExif(buffer: Buffer): Promise<PhotoExif> {
     latitude: typeof data.latitude === 'number' ? data.latitude : null,
     lens: data.LensModel ?? null,
     longitude: typeof data.longitude === 'number' ? data.longitude : null,
+    other: buildOther(data),
     utcOffsetMinutes,
   };
 }

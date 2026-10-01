@@ -11,6 +11,7 @@
     "dev": "astro dev",
     "preview": "astro preview",
     "publish-photo": "tsx scripts/publish-photo.ts",
+    "backfill-exif-other": "tsx scripts/backfill-exif-other.ts",
     "test": "vitest run --coverage"
   },
   "dependencies": {

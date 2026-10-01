@@ -37,6 +37,7 @@ export const photoSchema = z.object({
   longitude: z.number().min(-180).max(180).nullable(),
   notes: z.string().nullish(),
   objects: z.array(photoObjectSchema).min(1),
+  other: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
   slug: z.string(),
   tier: z.enum(['S', 'A', 'B', 'C', 'D', 'E', 'F']),
 });

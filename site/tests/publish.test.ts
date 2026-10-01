@@ -15,6 +15,7 @@ describe('publishPhoto', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      other: {},
       utcOffsetMinutes: null,
     };
 
@@ -76,6 +77,7 @@ describe('buildMetadataYaml', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      other: { FNumber: 4, ISO: 400 },
       utcOffsetMinutes: null,
     };
 
@@ -90,6 +92,22 @@ describe('buildMetadataYaml', () => {
     expect(yaml).toContain('lens: "100-400mm GM"');
     expect(yaml).toContain('tier:');
     expect(yaml).toContain('objects:');
+    // `other` is alphabetized by key, matching this codebase's ordering convention.
+    expect(yaml).toContain('other:\n  FNumber: 4\n  ISO: 400\n');
+  });
+
+  it('renders an empty `other` map as an inline empty object', () => {
+    const exif: PhotoExif = {
+      camera: null,
+      date: null,
+      latitude: null,
+      lens: null,
+      longitude: null,
+      other: {},
+      utcOffsetMinutes: null,
+    };
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+    expect(yaml).toContain('other: {}\n');
   });
 
   it('handles missing EXIF fields without throwing', () => {
@@ -99,6 +117,7 @@ describe('buildMetadataYaml', () => {
       latitude: null,
       lens: null,
       longitude: null,
+      other: {},
       utcOffsetMinutes: null,
     };
     const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
@@ -118,6 +137,7 @@ describe('buildMetadataYaml', () => {
       latitude: null,
       lens: null,
       longitude: null,
+      other: {},
       utcOffsetMinutes: 540, // +09:00 — the exact value is irrelevant here;
       // what matters is that it's a number, so the "successful" branch runs.
     };
@@ -140,6 +160,7 @@ describe('buildMetadataYaml', () => {
       latitude: null,
       lens: null,
       longitude: null,
+      other: {},
       utcOffsetMinutes: null,
     };
 
@@ -173,6 +194,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      other: { FNumber: 4 },
       utcOffsetMinutes: null,
     };
 
@@ -201,6 +223,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
       latitude: null,
       lens: '24-70mm f/2.8',
       longitude: null,
+      other: {},
       utcOffsetMinutes: null,
     };
 

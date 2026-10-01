@@ -26,6 +26,7 @@ describe('extractExif', () => {
       latitude: 38.9784,
       lens: '100-400mm GM',
       longitude: -76.4922,
+      other: {},
       utcOffsetMinutes: null,
     });
   });
@@ -41,6 +42,7 @@ describe('extractExif', () => {
       latitude: null,
       lens: null,
       longitude: null,
+      other: {},
       utcOffsetMinutes: null,
     });
   });
@@ -111,5 +113,79 @@ describe('extractExif', () => {
 
     expect(result.utcOffsetMinutes).toBeNull();
     expect(result.date).toEqual(wallClock);
+  });
+
+  it('collects additional scalar EXIF tags into `other`', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      Make: 'Sony',
+      Model: 'A7 IV',
+      FNumber: 4,
+      ISO: 400,
+      ExposureTime: 0.004,
+      Flash: false,
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.other).toEqual({ FNumber: 4, ISO: 400, ExposureTime: 0.004, Flash: false });
+  });
+
+  it('excludes tags already surfaced as typed fields from `other`', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      Make: 'Sony',
+      Model: 'A7 IV',
+      LensModel: '100-400mm GM',
+      DateTimeOriginal: new Date(2025, 8, 13, 19, 5, 44),
+      OffsetTimeOriginal: '-04:00',
+      latitude: 38.9784,
+      longitude: -76.4922,
+      FNumber: 4,
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.other).toEqual({ FNumber: 4 });
+  });
+
+  it('drops denylisted tags (serials, owner info) from `other`', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      Model: 'A7 IV',
+      BodySerialNumber: '1234567890',
+      LensSerialNumber: '0987654321',
+      OwnerName: 'Jane Photographer',
+      CameraOwnerName: 'Jane Photographer',
+      ImageUniqueID: 'abc123',
+      MakerNote: 'vendor-specific-blob',
+      UserComment: 'a private note',
+      FNumber: 4,
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.other).toEqual({ FNumber: 4 });
+  });
+
+  it('drops non-scalar values (e.g. a binary thumbnail buffer) from `other`', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      Model: 'A7 IV',
+      FNumber: 4,
+      ThumbnailData: Buffer.from([0xff, 0xd8, 0xff]),
+      GPSLatitude: [38, 58, 42.24],
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.other).toEqual({ FNumber: 4 });
+  });
+
+  it('converts Date-valued extra tags to an ISO string in `other`', async () => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      Model: 'A7 IV',
+      ModifyDate: new Date('2026-06-14T10:30:00Z'),
+    });
+
+    const result = await extractExif(Buffer.from('fake-jpeg-bytes'));
+
+    expect(result.other).toEqual({ ModifyDate: '2026-06-14T10:30:00.000Z' });
   });
 });
