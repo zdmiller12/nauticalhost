@@ -3,9 +3,17 @@ import type { PhotoExif } from './exif';
 export interface PublishDeps {
   extractExif: (buffer: Buffer) => Promise<PhotoExif>;
   mkdir: (path: string) => Promise<unknown>;
+  publishToInaturalist?: (args: {
+    latitude: number | null;
+    longitude: number | null;
+    observedOn: Date | null;
+    photo: Buffer;
+    species: string;
+  }) => Promise<{ commonName: string; observationId: number }>;
   readFile: (path: string) => Promise<Buffer>;
   resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
+  warn: (msg: string) => void;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
 
@@ -15,6 +23,13 @@ export interface PublishArgs {
   r2KeyPrefix: string;
   slug: string;
   sourcePath: string;
+  species?: string;
+}
+
+export interface OrganismEntry {
+  commonName: string;
+  inaturalistObservationId: number | null;
+  scientificName: string;
 }
 
 function formatDatetime(date: Date, utcOffsetMinutes: number | null): string {
@@ -52,7 +67,31 @@ export function formatOtherYaml(other: Record<string, string | number | boolean>
   return `other:\n${lines.join('\n')}`;
 }
 
-export function buildMetadataYaml(slug: string, file: string, exif: PhotoExif): string {
+/** Renders the `objects:` block — a real organism entry when one was resolved, a commented placeholder otherwise. */
+function formatObjectsYaml(organism: OrganismEntry | null): string {
+  if (!organism) {
+    return `objects:
+  # - details:
+  #     common_name: ""
+  #     description: null
+  #     scientific_name: ""
+  #   object_type: organism`;
+  }
+  return `objects:
+  - details:
+      common_name: ${JSON.stringify(organism.commonName)}
+      description: null
+      inaturalistObservationId: ${organism.inaturalistObservationId ?? 'null'}
+      scientific_name: ${JSON.stringify(organism.scientificName)}
+    object_type: organism`;
+}
+
+export function buildMetadataYaml(
+  slug: string,
+  file: string,
+  exif: PhotoExif,
+  organism: OrganismEntry | null = null
+): string {
   const datetimeStr = exif.date ? formatDatetime(exif.date, exif.utcOffsetMinutes) : '';
   return `---
 camera: ${JSON.stringify(exif.camera ?? '')}
@@ -62,12 +101,7 @@ latitude: ${exif.latitude ?? 'null'}
 lens: ${JSON.stringify(exif.lens ?? '')}
 longitude: ${exif.longitude ?? 'null'}
 notes: # optional
-objects:
-  # - details:
-  #     common_name: ""
-  #     description: null
-  #     scientific_name: ""
-  #   object_type: organism
+${formatObjectsYaml(organism)}
 ${formatOtherYaml(exif.other)}
 slug: ${slug}
 tier: E
@@ -85,7 +119,28 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   await deps.uploadObject(args.bucket, thumbKey, thumb, 'image/jpeg');
   await deps.uploadObject(args.bucket, lightboxKey, lightbox, 'image/jpeg');
 
-  const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, exif);
+  let organism: OrganismEntry | null = null;
+  if (args.species && deps.publishToInaturalist) {
+    try {
+      const result = await deps.publishToInaturalist({
+        latitude: exif.latitude,
+        longitude: exif.longitude,
+        observedOn: exif.date,
+        photo: lightbox,
+        species: args.species,
+      });
+      organism = {
+        commonName: result.commonName,
+        inaturalistObservationId: result.observationId,
+        scientificName: args.species,
+      };
+    } catch (err) {
+      deps.warn(`iNaturalist publish failed for "${args.species}": ${(err as Error).message}`);
+      organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species };
+    }
+  }
+
+  const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, exif, organism);
   await deps.mkdir(args.contentDir);
   await deps.writeFile(`${args.contentDir}/${args.slug}.yaml`, yaml);
 }
