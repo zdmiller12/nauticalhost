@@ -126,3 +126,33 @@ describe('photoSchema camera and lens', () => {
     expect(photoSchema.safeParse(photo).success).toBe(true);
   });
 });
+
+describe('photoSchema other', () => {
+  const photo = {
+    datetime: '2025-09-13T23:05:44Z',
+    file: 'compendium/alpha/5G7A0001.JPG',
+    latitude: null,
+    longitude: null,
+    objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+    slug: '5G7A0001',
+    tier: 'D',
+  };
+
+  it('accepts a map of scalar values', () => {
+    const result = photoSchema.parse({
+      ...photo,
+      other: { FNumber: 4, ISO: 400, Flash: false, Software: 'Lightroom' },
+    });
+    expect(result.other).toEqual({ FNumber: 4, ISO: 400, Flash: false, Software: 'Lightroom' });
+  });
+
+  it('defaults to an empty object when omitted', () => {
+    const result = photoSchema.parse(photo);
+    expect(result.other).toEqual({});
+  });
+
+  it('rejects a non-scalar value', () => {
+    const result = photoSchema.safeParse({ ...photo, other: { nested: { a: 1 } } });
+    expect(result.success).toBe(false);
+  });
+});

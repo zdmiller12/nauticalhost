@@ -14,3 +14,41 @@ objects:
     object_type: organism
 slug: 5G7A0002
 tier: E
+other:
+  ApertureValue: 3.375
+  ColorSpace: 1
+  CreateDate: "2025-09-13T23:06:26.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: -0.6666666666666666
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.004
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 3.2
+  FocalLength: 147
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 250
+  MeteringMode: "Pattern"
+  ModifyDate: "2025-09-13T23:06:26.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 250
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 8
+  SubSecTime: "43"
+  SubSecTimeDigitized: "43"
+  SubSecTimeOriginal: "43"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72

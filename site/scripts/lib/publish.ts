@@ -44,6 +44,14 @@ function formatDatetime(date: Date, utcOffsetMinutes: number | null): string {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
+/** Renders an `other` catch-all map as a YAML block, alphabetized by key. */
+export function formatOtherYaml(other: Record<string, string | number | boolean> | undefined): string {
+  const entries = Object.entries(other ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return 'other: {}';
+  const lines = entries.map(([key, value]) => `  ${key}: ${typeof value === 'string' ? JSON.stringify(value) : value}`);
+  return `other:\n${lines.join('\n')}`;
+}
+
 export function buildMetadataYaml(slug: string, file: string, exif: PhotoExif): string {
   const datetimeStr = exif.date ? formatDatetime(exif.date, exif.utcOffsetMinutes) : '';
   return `---
@@ -60,6 +68,7 @@ objects:
   #     description: null
   #     scientific_name: ""
   #   object_type: organism
+${formatOtherYaml(exif.other)}
 slug: ${slug}
 tier: E
 `;
