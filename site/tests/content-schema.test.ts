@@ -61,6 +61,56 @@ describe('photoSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts an organism object with an inaturalistObservationId', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          details: {
+            common_name: 'Osprey',
+            description: null,
+            inaturalistObservationId: 123456,
+            scientific_name: 'Pandion haliaetus',
+          },
+          object_type: 'organism',
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('defaults inaturalistObservationId to null when omitted', () => {
+    const result = photoSchema.parse({
+      ...basePhoto,
+      objects: [
+        {
+          details: { common_name: 'Osprey', description: null, scientific_name: 'Pandion haliaetus' },
+          object_type: 'organism',
+        },
+      ],
+    });
+    const organism = result.objects[0] as { details: { inaturalistObservationId: number | null } };
+    expect(organism.details.inaturalistObservationId).toBeNull();
+  });
+
+  it('rejects a non-numeric inaturalistObservationId', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          details: {
+            common_name: 'Osprey',
+            description: null,
+            inaturalistObservationId: 'not-a-number',
+            scientific_name: 'Pandion haliaetus',
+          },
+          object_type: 'organism',
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts a valid photo with a landmark object and no notes', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,

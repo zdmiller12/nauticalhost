@@ -22,6 +22,7 @@ export const photoObjectSchema = z.discriminatedUnion('object_type', [
     details: z.object({
       common_name: z.string(),
       description: z.string().nullable(),
+      inaturalistObservationId: z.number().nullable().default(null),
       scientific_name: z.string(),
     }),
     object_type: z.literal('organism'),
