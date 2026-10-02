@@ -5,6 +5,7 @@ import { extractExif, type PhotoExif } from './exif';
 import { resizePhoto } from './resize';
 import { createR2Client, uploadObject } from './r2';
 import { publishPhoto } from './publish';
+import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 
 export interface CliIo {
   argv: string[];
@@ -13,6 +14,7 @@ export interface CliIo {
   error: (msg: string) => void;
   exit: (code: number) => void;
   extractExif: (buffer: Buffer) => Promise<PhotoExif>;
+  fetch: typeof fetch;
   log: (msg: string) => void;
   mkdir: (path: string) => Promise<unknown>;
   readFile: (path: string) => Promise<Buffer>;
@@ -37,6 +39,7 @@ export function createRealCliIo(): CliIo {
     /* v8 ignore next -- calling the real process.exit would kill the test runner */
     exit: (code) => process.exit(code),
     extractExif,
+    fetch,
     log: (msg) => console.log(msg),
     mkdir: (path) => mkdir(path, { recursive: true }),
     readFile,
@@ -46,13 +49,22 @@ export function createRealCliIo(): CliIo {
   };
 }
 
+/** Pulls `--species "<name>"` out of the trailing CLI args, if present. */
+function parseSpeciesFlag(flagArgs: string[]): string | undefined {
+  const index = flagArgs.indexOf('--species');
+  if (index === -1) return undefined;
+  return flagArgs[index + 1];
+}
+
 export async function runCli(io: CliIo): Promise<void> {
-  const [sourcePath, r2KeyPrefixArg] = io.argv.slice(2);
+  const [sourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
   if (!sourcePath || !r2KeyPrefixArg) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix>');
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"]');
     io.exit(1);
     return;
   }
+
+  const species = parseSpeciesFlag(flagArgs);
 
   const fileName = basename(sourcePath);
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
@@ -69,19 +81,45 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
+  let publishToInaturalist: ((args: {
+    latitude: number | null;
+    longitude: number | null;
+    observedOn: Date | null;
+    photo: Buffer;
+    species: string;
+  }) => Promise<{ commonName: string; observationId: number }>) | undefined;
+
+  if (species) {
+    const appId = io.env.INATURALIST_APP_ID;
+    const appSecret = io.env.INATURALIST_APP_SECRET;
+    const password = io.env.INATURALIST_PASSWORD;
+    const username = io.env.INATURALIST_USERNAME;
+
+    if (!appId || !appSecret || !password || !username) {
+      io.error('Missing iNaturalist env vars. Copy site/.env.example to site/.env and fill it in.');
+      io.exit(1);
+      return;
+    }
+
+    const credentials = { appId, appSecret, password, username };
+    publishToInaturalist = (args) => corePublishToInaturalist({ fetch: io.fetch }, credentials, args);
+  }
+
   const client = io.createR2Client({ accessKeyId, accountId, bucket, secretAccessKey });
 
   await publishPhoto(
     {
       extractExif: io.extractExif,
       mkdir: io.mkdir,
+      publishToInaturalist,
       readFile: io.readFile,
       resizePhoto: io.resizePhoto,
       uploadObject: (b, key, body, contentType) => io.uploadObject(client, b, key, body, contentType),
+      warn: io.error,
       writeFile: io.writeFile,
     },
-    { bucket, contentDir: 'src/content/photos', r2KeyPrefix, slug, sourcePath }
+    { bucket, contentDir: 'src/content/photos', r2KeyPrefix, slug, sourcePath, species }
   );
 
-  io.log(`Published ${slug}. Fill in tier/objects/notes in src/content/photos/${slug}.yaml`);
+  io.log(`Published ${slug}. Fill in tier/notes (and objects, if --species was omitted) in src/content/photos/${slug}.yaml`);
 }

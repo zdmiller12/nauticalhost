@@ -232,6 +232,21 @@ describe('getObservationTaxon', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://api.inaturalist.org/v1/observations/999');
   });
 
+  it('throws when the request is not ok', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, false, 500));
+    await expect(getObservationTaxon({ fetch: fetchMock }, 999)).rejects.toThrow(
+      /observation lookup failed: 500/
+    );
+  });
+
+  it('falls back to an empty common name when the community taxon has none on file', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ results: [{ taxon: { name: 'Pandion haliaetus' } }] })
+    );
+    const result = await getObservationTaxon({ fetch: fetchMock }, 999);
+    expect(result).toEqual({ commonName: '', scientificName: 'Pandion haliaetus' });
+  });
+
   it('returns null when the observation has no taxon yet', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ taxon: null }] }));
     const result = await getObservationTaxon({ fetch: fetchMock }, 999);

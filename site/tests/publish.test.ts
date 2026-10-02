@@ -184,6 +184,20 @@ describe('buildMetadataYaml', () => {
     expect(yaml).toContain('other:\n  FNumber: 4\n  ISO: 400\n');
   });
 
+  it('renders a string `other` value with quotes', () => {
+    const exif: PhotoExif = {
+      camera: null,
+      date: null,
+      latitude: null,
+      lens: null,
+      longitude: null,
+      other: { Software: 'Lightroom' },
+      utcOffsetMinutes: null,
+    };
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+    expect(yaml).toContain('other:\n  Software: "Lightroom"\n');
+  });
+
   it('renders an empty `other` map as an inline empty object', () => {
     const exif: PhotoExif = {
       camera: null,

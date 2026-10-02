@@ -23,6 +23,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
     createR2Client: vi.fn().mockReturnValue({ send: vi.fn() } as unknown as Pick<S3Client, 'send'>),
     uploadObject: vi.fn().mockResolvedValue(undefined),
+    fetch: vi.fn(),
     ...overrides,
   };
 }
@@ -106,5 +107,77 @@ describe('runCli', () => {
       Buffer.from('t'),
       'image/jpeg'
     );
+  });
+});
+
+describe('runCli with --species', () => {
+  function jsonResponse(body: unknown, ok = true, status = 200) {
+    return { ok, status, json: () => Promise.resolve(body) } as unknown as Response;
+  }
+
+  it('prints a missing-env-vars error and exits 1 when --species is given without iNaturalist config', async () => {
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/2026-06-14-osprey-nest.jpg',
+        'ospreys/osprey-nest-01',
+        '--species',
+        'Pandion haliaetus',
+      ],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+    });
+
+    await runCli(io);
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('Missing iNaturalist env vars'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+    expect(io.readFile).not.toHaveBeenCalled();
+  });
+
+  it('resolves the taxon and publishes an observation when --species and iNaturalist config are both present', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ id: 999 }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/2026-06-14-osprey-nest.jpg',
+        'ospreys/osprey-nest-01',
+        '--species',
+        'Pandion haliaetus',
+      ],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      fetch: fetchMock,
+    });
+
+    await runCli(io);
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/2026-06-14-osprey-nest.yaml',
+      expect.stringContaining('inaturalistObservationId: 999')
+    );
+    expect(io.exit).not.toHaveBeenCalled();
   });
 });
