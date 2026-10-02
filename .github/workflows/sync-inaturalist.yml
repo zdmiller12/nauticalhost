@@ -1,0 +1,43 @@
+name: Sync iNaturalist
+
+on:
+  schedule:
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Run sync
+        working-directory: site
+        env:
+          INATURALIST_APP_ID: ${{ secrets.INATURALIST_APP_ID }}
+          INATURALIST_APP_SECRET: ${{ secrets.INATURALIST_APP_SECRET }}
+          INATURALIST_USERNAME: ${{ secrets.INATURALIST_USERNAME }}
+          INATURALIST_PASSWORD: ${{ secrets.INATURALIST_PASSWORD }}
+        run: npm run sync-inaturalist
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/src/content/photos
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "sync: refresh iNaturalist observation data"
+            git push
+          fi
