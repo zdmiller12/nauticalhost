@@ -151,7 +151,9 @@ describe('extractExif', () => {
     vi.mocked(exifr.parse).mockResolvedValue({
       Model: 'A7 IV',
       BodySerialNumber: '1234567890',
+      InternalSerialNumber: '1122334455',
       LensSerialNumber: '0987654321',
+      SerialNumber: '342034001967',
       OwnerName: 'Jane Photographer',
       CameraOwnerName: 'Jane Photographer',
       ImageUniqueID: 'abc123',

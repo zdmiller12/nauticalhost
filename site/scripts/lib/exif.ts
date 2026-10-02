@@ -35,6 +35,7 @@ const OTHER_DENYLIST = new Set([
   'LensSerialNumber',
   'MakerNote',
   'OwnerName',
+  'SerialNumber',
   'UserComment',
 ]);
 
