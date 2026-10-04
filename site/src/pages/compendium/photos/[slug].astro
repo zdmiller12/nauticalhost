@@ -43,7 +43,7 @@ const { camera, datetime, file, latitude, lens, longitude, notes, objects, slug,
 const r2Base = import.meta.env.PUBLIC_R2_BASE_URL ?? '';
 const title = photoTitle(objects);
 const [firstObject] = objects;
-const subtitle = objects.length === 1 && firstObject.object_type === 'organism' ? firstObject.details.scientific_name : null;
+const subtitle = objects.length === 1 && firstObject.objectType === 'organism' ? firstObject.details.scientificName : null;
 const cameraLabel = formatCamera(camera);
 const lensLabel = lens?.trim() || null;
 const location = formatLocation(latitude, longitude);
@@ -70,10 +70,10 @@ const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text
       <ul class="mt-4 space-y-5">
         {objects.map((obj) => (
           <li>
-            {obj.object_type === 'organism' ? (
+            {obj.objectType === 'organism' ? (
               <>
-                <p class="font-semibold">{obj.details.common_name}</p>
-                <p class="italic text-ink-muted">{obj.details.scientific_name}</p>
+                <p class="font-semibold">{obj.details.commonName}</p>
+                <p class="italic text-ink-muted">{obj.details.scientificName}</p>
                 {obj.details.description && <p class="mt-1 text-sm text-ink-muted">{obj.details.description}</p>}
               </>
             ) : (

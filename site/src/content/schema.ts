@@ -11,21 +11,21 @@ export const projectSchema = z.object({
 
 export type Project = z.infer<typeof projectSchema>;
 
-export const photoObjectSchema = z.discriminatedUnion('object_type', [
+export const photoObjectSchema = z.discriminatedUnion('objectType', [
   z.object({
     details: z.object({
       description: z.string(),
     }),
-    object_type: z.literal('landmark'),
+    objectType: z.literal('landmark'),
   }),
   z.object({
     details: z.object({
-      common_name: z.string(),
+      commonName: z.string(),
       description: z.string().nullable(),
       inaturalistObservationId: z.number().nullable().default(null),
-      scientific_name: z.string(),
+      scientificName: z.string(),
     }),
-    object_type: z.literal('organism'),
+    objectType: z.literal('organism'),
   }),
 ]);
 

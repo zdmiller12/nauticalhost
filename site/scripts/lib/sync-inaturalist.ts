@@ -26,7 +26,7 @@ interface OrganismMatch {
 }
 
 const ORGANISM_BLOCK =
-  /common_name: "(?<commonName>[^"]*)"\n\s+description: [^\n]*\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientific_name: "(?<scientificName>[^"]*)"/g;
+  /commonName: "(?<commonName>[^"]*)"\n\s+description: [^\n]*\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
 
 function parseOrganisms(yaml: string): OrganismMatch[] {
   return [...yaml.matchAll(ORGANISM_BLOCK)].map((match) => ({
@@ -39,10 +39,10 @@ function parseOrganisms(yaml: string): OrganismMatch[] {
 /** Replaces one organism's three fields in place, matched by its current (pre-update) values. */
 function replaceOrganism(yaml: string, before: OrganismMatch, after: OrganismMatch): string {
   const idText = before.inaturalistObservationId === null ? 'null' : String(before.inaturalistObservationId);
-  const oldBlock = `common_name: "${before.commonName}"\n      description: null\n      inaturalistObservationId: ${idText}\n      scientific_name: "${before.scientificName}"`;
+  const oldBlock = `commonName: "${before.commonName}"\n      description: null\n      inaturalistObservationId: ${idText}\n      scientificName: "${before.scientificName}"`;
   // `after.inaturalistObservationId` is always a real id here — the caller only ever
   // supplies a freshly created (backfill) or preserved (refresh) numeric id, never null.
-  const newBlock = `common_name: "${after.commonName}"\n      description: null\n      inaturalistObservationId: ${after.inaturalistObservationId}\n      scientific_name: "${after.scientificName}"`;
+  const newBlock = `commonName: "${after.commonName}"\n      description: null\n      inaturalistObservationId: ${after.inaturalistObservationId}\n      scientificName: "${after.scientificName}"`;
   return yaml.replace(oldBlock, newBlock);
 }
 
@@ -64,7 +64,7 @@ export async function syncInaturalist(
 
     for (const organism of organisms) {
       if (organism.inaturalistObservationId === null) {
-        // Backfill: no observation yet, create one from the stored scientific_name.
+        // Backfill: no observation yet, create one from the stored scientificName.
         const { commonName, taxonId } = await resolveTaxon(deps, organism.scientificName);
         const accessToken = await fetchAccessToken(deps, credentials);
         const jwt = await fetchJwt(deps, accessToken);

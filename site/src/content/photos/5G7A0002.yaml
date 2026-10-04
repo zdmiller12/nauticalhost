@@ -8,10 +8,10 @@ longitude: -80.447362
 notes: Second shot!
 objects:
   - details:
-      common_name: "Black Walnut"
+      commonName: "Black Walnut"
       description: Hammock swing for scale...
-      scientific_name: "Juglans nigra"
-    object_type: organism
+      scientificName: "Juglans nigra"
+    objectType: organism
 slug: 5G7A0002
 tier: E
 other:

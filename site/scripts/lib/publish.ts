@@ -72,18 +72,18 @@ function formatObjectsYaml(organism: OrganismEntry | null): string {
   if (!organism) {
     return `objects:
   # - details:
-  #     common_name: ""
+  #     commonName: ""
   #     description: null
-  #     scientific_name: ""
-  #   object_type: organism`;
+  #     scientificName: ""
+  #   objectType: organism`;
   }
   return `objects:
   - details:
-      common_name: ${JSON.stringify(organism.commonName)}
+      commonName: ${JSON.stringify(organism.commonName)}
       description: null
       inaturalistObservationId: ${organism.inaturalistObservationId ?? 'null'}
-      scientific_name: ${JSON.stringify(organism.scientificName)}
-    object_type: organism`;
+      scientificName: ${JSON.stringify(organism.scientificName)}
+    objectType: organism`;
 }
 
 export function buildMetadataYaml(

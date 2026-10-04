@@ -17,11 +17,11 @@ longitude: -76.4922
 notes: # optional
 objects:
   - details:
-      common_name: ""
+      commonName: ""
       description: null
       inaturalistObservationId: null
-      scientific_name: "Pandion haliaetus"
-    object_type: organism
+      scientificName: "Pandion haliaetus"
+    objectType: organism
 other: {}
 slug: 2026-06-14-osprey-nest
 tier: E
@@ -37,11 +37,11 @@ longitude: -76.4922
 notes: # optional
 objects:
   - details:
-      common_name: "Osprey"
+      commonName: "Osprey"
       description: null
       inaturalistObservationId: 999
-      scientific_name: "Pandion haliaetus"
-    object_type: organism
+      scientificName: "Pandion haliaetus"
+    objectType: organism
 other: {}
 slug: 2026-06-14-osprey-nest
 tier: E
@@ -58,7 +58,7 @@ notes: # optional
 objects:
   - details:
       description: "Cape Charles Lighthouse"
-    object_type: landmark
+    objectType: landmark
 other: {}
 slug: 2026-05-20-lighthouse
 tier: A
@@ -99,10 +99,10 @@ describe('syncInaturalist', () => {
       'photos/osprey.yaml',
       expect.stringContaining('inaturalistObservationId: 999')
     );
-    expect(writeFile).toHaveBeenCalledWith('photos/osprey.yaml', expect.stringContaining('common_name: "Osprey"'));
+    expect(writeFile).toHaveBeenCalledWith('photos/osprey.yaml', expect.stringContaining('commonName: "Osprey"'));
   });
 
-  it('refreshes scientific_name/common_name when the community taxon disagrees, silently', async () => {
+  it('refreshes scientificName/commonName when the community taxon disagrees, silently', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({ results: [{ taxon: { name: 'Pandion haliaetus carolinensis', preferred_common_name: 'Carolina Osprey' } }] })
     );
@@ -113,11 +113,11 @@ describe('syncInaturalist', () => {
     expect(result.changedFiles).toEqual(['photos/osprey.yaml']);
     expect(writeFile).toHaveBeenCalledWith(
       'photos/osprey.yaml',
-      expect.stringContaining('scientific_name: "Pandion haliaetus carolinensis"')
+      expect.stringContaining('scientificName: "Pandion haliaetus carolinensis"')
     );
     expect(writeFile).toHaveBeenCalledWith(
       'photos/osprey.yaml',
-      expect.stringContaining('common_name: "Carolina Osprey"')
+      expect.stringContaining('commonName: "Carolina Osprey"')
     );
   });
 

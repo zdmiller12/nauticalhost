@@ -114,10 +114,10 @@ describe('publishPhoto with --species', () => {
     });
 
     const [, yaml] = deps.writeFile.mock.calls[0];
-    expect(yaml).toContain('common_name: "Osprey"');
-    expect(yaml).toContain('scientific_name: "Pandion haliaetus"');
+    expect(yaml).toContain('commonName: "Osprey"');
+    expect(yaml).toContain('scientificName: "Pandion haliaetus"');
     expect(yaml).toContain('inaturalistObservationId: 999');
-    expect(yaml).toContain('object_type: organism');
+    expect(yaml).toContain('objectType: organism');
     expect(deps.warn).not.toHaveBeenCalled();
   });
 
@@ -135,7 +135,7 @@ describe('publishPhoto with --species', () => {
     });
 
     const [, yaml] = deps.writeFile.mock.calls[0];
-    expect(yaml).toContain('scientific_name: "Pandion haliaetus"');
+    expect(yaml).toContain('scientificName: "Pandion haliaetus"');
     expect(yaml).toContain('inaturalistObservationId: null');
     expect(deps.warn).toHaveBeenCalledWith(expect.stringContaining('network down'));
   });
@@ -152,7 +152,7 @@ describe('publishPhoto with --species', () => {
     });
 
     const [, yaml] = deps.writeFile.mock.calls[0];
-    expect(yaml).toContain('#   object_type: organism');
+    expect(yaml).toContain('#   objectType: organism');
   });
 });
 
@@ -309,8 +309,8 @@ describe('buildMetadataYaml round-trip through the schema', () => {
     parsed.tier = 'B';
     parsed.objects = [
       {
-        details: { common_name: 'Osprey', description: null, scientific_name: 'Pandion haliaetus' },
-        object_type: 'organism',
+        details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+        objectType: 'organism',
       },
     ];
 
@@ -334,7 +334,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
 
     parsed.tier = 'A';
     parsed.objects = [
-      { details: { description: 'Cape Charles Lighthouse' }, object_type: 'landmark' },
+      { details: { description: 'Cape Charles Lighthouse' }, objectType: 'landmark' },
     ];
 
     const result = photoSchema.safeParse(parsed);

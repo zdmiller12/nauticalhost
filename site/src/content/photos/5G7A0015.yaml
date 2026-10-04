@@ -8,10 +8,10 @@ longitude: -82.100112
 notes: Tom Gray (STORYBOOK) Trail
 objects:
   - details:
-      common_name: "Great Rhododendron"
+      commonName: "Great Rhododendron"
       description: With bud.
-      scientific_name: "Rhododendron maximum"
-    object_type: organism
+      scientificName: "Rhododendron maximum"
+    objectType: organism
 slug: 5G7A0015
 tier: E
 other:

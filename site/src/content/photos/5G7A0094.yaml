@@ -8,10 +8,10 @@ longitude: -82.102822
 notes: On the Appalachian Trail near Roan Mountain, NC
 objects:
   - details:
-      common_name: "Common Buckeye"
+      commonName: "Common Buckeye"
       description: null
-      scientific_name: "Junonia coenia"
-    object_type: organism
+      scientificName: "Junonia coenia"
+    objectType: organism
 slug: 5G7A0094
 tier: E
 other:

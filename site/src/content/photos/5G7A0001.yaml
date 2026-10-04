@@ -8,10 +8,10 @@ longitude: -80.447362
 notes: First shot!
 objects:
   - details:
-      common_name: "Littleleaf Box[wood]"
+      commonName: "Littleleaf Box[wood]"
       description: Topiary style.
-      scientific_name: "Buxus microphylla"
-    object_type: organism
+      scientificName: "Buxus microphylla"
+    objectType: organism
 slug: 5G7A0001
 tier: E
 other:
