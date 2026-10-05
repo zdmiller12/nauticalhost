@@ -10,6 +10,7 @@ objects:
   - details:
       commonName: "Domestic dog"
       description: "Full name: Dr. Spike Jones Rodgers Miller"
+      inaturalistObservationId: null
       scientificName: "Canis familiaris"
     objectType: organism
 slug: 5G7A0007

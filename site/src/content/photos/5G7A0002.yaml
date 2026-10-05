@@ -10,6 +10,7 @@ objects:
   - details:
       commonName: "Black Walnut"
       description: Hammock swing for scale...
+      inaturalistObservationId: null
       scientificName: "Juglans nigra"
     objectType: organism
 slug: 5G7A0002

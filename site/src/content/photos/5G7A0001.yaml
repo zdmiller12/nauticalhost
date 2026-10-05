@@ -10,6 +10,7 @@ objects:
   - details:
       commonName: "Littleleaf Box[wood]"
       description: Topiary style.
+      inaturalistObservationId: null
       scientificName: "Buxus microphylla"
     objectType: organism
 slug: 5G7A0001

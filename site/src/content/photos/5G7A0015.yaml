@@ -10,6 +10,7 @@ objects:
   - details:
       commonName: "Great Rhododendron"
       description: With bud.
+      inaturalistObservationId: null
       scientificName: "Rhododendron maximum"
     objectType: organism
 slug: 5G7A0015
