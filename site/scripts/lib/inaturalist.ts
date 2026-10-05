@@ -22,13 +22,17 @@ export interface ObservationResult {
   observationId: number;
 }
 
-const API_BASE = 'https://api.inaturalist.org/v1';
+const API_BASE = 'https://api.inaturalist.org/v2';
+// The v1-only JWT exchange endpoint (`/users/api_token`) has no v2 equivalent;
+// the JWT it returns authenticates v2 write endpoints just the same.
+const API_BASE_V1 = 'https://api.inaturalist.org/v1';
 
 export async function resolveTaxon(
   deps: InaturalistDeps,
   species: string
 ): Promise<{ commonName: string; taxonId: number }> {
-  const res = await deps.fetch(`${API_BASE}/taxa?q=${encodeURIComponent(species)}`);
+  const fields = encodeURIComponent('(id:!t,preferred_common_name:!t)');
+  const res = await deps.fetch(`${API_BASE}/taxa?q=${encodeURIComponent(species)}&fields=${fields}`);
   if (!res.ok) throw new Error(`iNaturalist taxon lookup failed: ${res.status}`);
   const body = (await res.json()) as { results: Array<{ id: number; preferred_common_name?: string }> };
   const match = body.results[0];
@@ -57,7 +61,7 @@ export async function fetchAccessToken(
 }
 
 export async function fetchJwt(deps: InaturalistDeps, accessToken: string): Promise<string> {
-  const res = await deps.fetch(`${API_BASE}/users/api_token`, {
+  const res = await deps.fetch(`${API_BASE_V1}/users/api_token`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error(`iNaturalist JWT request failed: ${res.status}`);
@@ -69,8 +73,9 @@ export async function createObservation(
   deps: InaturalistDeps,
   jwt: string,
   args: { latitude: number | null; longitude: number | null; observedOn: Date | null; taxonId: number }
-): Promise<number> {
-  const res = await deps.fetch(`${API_BASE}/observations`, {
+): Promise<{ id: number; uuid: string }> {
+  const fields = encodeURIComponent('(id:!t,uuid:!t)');
+  const res = await deps.fetch(`${API_BASE}/observations?fields=${fields}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -83,18 +88,18 @@ export async function createObservation(
     }),
   });
   if (!res.ok) throw new Error(`iNaturalist observation creation failed: ${res.status}`);
-  const body = (await res.json()) as { id: number };
-  return body.id;
+  const body = (await res.json()) as { results: Array<{ id: number; uuid: string }> };
+  return body.results[0];
 }
 
 export async function attachPhoto(
   deps: InaturalistDeps,
   jwt: string,
-  observationId: number,
+  observationUuid: string,
   photo: Buffer
 ): Promise<void> {
   const form = new FormData();
-  form.append('observation_photo[observation_id]', String(observationId));
+  form.append('observation_photo[observation_id]', observationUuid);
   form.append('file', new Blob([photo], { type: 'image/jpeg' }), 'photo.jpg');
 
   const res = await deps.fetch(`${API_BASE}/observation_photos`, {
@@ -113,21 +118,22 @@ export async function publishToInaturalist(
   const { commonName, taxonId } = await resolveTaxon(deps, input.species);
   const accessToken = await fetchAccessToken(deps, credentials);
   const jwt = await fetchJwt(deps, accessToken);
-  const observationId = await createObservation(deps, jwt, {
+  const observation = await createObservation(deps, jwt, {
     latitude: input.latitude,
     longitude: input.longitude,
     observedOn: input.observedOn,
     taxonId,
   });
-  await attachPhoto(deps, jwt, observationId, input.photo);
-  return { commonName, observationId };
+  await attachPhoto(deps, jwt, observation.uuid, input.photo);
+  return { commonName, observationId: observation.id };
 }
 
 export async function getObservationTaxon(
   deps: InaturalistDeps,
   observationId: number
 ): Promise<{ commonName: string; scientificName: string } | null> {
-  const res = await deps.fetch(`${API_BASE}/observations/${observationId}`);
+  const fields = encodeURIComponent('(taxon:(name:!t,preferred_common_name:!t))');
+  const res = await deps.fetch(`${API_BASE}/observations?id=${observationId}&fields=${fields}`);
   if (!res.ok) throw new Error(`iNaturalist observation lookup failed: ${res.status}`);
   const body = (await res.json()) as {
     results: Array<{ taxon: { name: string; preferred_common_name?: string } | null }>;

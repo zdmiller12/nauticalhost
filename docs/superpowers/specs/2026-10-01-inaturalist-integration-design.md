@@ -15,10 +15,10 @@ Attach an iNaturalist observation to each photo of an organism, so the community
 
 ## iNaturalist API
 
-- REST API at `https://api.inaturalist.org/v1`. Docs: `https://www.inaturalist.org/pages/api+reference`.
-- Reads are unauthenticated: `GET /v1/observations/{id}`, `GET /v1/taxa?q=<name>`.
-- Writes need an OAuth app (registered once at `inaturalist.org/oauth/applications`) → password-grant exchange for an access token → exchange that for a short-lived JWT via `POST /users/api_token` (expires in 24h) → `Authorization: Bearer <jwt>` header on write calls.
-- `POST /v1/observations` creates an observation (`taxon_id`, `observed_on`, `latitude`/`longitude`, `description`). `POST /v1/observation_photos` attaches an already-uploaded photo (multipart) to an observation by ID.
+- REST API at `https://api.inaturalist.org/v2`. Docs: `https://api.inaturalist.org/v2/docs/`. v2 is a sparse-fieldset API: every response is `{ id }`-only unless a `fields` query param is supplied, using the `(field:!t,nested:(field:!t))` syntax — v1's "return everything" default no longer applies.
+- `GET /v2/taxa?q=<name>&fields=...` and `GET /v2/observations?id=<id>&fields=...` (collection endpoint, filtered by `id`) are unauthenticated. v2 dropped the v1 `GET /observations/{id}` path form in favor of path-by-`uuid` (`GET /v2/observations/{uuid}`) or filtering the collection endpoint by the stored numeric `id` — this codebase uses the latter so the stored `inaturalistObservationId` can stay a plain number.
+- Writes still need an OAuth app (registered once at `inaturalist.org/oauth/applications`) → password-grant exchange for an access token → exchange that for a short-lived JWT via `POST /v1/users/api_token` (expires in 24h, **v1-only — v2 has no equivalent endpoint**, but the JWT it returns authenticates v2 write calls the same way) → `Authorization: Bearer <jwt>` header on write calls.
+- `POST /v2/observations?fields=(id:!t,uuid:!t)` creates an observation (`taxon_id`, `observed_on`, `latitude`/`longitude`, `description`) and responds `{ results: [{ id, uuid }] }` (v1 responded with the bare object; v2 wraps every response in `results`). `POST /v2/observation_photos` attaches an already-uploaded photo (multipart) to an observation — keyed by `observation_photo[observation_id]`, which in v2 must be the observation's **uuid**, not its integer `id`.
 - Rate limit guidance: ~1 request/second, 10,000/day. Both the publish-time call and the sync job stay well under this for a personal photo library.
 
 ## Schema change
@@ -28,12 +28,12 @@ Add `inaturalistObservationId` to the `organism` variant of `photoObjectSchema` 
 ```ts
 z.object({
   details: z.object({
-    common_name: z.string(),
+    commonName: z.string(),
     description: z.string().nullable(),
     inaturalistObservationId: z.number().nullable().default(null),
-    scientific_name: z.string(),
+    scientificName: z.string(),
   }),
-  object_type: z.literal('organism'),
+  objectType: z.literal('organism'),
 }),
 ```
 
@@ -53,13 +53,13 @@ Threaded through `PublishArgs`/`CliIo` into `publishPhoto()` alongside the exist
 
 When `--species` is provided, after the existing EXIF extraction and R2 upload (unchanged), `publishPhoto` calls a new `lib/inaturalist.ts` module:
 
-1. `GET /v1/taxa?q=<species>` to resolve the scientific name to a `taxon_id` and pull `preferred_common_name` (auto-fills `common_name` — the user only has to type the scientific name they already know, not re-type the common name).
-2. Fetch a fresh JWT (`POST /users/api_token`).
-3. `POST /v1/observations` with `taxon_id`, `observed_on` (from EXIF `datetime`), `latitude`/`longitude` (from EXIF, when present).
-4. `POST /v1/observation_photos` attaching the already-uploaded lightbox image (R2 URL) to the new observation.
-5. Returns `{ observationId, commonName }` (or a failure) to `publishPhoto`.
+1. `GET /v2/taxa?q=<species>&fields=(id:!t,preferred_common_name:!t)` to resolve the scientific name to a `taxon_id` and pull `preferred_common_name` (auto-fills `commonName` — the user only has to type the scientific name they already know, not re-type the common name).
+2. Fetch a fresh JWT (`POST /v1/users/api_token` — no v2 equivalent; see API section above).
+3. `POST /v2/observations?fields=(id:!t,uuid:!t)` with `taxon_id`, `observed_on` (from EXIF `datetime`), `latitude`/`longitude` (from EXIF, when present). Response gives both the integer `id` (stored on the photo) and `uuid` (needed for the next step).
+4. `POST /v2/observation_photos` attaching the already-uploaded lightbox image bytes (multipart `file`) to the new observation, keyed by its `uuid` from step 3.
+5. Returns `{ observationId, commonName }` (the integer id — or a failure) to `publishPhoto`.
 
-`buildMetadataYaml` then writes an actual `organism` entry (not the commented placeholder) with `scientific_name` (user-provided), `common_name` (from iNat, or empty string if the iNat call failed), `description: null`, and `inaturalistObservationId` (from iNat, or `null` on failure).
+`buildMetadataYaml` then writes an actual `organism` entry (not the commented placeholder) with `scientificName` (user-provided), `commonName` (from iNat, or empty string if the iNat call failed), `description: null`, and `inaturalistObservationId` (from iNat, or `null` on failure).
 
 **Failure handling:** any step above failing (network, taxon not found, auth) is caught, logged as a warning, and `publishPhoto` continues — the YAML still gets written, with `inaturalistObservationId: null`. A photo is never blocked from publishing by iNaturalist being unavailable. The nightly sync job (below) picks up and retries photos missing an ID.
 
@@ -68,8 +68,8 @@ When `--species` is provided, after the existing EXIF extraction and R2 upload (
 A new script, `site/scripts/sync-inaturalist.ts` → `lib/sync-inaturalist.ts` (`SyncDeps`, mirroring the existing DI pattern), run on a daily GitHub Actions cron:
 
 1. Glob `site/src/content/photos/*.yaml`. For each file, regex-extract any `organism` object blocks (same string-based editing approach as `backfill-exif-other.ts` — no full YAML reserialize, to preserve comments/formatting).
-2. **Backfill case** — `scientific_name` present, `inaturalistObservationId` is `null`: retry the same create-observation flow used in `publish-photo` (handles photos published while iNaturalist was down, or published before this feature existed).
-3. **Refresh case** — `inaturalistObservationId` present: `GET /v1/observations/{id}` (unauthenticated), compare the community's current taxon name against the stored `scientific_name`/`common_name`. If they differ, overwrite both fields in place (regex replace) — per explicit decision, **silently**, no manual-review gate.
+2. **Backfill case** — `scientificName` present, `inaturalistObservationId` is `null`: retry the same create-observation flow used in `publish-photo` (handles photos published while iNaturalist was down, or published before this feature existed).
+3. **Refresh case** — `inaturalistObservationId` present: `GET /v2/observations?id=<id>&fields=(taxon:(name:!t,preferred_common_name:!t))` (unauthenticated), compare the community's current taxon name against the stored `scientificName`/`commonName`. If they differ, overwrite both fields in place (regex replace) — per explicit decision, **silently**, no manual-review gate.
 4. Sleep briefly between requests to stay under the ~1 req/sec guidance.
 5. Any files changed are left modified in the working tree; the GitHub Actions workflow commits and pushes them (`git add -A && git commit -m "sync: refresh iNaturalist observation data" && git push`, skipped if there's nothing to commit).
 

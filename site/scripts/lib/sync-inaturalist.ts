@@ -68,7 +68,7 @@ export async function syncInaturalist(
         const { commonName, taxonId } = await resolveTaxon(deps, organism.scientificName);
         const accessToken = await fetchAccessToken(deps, credentials);
         const jwt = await fetchJwt(deps, accessToken);
-        const observationId = await createObservation(deps, jwt, {
+        const observation = await createObservation(deps, jwt, {
           latitude: null,
           longitude: null,
           observedOn: null,
@@ -76,7 +76,7 @@ export async function syncInaturalist(
         });
         updated = replaceOrganism(updated, organism, {
           commonName,
-          inaturalistObservationId: observationId,
+          inaturalistObservationId: observation.id,
           scientificName: organism.scientificName,
         });
         changed = true;

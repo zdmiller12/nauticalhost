@@ -146,7 +146,7 @@ describe('runCli with --species', () => {
       .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
       .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
       .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
-      .mockResolvedValueOnce(jsonResponse({ id: 999 }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
       .mockResolvedValueOnce(jsonResponse({}, true, 200));
 
     const io = makeIo({

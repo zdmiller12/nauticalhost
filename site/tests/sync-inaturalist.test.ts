@@ -85,7 +85,7 @@ describe('syncInaturalist', () => {
       .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] })) // resolveTaxon
       .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' })) // fetchAccessToken
       .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' })) // fetchJwt
-      .mockResolvedValueOnce(jsonResponse({ id: 999 })); // createObservation
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] })); // createObservation
     // Note: the backfill path has no uploaded photo bytes available (the
     // source image already lives only in R2 by the time sync runs), so it
     // creates the observation without attaching a photo.

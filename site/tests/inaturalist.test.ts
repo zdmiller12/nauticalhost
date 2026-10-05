@@ -25,7 +25,7 @@ describe('resolveTaxon', () => {
     const result = await resolveTaxon({ fetch: fetchMock }, 'Pandion haliaetus');
     expect(result).toEqual({ commonName: 'Osprey', taxonId: 5 });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v1/taxa?q=Pandion%20haliaetus'
+      'https://api.inaturalist.org/v2/taxa?q=Pandion%20haliaetus&fields=(id%3A!t%2Cpreferred_common_name%3A!t)'
     );
   });
 
@@ -80,7 +80,7 @@ describe('fetchAccessToken', () => {
 });
 
 describe('fetchJwt', () => {
-  it('exchanges an access token for a JWT api_token', async () => {
+  it('exchanges an access token for a JWT api_token via the v1 endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ api_token: 'jwt-abc' }));
     const jwt = await fetchJwt({ fetch: fetchMock }, 'token-123');
     expect(jwt).toBe('jwt-abc');
@@ -99,18 +99,18 @@ describe('fetchJwt', () => {
 });
 
 describe('createObservation', () => {
-  it('posts the observation and returns its id', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 999 }));
+  it('posts the observation and returns its id and uuid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }));
     const observedOn = new Date('2026-06-14T12:00:00Z');
-    const id = await createObservation({ fetch: fetchMock }, 'jwt-abc', {
+    const observation = await createObservation({ fetch: fetchMock }, 'jwt-abc', {
       latitude: 38.9784,
       longitude: -76.4922,
       observedOn,
       taxonId: 5,
     });
-    expect(id).toBe(999);
+    expect(observation).toEqual({ id: 999, uuid: 'obs-uuid' });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v1/observations',
+      'https://api.inaturalist.org/v2/observations?fields=(id%3A!t%2Cuuid%3A!t)',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer jwt-abc' }),
@@ -127,7 +127,7 @@ describe('createObservation', () => {
   });
 
   it('omits observed_on_string when observedOn is null', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 999 }));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }));
     await createObservation({ fetch: fetchMock }, 'jwt-abc', {
       latitude: null,
       longitude: null,
@@ -153,12 +153,12 @@ describe('createObservation', () => {
 });
 
 describe('attachPhoto', () => {
-  it('multipart-uploads the photo bytes to the observation', async () => {
+  it('multipart-uploads the photo bytes to the observation uuid', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, true, 200));
-    await attachPhoto({ fetch: fetchMock }, 'jwt-abc', 999, Buffer.from('photo-bytes'));
+    await attachPhoto({ fetch: fetchMock }, 'jwt-abc', 'obs-uuid', Buffer.from('photo-bytes'));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v1/observation_photos',
+      'https://api.inaturalist.org/v2/observation_photos',
       expect.objectContaining({
         method: 'POST',
         headers: { Authorization: 'Bearer jwt-abc' },
@@ -171,7 +171,7 @@ describe('attachPhoto', () => {
   it('throws when the request is not ok', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, false, 500));
     await expect(
-      attachPhoto({ fetch: fetchMock }, 'jwt-abc', 999, Buffer.from('x'))
+      attachPhoto({ fetch: fetchMock }, 'jwt-abc', 'obs-uuid', Buffer.from('x'))
     ).rejects.toThrow(/photo attach failed: 500/);
   });
 });
@@ -183,7 +183,7 @@ describe('publishToInaturalist', () => {
       .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] })) // resolveTaxon
       .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' })) // fetchAccessToken
       .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' })) // fetchJwt
-      .mockResolvedValueOnce(jsonResponse({ id: 999 })) // createObservation
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] })) // createObservation
       .mockResolvedValueOnce(jsonResponse({}, true, 200)); // attachPhoto
 
     const result = await publishToInaturalist(
@@ -200,6 +200,10 @@ describe('publishToInaturalist', () => {
 
     expect(result).toEqual({ commonName: 'Osprey', observationId: 999 });
     expect(fetchMock).toHaveBeenCalledTimes(5);
+
+    const attachCall = fetchMock.mock.calls[4];
+    const [, attachInit] = attachCall;
+    expect((attachInit as { body: FormData }).body.get('observation_photo[observation_id]')).toBe('obs-uuid');
   });
 
   it('propagates a failure from any step without catching it', async () => {
@@ -229,7 +233,9 @@ describe('getObservationTaxon', () => {
     );
     const result = await getObservationTaxon({ fetch: fetchMock }, 999);
     expect(result).toEqual({ commonName: 'Osprey', scientificName: 'Pandion haliaetus' });
-    expect(fetchMock).toHaveBeenCalledWith('https://api.inaturalist.org/v1/observations/999');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.inaturalist.org/v2/observations?id=999&fields=(taxon%3A(name%3A!t%2Cpreferred_common_name%3A!t))'
+    );
   });
 
   it('throws when the request is not ok', async () => {

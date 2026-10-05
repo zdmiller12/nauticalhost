@@ -19,6 +19,7 @@
 - Alphabetical field ordering within object literals/schemas (existing repo convention).
 - Any iNaturalist call failing during `publish-photo` must warn and continue — a photo is never blocked from publishing.
 - **Deviation from the spec, discovered during implementation:** the spec's flow step 4 says "attaching the already-uploaded lightbox image (R2 URL)" via `POST /observation_photos`. iNaturalist's real API does not accept a remote URL there — `observation_photos` requires the image bytes themselves as a multipart `file` upload. Tasks below have `publishToInaturalist` take the in-memory `lightbox` `Buffer` (already available in `publishPhoto` before it's uploaded to R2) and multipart-upload it directly, instead of passing a URL. This changes only the HTTP mechanics, not the design's shape, data model, or user-facing behavior — flagging it here rather than reopening the spec review gate.
+- **Later migration (post-implementation):** `lib/inaturalist.ts` was subsequently migrated from the v1 to the v2 REST API (`https://api.inaturalist.org/v2`). The code snippets and URLs below reflect the v1 implementation as originally planned/built; see the spec (now updated) and the current source for v2's shape — notably its mandatory `fields` sparse-fieldset param, response bodies wrapped in `{ results: [...] }`, and `observation_photos` keying off the observation's `uuid` rather than its integer `id`. This plan file is left as a historical record and not updated in place.
 
 ---
 
