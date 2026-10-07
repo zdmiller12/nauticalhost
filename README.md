@@ -4,7 +4,7 @@ Personal monorepo: portfolio site, tools, and other projects, each independently
 
 ## Layout
 
-- `site/` — personal/portfolio site (Astro, deployed on Cloudflare Pages)
+- `site/` — personal/portfolio site (Astro, deployed on Cloudflare Workers) — see [`site/USER_GUIDE.md`](site/USER_GUIDE.md)
 - `tools/` — hosted tools (e.g. Word API), each its own sub-project (planned)
 - `photos/` — photo/data hosting (planned)
 
