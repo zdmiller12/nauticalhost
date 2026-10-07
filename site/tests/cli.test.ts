@@ -10,6 +10,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     error: vi.fn(),
     exit: vi.fn() as unknown as CliIo['exit'],
     readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
+    readTextFile: vi.fn().mockResolvedValue(null),
     writeFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
     extractExif: vi.fn().mockResolvedValue({
@@ -212,5 +213,70 @@ describe('runCli with PRIVATE_GEOMETRY_WKT', () => {
     // makeIo's default photo (38.9784, -76.4922) sits inside this polygon.
     const [, yaml] = (io.writeFile as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(yaml).toContain('latitude: null');
+  });
+});
+
+describe('runCli action flags', () => {
+  const baseEnv = {
+    R2_ACCESS_KEY_ID: 'key',
+    R2_ACCOUNT_ID: 'acct',
+    R2_BUCKET_NAME: 'photos',
+    R2_SECRET_ACCESS_KEY: 'secret',
+  };
+  const argvBase = ['node', 'publish-photo.ts', '/tmp/photo.jpg', 'prefix'];
+
+  it('--no-r2 skips uploads and does not require R2 env vars', async () => {
+    const io = makeIo({ argv: [...argvBase, '--no-r2'], env: {} });
+    await runCli(io);
+    expect(io.exit).not.toHaveBeenCalled();
+    expect(io.uploadObject).not.toHaveBeenCalled();
+    expect(io.writeFile).toHaveBeenCalled();
+  });
+
+  it('--only-r2 uploads but writes no YAML', async () => {
+    const io = makeIo({ argv: [...argvBase, '--only-r2'], env: baseEnv });
+    await runCli(io);
+    expect(io.uploadObject).toHaveBeenCalledTimes(2);
+    expect(io.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('--only-yaml writes the YAML without uploading or needing R2 env vars', async () => {
+    const io = makeIo({ argv: [...argvBase, '--only-yaml'], env: {} });
+    await runCli(io);
+    expect(io.uploadObject).not.toHaveBeenCalled();
+    expect(io.resizePhoto).not.toHaveBeenCalled();
+    expect(io.writeFile).toHaveBeenCalled();
+  });
+
+  it('--only-yaml backfills `other:` into an existing YAML', async () => {
+    const io = makeIo({
+      argv: [...argvBase, '--only-yaml'],
+      env: {},
+      readTextFile: vi.fn().mockResolvedValue('---\nslug: photo\n'),
+    });
+    await runCli(io);
+    expect(io.writeFile).toHaveBeenCalledWith('src/content/photos/photo.yaml', expect.stringContaining('other:'));
+    expect(io.log).toHaveBeenCalledWith(expect.stringContaining("Backfilled 'other'"));
+  });
+
+  it('--only-inaturalist without --species exits 1', async () => {
+    const io = makeIo({ argv: [...argvBase, '--only-inaturalist'], env: baseEnv });
+    await runCli(io);
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('requires --species'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('exits 1 when every action is disabled', async () => {
+    const io = makeIo({ argv: [...argvBase, '--no-r2', '--no-yaml', '--no-inaturalist'], env: baseEnv });
+    await runCli(io);
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('nothing to do'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('--no-inaturalist with --species does not require iNaturalist env vars', async () => {
+    const io = makeIo({ argv: [...argvBase, '--species', 'Pandion haliaetus', '--no-inaturalist'], env: baseEnv });
+    await runCli(io);
+    expect(io.exit).not.toHaveBeenCalled();
+    expect(io.fetch).not.toHaveBeenCalled();
   });
 });

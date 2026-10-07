@@ -14,13 +14,29 @@ export interface PublishDeps {
     species: string;
   }) => Promise<{ commonName: string; observationId: number }>;
   readFile: (path: string) => Promise<Buffer>;
+  /** Reads a text file, or returns null if it doesn't exist. */
+  readTextFile: (path: string) => Promise<string | null>;
   resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
   warn: (msg: string) => void;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
 
+/** Which of the three publish actions to run. */
+export interface PublishActions {
+  inaturalist: boolean;
+  r2: boolean;
+  yaml: boolean;
+}
+
+export interface PublishResult {
+  /** Set when the YAML already existed, so `other:` was appended (or skipped) instead of rewriting the file. */
+  backfilled?: 'appended' | 'skipped';
+  observationId?: number | null;
+}
+
 export interface PublishArgs {
+  actions?: PublishActions;
   bucket: string;
   contentDir: string;
   r2KeyPrefix: string;
@@ -111,44 +127,72 @@ tier: E
 `;
 }
 
-export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promise<void> {
+export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promise<PublishResult> {
+  const actions = args.actions ?? { inaturalist: true, r2: true, yaml: true };
+  const runInaturalist = actions.inaturalist && !!args.species && !!deps.publishToInaturalist;
+  const yamlPath = `${args.contentDir}/${args.slug}.yaml`;
+  const result: PublishResult = {};
+
+  // An existing YAML is hand-edited (tier, notes, ...), so never regenerate it; only backfill `other`.
+  const existingYaml = actions.yaml ? await deps.readTextFile(yamlPath) : null;
+  const alreadyHasOther = existingYaml !== null && /^other:/m.test(existingYaml);
+  if (alreadyHasOther && !actions.r2 && !runInaturalist) {
+    return { backfilled: 'skipped' };
+  }
+
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
   const isPrivateGeometry =
     exif.latitude !== null && exif.longitude !== null && (deps.isPrivateGeometry?.(exif.latitude, exif.longitude) ?? false);
-  const { thumb, lightbox } = await deps.resizePhoto(source);
 
-  const thumbKey = `${args.r2KeyPrefix}-thumb.jpg`;
-  const lightboxKey = `${args.r2KeyPrefix}-lg.jpg`;
+  // R2 and iNaturalist consume the resized images; the YAML action alone does not.
+  const { thumb, lightbox } =
+    actions.r2 || runInaturalist
+      ? await deps.resizePhoto(source)
+      : { thumb: Buffer.alloc(0), lightbox: Buffer.alloc(0) };
 
-  await deps.uploadObject(args.bucket, thumbKey, thumb, 'image/jpeg');
-  await deps.uploadObject(args.bucket, lightboxKey, lightbox, 'image/jpeg');
+  if (actions.r2) {
+    await deps.uploadObject(args.bucket, `${args.r2KeyPrefix}-thumb.jpg`, thumb, 'image/jpeg');
+    await deps.uploadObject(args.bucket, `${args.r2KeyPrefix}-lg.jpg`, lightbox, 'image/jpeg');
+  }
 
   let organism: OrganismEntry | null = null;
-  if (args.species && deps.publishToInaturalist) {
+  if (args.species && !actions.inaturalist) {
+    // Species known but iNaturalist skipped: keep the name, leave the observation unlinked.
+    organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species };
+  } else if (runInaturalist) {
     try {
-      const result = await deps.publishToInaturalist({
+      const inat = await deps.publishToInaturalist!({
         latitude: exif.latitude,
         longitude: exif.longitude,
         observedOn: exif.date,
         photo: lightbox,
         privateLocation: isPrivateGeometry,
-        species: args.species,
+        species: args.species!,
       });
       organism = {
-        commonName: result.commonName,
-        inaturalistObservationId: result.observationId,
-        scientificName: args.species,
+        commonName: inat.commonName,
+        inaturalistObservationId: inat.observationId,
+        scientificName: args.species!,
       };
     } catch (err) {
       deps.warn(`iNaturalist publish failed for "${args.species}": ${(err as Error).message}`);
-      organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species };
+      organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species! };
     }
+    result.observationId = organism.inaturalistObservationId;
+  }
+
+  if (!actions.yaml) return result;
+
+  if (existingYaml !== null) {
+    if (alreadyHasOther) return { ...result, backfilled: 'skipped' };
+    await deps.writeFile(yamlPath, `${existingYaml.replace(/\n+$/, '')}\n${formatOtherYaml(exif.other)}\n`);
+    return { ...result, backfilled: 'appended' };
   }
 
   // iNaturalist above still got the real coordinates (hidden via geoprivacy); the site YAML must not.
-  const yamlExif = isPrivateGeometry ?{ ...exif, latitude: null, longitude: null } : exif;
-  const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, organism);
+  const yamlExif = isPrivateGeometry ? { ...exif, latitude: null, longitude: null } : exif;
   await deps.mkdir(args.contentDir);
-  await deps.writeFile(`${args.contentDir}/${args.slug}.yaml`, yaml);
+  await deps.writeFile(yamlPath, buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, organism));
+  return result;
 }

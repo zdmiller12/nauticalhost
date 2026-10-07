@@ -88,6 +88,14 @@ consistency between local and cloud builds.
    extension), and the R2 key is always `<r2-key-prefix>/<file name>`
    (any trailing slashes on `<r2-key-prefix>` are stripped first).
 
+   The script runs three actions: `inaturalist` (needs `--species`), `r2`,
+   and `yaml`. Skip one with `--no-<action>`, or run just one with
+   `--only-<action>` (which disables the others; combine several `--only-*`
+   to run exactly those). R2/iNaturalist env vars are only required for
+   actions that run. If the YAML already exists it is never overwritten:
+   an `other:` EXIF block is appended if missing (this replaces the old
+   `backfill-exif-other` script), e.g. `npm run publish-photo -- <image> <prefix> --only-yaml`.
+
 4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
    including `camera`/`lens` if EXIF extraction found them.
