@@ -2,12 +2,15 @@ import type { PhotoExif } from './exif';
 
 export interface PublishDeps {
   extractExif: (buffer: Buffer) => Promise<PhotoExif>;
+  /** Whether a location falls inside the configured private geometry. Omitted when none is configured. */
+  isPrivateGeometry?: (latitude: number, longitude: number) => boolean;
   mkdir: (path: string) => Promise<unknown>;
   publishToInaturalist?: (args: {
     latitude: number | null;
     longitude: number | null;
     observedOn: Date | null;
     photo: Buffer;
+    privateLocation: boolean;
     species: string;
   }) => Promise<{ commonName: string; observationId: number }>;
   readFile: (path: string) => Promise<Buffer>;
@@ -111,6 +114,8 @@ tier: E
 export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promise<void> {
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
+  const isPrivateGeometry =
+    exif.latitude !== null && exif.longitude !== null && (deps.isPrivateGeometry?.(exif.latitude, exif.longitude) ?? false);
   const { thumb, lightbox } = await deps.resizePhoto(source);
 
   const thumbKey = `${args.r2KeyPrefix}-thumb.jpg`;
@@ -127,6 +132,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
         longitude: exif.longitude,
         observedOn: exif.date,
         photo: lightbox,
+        privateLocation: isPrivateGeometry,
         species: args.species,
       });
       organism = {
@@ -140,7 +146,9 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
     }
   }
 
-  const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, exif, organism);
+  // iNaturalist above still got the real coordinates (hidden via geoprivacy); the site YAML must not.
+  const yamlExif = isPrivateGeometry ?{ ...exif, latitude: null, longitude: null } : exif;
+  const yaml = buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, organism);
   await deps.mkdir(args.contentDir);
   await deps.writeFile(`${args.contentDir}/${args.slug}.yaml`, yaml);
 }

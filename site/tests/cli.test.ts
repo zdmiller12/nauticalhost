@@ -181,3 +181,36 @@ describe('runCli with --species', () => {
     expect(io.exit).not.toHaveBeenCalled();
   });
 });
+
+describe('runCli with PRIVATE_GEOMETRY_WKT', () => {
+  const baseEnv = {
+    R2_ACCESS_KEY_ID: 'key',
+    R2_ACCOUNT_ID: 'acct',
+    R2_BUCKET_NAME: 'photos',
+    R2_SECRET_ACCESS_KEY: 'secret',
+  };
+  const argv = ['node', 'publish-photo.ts', '/tmp/2026-06-14-osprey-nest.jpg', 'ospreys/osprey-nest-01'];
+
+  it('exits 1 before uploading when the WKT is invalid', async () => {
+    const io = makeIo({ argv, env: { ...baseEnv, PRIVATE_GEOMETRY_WKT: 'POINT (1 2)' } });
+
+    await runCli(io);
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('Invalid PRIVATE_GEOMETRY_WKT'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+    expect(io.uploadObject).not.toHaveBeenCalled();
+  });
+
+  it('strips the location from the YAML when the photo falls inside the geometry', async () => {
+    const io = makeIo({
+      argv,
+      env: { ...baseEnv, PRIVATE_GEOMETRY_WKT: 'POLYGON ((-77 38, -76 38, -76 40, -77 40, -77 38))' },
+    });
+
+    await runCli(io);
+
+    // makeIo's default photo (38.9784, -76.4922) sits inside this polygon.
+    const [, yaml] = (io.writeFile as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(yaml).toContain('latitude: null');
+  });
+});

@@ -4,6 +4,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import { extractExif, type PhotoExif } from './exif';
 import { resizePhoto } from './resize';
 import { createR2Client, uploadObject } from './r2';
+import { createIsWithin } from './private-geometry';
 import { publishPhoto } from './publish';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 
@@ -86,6 +87,7 @@ export async function runCli(io: CliIo): Promise<void> {
     longitude: number | null;
     observedOn: Date | null;
     photo: Buffer;
+    privateLocation: boolean;
     species: string;
   }) => Promise<{ commonName: string; observationId: number }>) | undefined;
 
@@ -105,11 +107,25 @@ export async function runCli(io: CliIo): Promise<void> {
     publishToInaturalist = (args) => corePublishToInaturalist({ fetch: io.fetch }, credentials, args);
   }
 
+  // Fail before any upload rather than risk publishing a location that was meant to be private.
+  let isPrivateGeometry: ((latitude: number, longitude: number) => boolean) | undefined;
+  const privateGeometryWkt = io.env.PRIVATE_GEOMETRY_WKT?.trim();
+  if (privateGeometryWkt) {
+    try {
+      isPrivateGeometry = createIsWithin(privateGeometryWkt);
+    } catch (err) {
+      io.error(`Invalid PRIVATE_GEOMETRY_WKT: ${(err as Error).message}`);
+      io.exit(1);
+      return;
+    }
+  }
+
   const client = io.createR2Client({ accessKeyId, accountId, bucket, secretAccessKey });
 
   await publishPhoto(
     {
       extractExif: io.extractExif,
+      isPrivateGeometry,
       mkdir: io.mkdir,
       publishToInaturalist,
       readFile: io.readFile,

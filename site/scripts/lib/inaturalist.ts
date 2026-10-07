@@ -14,6 +14,7 @@ export interface ObservationInput {
   longitude: number | null;
   observedOn: Date | null;
   photo: Buffer;
+  privateLocation?: boolean;
   species: string;
 }
 
@@ -72,7 +73,13 @@ export async function fetchJwt(deps: InaturalistDeps, accessToken: string): Prom
 export async function createObservation(
   deps: InaturalistDeps,
   jwt: string,
-  args: { latitude: number | null; longitude: number | null; observedOn: Date | null; taxonId: number }
+  args: {
+    latitude: number | null;
+    longitude: number | null;
+    observedOn: Date | null;
+    privateLocation?: boolean;
+    taxonId: number;
+  }
 ): Promise<{ id: number; uuid: string }> {
   const fields = encodeURIComponent('(id:!t,uuid:!t)');
   const res = await deps.fetch(`${API_BASE}/observations?fields=${fields}`, {
@@ -80,6 +87,8 @@ export async function createObservation(
     headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       observation: {
+        // 'private' hides the coordinates from everyone but the observer; iNaturalist still stores them.
+        geoprivacy: args.privateLocation ? 'private' : undefined,
         latitude: args.latitude,
         longitude: args.longitude,
         observed_on_string: args.observedOn ? args.observedOn.toISOString() : undefined,
@@ -122,6 +131,7 @@ export async function publishToInaturalist(
     latitude: input.latitude,
     longitude: input.longitude,
     observedOn: input.observedOn,
+    privateLocation: input.privateLocation,
     taxonId,
   });
   await attachPhoto(deps, jwt, observation.uuid, input.photo);

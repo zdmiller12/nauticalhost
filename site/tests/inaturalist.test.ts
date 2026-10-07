@@ -126,6 +126,19 @@ describe('createObservation', () => {
     );
   });
 
+  it('sets geoprivacy to private only when privateLocation is true', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }));
+    const base = { latitude: 38.9784, longitude: -76.4922, observedOn: null, taxonId: 5 };
+
+    await createObservation({ fetch: fetchMock }, 'jwt-abc', { ...base, privateLocation: true });
+    await createObservation({ fetch: fetchMock }, 'jwt-abc', base);
+
+    const bodyOf = (call: number) => JSON.parse((fetchMock.mock.calls[call][1] as { body: string }).body);
+    expect(bodyOf(0).observation.geoprivacy).toBe('private');
+    expect(bodyOf(0).observation.latitude).toBe(38.9784);
+    expect(bodyOf(1).observation.geoprivacy).toBeUndefined();
+  });
+
   it('omits observed_on_string when observedOn is null', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }));
     await createObservation({ fetch: fetchMock }, 'jwt-abc', {

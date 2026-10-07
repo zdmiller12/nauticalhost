@@ -110,6 +110,7 @@ describe('publishPhoto with --species', () => {
       longitude: -76.4922,
       observedOn: exif.date,
       photo: Buffer.from('l'),
+      privateLocation: false,
       species: 'Pandion haliaetus',
     });
 
@@ -119,6 +120,82 @@ describe('publishPhoto with --species', () => {
     expect(yaml).toContain('inaturalistObservationId: 999');
     expect(yaml).toContain('objectType: organism');
     expect(deps.warn).not.toHaveBeenCalled();
+  });
+
+  it('sends real coordinates to iNaturalist but strips them from the YAML when the location is in the private geometry', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const isPrivateGeometry = vi.fn().mockReturnValue(true);
+    const deps = makeDeps({ isPrivateGeometry, publishToInaturalist });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(isPrivateGeometry).toHaveBeenCalledWith(38.9784, -76.4922);
+    expect(publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 38.9784, longitude: -76.4922, privateLocation: true })
+    );
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: null');
+    expect(yaml).toContain('longitude: null');
+    expect(yaml).not.toContain('38.9784');
+  });
+
+  it('strips coordinates from the YAML for a private location even without --species', async () => {
+    const deps = makeDeps({ isPrivateGeometry: () => true });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: null');
+    expect(yaml).toContain('longitude: null');
+  });
+
+  it('keeps coordinates when the location is outside the private geometry', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const deps = makeDeps({ isPrivateGeometry: () => false, publishToInaturalist });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ privateLocation: false }));
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: 38.9784');
+  });
+
+  it('does not check the geometry when the photo has no location', async () => {
+    const isPrivateGeometry = vi.fn().mockReturnValue(true);
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      isPrivateGeometry,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    expect(isPrivateGeometry).not.toHaveBeenCalled();
   });
 
   it('still writes valid YAML with a null id when the iNaturalist call fails', async () => {
