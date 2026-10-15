@@ -63,11 +63,11 @@ consistency between local and cloud builds.
       it, image URLs on the compendium page silently break in production.
 2. Copy `.env.example` to `.env` and fill in the four R2 values from step 1
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
-3. Run:
+3. Run (standard case — publishes to iNaturalist, R2, and writes the YAML):
 
-       npm run publish-photo -- <path-to-source-image> <r2-key-prefix>
+       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>"
 
-   e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys`
+   e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys --species "Pandion haliaetus"`
 
    Slug, R2 key, and the per-action flags are described in
    [USER_GUIDE.md](USER_GUIDE.md#publishing-a-photo). Extra detail: trailing
