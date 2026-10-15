@@ -179,7 +179,6 @@ export async function runCli(io: CliIo): Promise<void> {
       readTextFile: io.readTextFile,
       resizePhoto: io.resizePhoto,
       uploadObject: (b, key, body, contentType) => io.uploadObject(client!, b, key, body, contentType),
-      warn: io.error,
       writeFile: io.writeFile,
     },
     { actions, bucket: bucket ?? '', contentDir: 'src/content/photos', r2KeyPrefix, slug, sourcePath, species }

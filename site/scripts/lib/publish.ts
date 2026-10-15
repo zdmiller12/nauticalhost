@@ -18,7 +18,6 @@ export interface PublishDeps {
   readTextFile: (path: string) => Promise<string | null>;
   resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
-  warn: (msg: string) => void;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
 
@@ -161,8 +160,9 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
     // Species known but iNaturalist skipped: keep the name, leave the observation unlinked.
     organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species };
   } else if (runInaturalist) {
+    let inat;
     try {
-      const inat = await deps.publishToInaturalist!({
+      inat = await deps.publishToInaturalist!({
         latitude: exif.latitude,
         longitude: exif.longitude,
         observedOn: exif.date,
@@ -170,15 +170,16 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
         privateLocation: isPrivateGeometry,
         species: args.species!,
       });
-      organism = {
-        commonName: inat.commonName,
-        inaturalistObservationId: inat.observationId,
-        scientificName: args.species!,
-      };
     } catch (err) {
-      deps.warn(`iNaturalist publish failed for "${args.species}": ${(err as Error).message}`);
-      organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species! };
+      // Stop here rather than writing R2/YAML output that silently omits the
+      // observation: a half-published photo is easy to miss and hard to find later.
+      throw new Error(`iNaturalist publish failed for "${args.species}": ${(err as Error).message}`, { cause: err });
     }
+    organism = {
+      commonName: inat.commonName,
+      inaturalistObservationId: inat.observationId,
+      scientificName: args.species!,
+    };
     result.observationId = organism.inaturalistObservationId;
   }
 

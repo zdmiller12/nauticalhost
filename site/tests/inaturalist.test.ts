@@ -80,12 +80,12 @@ describe('fetchAccessToken', () => {
 });
 
 describe('fetchJwt', () => {
-  it('exchanges an access token for a JWT api_token via the v1 endpoint', async () => {
+  it('exchanges an access token for a JWT api_token via the www.inaturalist.org endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ api_token: 'jwt-abc' }));
     const jwt = await fetchJwt({ fetch: fetchMock }, 'token-123');
     expect(jwt).toBe('jwt-abc');
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v1/users/api_token',
+      'https://www.inaturalist.org/users/api_token',
       expect.objectContaining({ headers: { Authorization: 'Bearer token-123' } })
     );
   });

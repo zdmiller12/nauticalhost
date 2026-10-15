@@ -24,9 +24,10 @@ export interface ObservationResult {
 }
 
 const API_BASE = 'https://api.inaturalist.org/v2';
-// The v1-only JWT exchange endpoint (`/users/api_token`) has no v2 equivalent;
-// the JWT it returns authenticates v2 write endpoints just the same.
-const API_BASE_V1 = 'https://api.inaturalist.org/v1';
+// The JWT exchange endpoint (`/users/api_token`) lives on the main site, not
+// the api.inaturalist.org host; the JWT it returns authenticates v2 write
+// endpoints just the same.
+const JWT_EXCHANGE_URL = 'https://www.inaturalist.org/users/api_token';
 
 export async function resolveTaxon(
   deps: InaturalistDeps,
@@ -62,7 +63,7 @@ export async function fetchAccessToken(
 }
 
 export async function fetchJwt(deps: InaturalistDeps, accessToken: string): Promise<string> {
-  const res = await deps.fetch(`${API_BASE_V1}/users/api_token`, {
+  const res = await deps.fetch(JWT_EXCHANGE_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error(`iNaturalist JWT request failed: ${res.status}`);

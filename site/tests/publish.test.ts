@@ -88,7 +88,6 @@ describe('publishPhoto with --species', () => {
       readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
       uploadObject: vi.fn().mockResolvedValue(undefined),
-      warn: vi.fn(),
       writeFile: vi.fn().mockResolvedValue(undefined),
       ...overrides,
     };
@@ -121,7 +120,6 @@ describe('publishPhoto with --species', () => {
     expect(yaml).toContain('scientificName: "Pandion haliaetus"');
     expect(yaml).toContain('inaturalistObservationId: 999');
     expect(yaml).toContain('objectType: organism');
-    expect(deps.warn).not.toHaveBeenCalled();
   });
 
   it('sends real coordinates to iNaturalist but strips them from the YAML when the location is in the private geometry', async () => {
@@ -200,23 +198,22 @@ describe('publishPhoto with --species', () => {
     expect(isPrivateGeometry).not.toHaveBeenCalled();
   });
 
-  it('still writes valid YAML with a null id when the iNaturalist call fails', async () => {
+  it('throws instead of publishing partial output when the iNaturalist call fails', async () => {
     const publishToInaturalist = vi.fn().mockRejectedValue(new Error('network down'));
     const deps = makeDeps({ publishToInaturalist });
 
-    await publishPhoto(deps, {
-      bucket: 'photos',
-      contentDir: 'src/content/photos',
-      r2KeyPrefix: 'ospreys/osprey-nest-01',
-      slug: '2026-06-14-osprey-nest',
-      sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
-    });
+    await expect(
+      publishPhoto(deps, {
+        bucket: 'photos',
+        contentDir: 'src/content/photos',
+        r2KeyPrefix: 'ospreys/osprey-nest-01',
+        slug: '2026-06-14-osprey-nest',
+        sourcePath: '/tmp/source.jpg',
+        species: 'Pandion haliaetus',
+      })
+    ).rejects.toThrow('iNaturalist publish failed for "Pandion haliaetus": network down');
 
-    const [, yaml] = deps.writeFile.mock.calls[0];
-    expect(yaml).toContain('scientificName: "Pandion haliaetus"');
-    expect(yaml).toContain('inaturalistObservationId: null');
-    expect(deps.warn).toHaveBeenCalledWith(expect.stringContaining('network down'));
+    expect(deps.writeFile).not.toHaveBeenCalled();
   });
 
   it('leaves the commented placeholder when species is omitted', async () => {
@@ -447,7 +444,6 @@ describe('publishPhoto action toggles', () => {
       readTextFile: vi.fn().mockResolvedValue(existingYaml),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
       uploadObject: vi.fn().mockResolvedValue(undefined),
-      warn: vi.fn(),
       writeFile: vi.fn().mockResolvedValue(undefined),
     };
   }
