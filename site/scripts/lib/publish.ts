@@ -40,6 +40,10 @@ export interface PublishArgs {
   actions?: PublishActions;
   bucket: string;
   contentDir: string;
+  /** Overrides the photo's EXIF latitude, e.g. when it has none or the CLI user wants to correct it. */
+  latitude?: number;
+  /** Overrides the photo's EXIF longitude. */
+  longitude?: number;
   r2KeyPrefix: string;
   slug: string;
   sourcePath: string;
@@ -145,8 +149,9 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   const exif = await deps.extractExif(source);
 
   // Many older photos predate GPS tagging; iNaturalist observations need coordinates, so ask rather than fail.
-  let latitude = exif.latitude;
-  let longitude = exif.longitude;
+  // --lat/--lon (args) take precedence over EXIF, e.g. to supply or correct what the camera recorded.
+  let latitude = args.latitude ?? exif.latitude;
+  let longitude = args.longitude ?? exif.longitude;
   if (runInaturalist && (latitude === null || longitude === null)) {
     const input = (await deps.prompt('Photo has no GPS coordinates. Latitude, Longitude (blank to skip): ')).trim();
     if (input) {

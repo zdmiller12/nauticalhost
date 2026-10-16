@@ -78,6 +78,24 @@ function parseSpeciesFlag(flagArgs: string[]): string | undefined {
   return flagArgs[index + 1];
 }
 
+/** Pulls `--lat <deg> --lon <deg>` out of the trailing CLI args. Both or neither must be given. */
+function parseCoordinateFlags(flagArgs: string[]): { latitude?: number; longitude?: number } | { error: string } {
+  const latIndex = flagArgs.indexOf('--lat');
+  const lonIndex = flagArgs.indexOf('--lon');
+  const latStr = latIndex === -1 ? undefined : flagArgs[latIndex + 1];
+  const lonStr = lonIndex === -1 ? undefined : flagArgs[lonIndex + 1];
+  if ((latStr === undefined) !== (lonStr === undefined)) {
+    return { error: '--lat and --lon must be provided together.' };
+  }
+  if (latStr === undefined || lonStr === undefined) return {};
+  const latitude = Number(latStr);
+  const longitude = Number(lonStr);
+  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+    return { error: '--lat/--lon must be numbers.' };
+  }
+  return { latitude, longitude };
+}
+
 const ACTION_NAMES = ['inaturalist', 'r2', 'yaml'] as const;
 
 /**
@@ -102,7 +120,7 @@ export function parseActionFlags(flagArgs: string[]): { actions: PublishActions 
 export async function runCli(io: CliIo): Promise<void> {
   const [sourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
   if (!sourcePath || !r2KeyPrefixArg) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--lat <deg> --lon <deg>] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
     io.exit(1);
     return;
   }
@@ -115,6 +133,13 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
   const { actions } = parsed;
+
+  const coords = parseCoordinateFlags(flagArgs);
+  if ('error' in coords) {
+    io.error(coords.error);
+    io.exit(1);
+    return;
+  }
 
   // Species only matters for iNaturalist and the YAML's `objects` entry; skip asking for r2-only runs.
   if (!species && (actions.inaturalist || actions.yaml)) {
@@ -199,7 +224,17 @@ export async function runCli(io: CliIo): Promise<void> {
       uploadObject: (b, key, body, contentType) => io.uploadObject(client!, b, key, body, contentType),
       writeFile: io.writeFile,
     },
-    { actions, bucket: bucket ?? '', contentDir: 'src/content/photos', r2KeyPrefix, slug, sourcePath, species }
+    {
+      actions,
+      bucket: bucket ?? '',
+      contentDir: 'src/content/photos',
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      r2KeyPrefix,
+      slug,
+      sourcePath,
+      species,
+    }
   );
 
   const yamlFile = `src/content/photos/${slug}.yaml`;

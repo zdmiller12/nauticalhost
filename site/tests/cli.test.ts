@@ -213,6 +213,101 @@ describe('runCli with --species', () => {
 
     expect(io.prompt).not.toHaveBeenCalled();
   });
+
+  it('overrides EXIF coordinates with --lat/--lon', async () => {
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/osprey.jpg',
+        'ospreys/osprey-nest-01',
+        '--no-r2',
+        '--no-inaturalist',
+        '--species',
+        'Pandion haliaetus',
+        '--lat',
+        '1.5',
+        '--lon',
+        '2.5',
+      ],
+    });
+
+    await runCli(io);
+
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('latitude: 1.5')
+    );
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('longitude: 2.5')
+    );
+  });
+
+  it('skips the coordinate prompt when --lat/--lon are given and the photo has no EXIF GPS data', async () => {
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/osprey.jpg',
+        'ospreys/osprey-nest-01',
+        '--no-r2',
+        '--species',
+        'Pandion haliaetus',
+        '--lat',
+        '1.5',
+        '--lon',
+        '2.5',
+      ],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      extractExif: vi.fn().mockResolvedValue({
+        camera: 'Sony A7 IV',
+        date: new Date(2026, 5, 14),
+        latitude: null,
+        lens: '100-400mm GM',
+        longitude: null,
+        utcOffsetMinutes: null,
+      }),
+      fetch: vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+        .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+        .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+        .mockResolvedValueOnce(jsonResponse({}, true, 200)),
+    });
+
+    await runCli(io);
+
+    expect(io.prompt).not.toHaveBeenCalledWith(expect.stringContaining('coordinates'));
+  });
+
+  it('rejects --lat without --lon', async () => {
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--lat', '1.5'],
+    });
+
+    await runCli(io);
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--lat and --lon must be provided together'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('rejects non-numeric --lat/--lon', async () => {
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--lat', 'abc', '--lon', '2.5'],
+    });
+
+    await runCli(io);
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--lat/--lon must be numbers'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+  });
 });
 
 describe('runCli with PRIVATE_GEOMETRY_WKT', () => {
