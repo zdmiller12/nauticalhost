@@ -29,13 +29,19 @@ const API_BASE = 'https://api.inaturalist.org/v2';
 // endpoints just the same.
 const JWT_EXCHANGE_URL = 'https://www.inaturalist.org/users/api_token';
 
+/** Formats a failed response's status alongside its body, so API-rejection reasons (e.g. validation errors) aren't lost. */
+async function describeFailure(res: Response): Promise<string> {
+  const text = await res.text();
+  return text ? `${res.status} ${text}` : `${res.status}`;
+}
+
 export async function resolveTaxon(
   deps: InaturalistDeps,
   species: string
 ): Promise<{ commonName: string; taxonId: number }> {
   const fields = encodeURIComponent('(id:!t,preferred_common_name:!t)');
   const res = await deps.fetch(`${API_BASE}/taxa?q=${encodeURIComponent(species)}&fields=${fields}`);
-  if (!res.ok) throw new Error(`iNaturalist taxon lookup failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist taxon lookup failed: ${await describeFailure(res)}`);
   const body = (await res.json()) as { results: Array<{ id: number; preferred_common_name?: string }> };
   const match = body.results[0];
   if (!match) throw new Error(`No iNaturalist taxon found for "${species}"`);
@@ -57,7 +63,7 @@ export async function fetchAccessToken(
       username: credentials.username,
     }),
   });
-  if (!res.ok) throw new Error(`iNaturalist OAuth token request failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist OAuth token request failed: ${await describeFailure(res)}`);
   const body = (await res.json()) as { access_token: string };
   return body.access_token;
 }
@@ -66,7 +72,7 @@ export async function fetchJwt(deps: InaturalistDeps, accessToken: string): Prom
   const res = await deps.fetch(JWT_EXCHANGE_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error(`iNaturalist JWT request failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist JWT request failed: ${await describeFailure(res)}`);
   const body = (await res.json()) as { api_token: string };
   return body.api_token;
 }
@@ -97,7 +103,7 @@ export async function createObservation(
       },
     }),
   });
-  if (!res.ok) throw new Error(`iNaturalist observation creation failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist observation creation failed: ${await describeFailure(res)}`);
   const body = (await res.json()) as { results: Array<{ id: number; uuid: string }> };
   return body.results[0];
 }
@@ -117,7 +123,7 @@ export async function attachPhoto(
     headers: { Authorization: `Bearer ${jwt}` },
     body: form,
   });
-  if (!res.ok) throw new Error(`iNaturalist photo attach failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist photo attach failed: ${await describeFailure(res)}`);
 }
 
 export async function publishToInaturalist(
@@ -145,7 +151,7 @@ export async function getObservationTaxon(
 ): Promise<{ commonName: string; scientificName: string } | null> {
   const fields = encodeURIComponent('(taxon:(name:!t,preferred_common_name:!t))');
   const res = await deps.fetch(`${API_BASE}/observations?id=${observationId}&fields=${fields}`);
-  if (!res.ok) throw new Error(`iNaturalist observation lookup failed: ${res.status}`);
+  if (!res.ok) throw new Error(`iNaturalist observation lookup failed: ${await describeFailure(res)}`);
   const body = (await res.json()) as {
     results: Array<{ taxon: { name: string; preferred_common_name?: string } | null }>;
   };

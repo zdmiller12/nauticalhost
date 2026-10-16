@@ -14,6 +14,7 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
     ok,
     status,
     json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
   } as unknown as Response;
 }
 
@@ -162,6 +163,20 @@ describe('createObservation', () => {
         taxonId: 5,
       })
     ).rejects.toThrow(/observation creation failed: 422/);
+  });
+
+  it('includes the response body in the error when the request is rejected', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ errors: ['Taxon is captive/cultivated'] }, false, 422));
+    await expect(
+      createObservation({ fetch: fetchMock }, 'jwt-abc', {
+        latitude: null,
+        longitude: null,
+        observedOn: null,
+        taxonId: 5,
+      })
+    ).rejects.toThrow(/Taxon is captive\/cultivated/);
   });
 });
 
