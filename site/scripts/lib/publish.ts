@@ -148,10 +148,15 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   let latitude = exif.latitude;
   let longitude = exif.longitude;
   if (runInaturalist && (latitude === null || longitude === null)) {
-    const latInput = (await deps.prompt('Photo has no GPS coordinates. Latitude (blank to skip): ')).trim();
-    const lonInput = (await deps.prompt('Longitude (blank to skip): ')).trim();
-    latitude = latInput ? Number(latInput) : null;
-    longitude = lonInput ? Number(lonInput) : null;
+    const input = (await deps.prompt('Photo has no GPS coordinates. Latitude, Longitude (blank to skip): ')).trim();
+    if (input) {
+      const [latInput, lonInput] = input.split(',').map((part) => part.trim());
+      latitude = Number(latInput);
+      longitude = Number(lonInput);
+    } else {
+      latitude = null;
+      longitude = null;
+    }
   }
 
   const isPrivateGeometry =

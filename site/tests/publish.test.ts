@@ -220,7 +220,7 @@ describe('publishPhoto with --species', () => {
 
   it('prompts for coordinates when the photo has none and iNaturalist will run', async () => {
     const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
-    const prompt = vi.fn().mockResolvedValueOnce('38.9784').mockResolvedValueOnce('-76.4922');
+    const prompt = vi.fn().mockResolvedValue('38.9784, -76.4922');
     const deps = makeDeps({
       extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
       prompt,
@@ -236,7 +236,8 @@ describe('publishPhoto with --species', () => {
       species: 'Pandion haliaetus',
     });
 
-    expect(prompt).toHaveBeenCalledTimes(2);
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(prompt).toHaveBeenCalledWith(expect.stringContaining('Latitude, Longitude'));
     expect(publishToInaturalist).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 38.9784, longitude: -76.4922 })
     );
