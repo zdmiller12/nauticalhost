@@ -19,6 +19,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# per-run logs from batch scripts (e.g. publish-photo-csv failures)
+scripts/usage/
+
 
 # environment variables
 .env

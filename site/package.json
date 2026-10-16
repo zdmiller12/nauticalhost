@@ -11,6 +11,7 @@
     "dev": "astro dev",
     "preview": "astro preview",
     "publish-photo": "tsx scripts/publish-photo.ts",
+    "publish-photo-csv": "tsx scripts/publish-photo-csv.ts",
     "sync-inaturalist": "tsx scripts/sync-inaturalist.ts",
     "test": "vitest run --coverage"
   },
@@ -27,6 +28,7 @@
     "@aws-sdk/client-s3": "^3.650.0",
     "@types/js-yaml": "^4.0.9",
     "@vitest/coverage-v8": "^4.1.11",
+    "csv-parse": "^7.0.3",
     "dotenv": "^17.4.2",
     "exifr": "^7.1.3",
     "happy-dom": "^20.14.3",
