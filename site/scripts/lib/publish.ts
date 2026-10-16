@@ -5,6 +5,8 @@ export interface PublishDeps {
   /** Whether a location falls inside the configured private geometry. Omitted when none is configured. */
   isPrivateGeometry?: (latitude: number, longitude: number) => boolean;
   mkdir: (path: string) => Promise<unknown>;
+  /** Asks the user a question on stdin/stdout and resolves with their (trimmed) answer. */
+  prompt: (question: string) => Promise<string>;
   publishToInaturalist?: (args: {
     latitude: number | null;
     longitude: number | null;
@@ -141,8 +143,19 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
 
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
+
+  // Many older photos predate GPS tagging; iNaturalist observations need coordinates, so ask rather than fail.
+  let latitude = exif.latitude;
+  let longitude = exif.longitude;
+  if (runInaturalist && (latitude === null || longitude === null)) {
+    const latInput = (await deps.prompt('Photo has no GPS coordinates. Latitude (blank to skip): ')).trim();
+    const lonInput = (await deps.prompt('Longitude (blank to skip): ')).trim();
+    latitude = latInput ? Number(latInput) : null;
+    longitude = lonInput ? Number(lonInput) : null;
+  }
+
   const isPrivateGeometry =
-    exif.latitude !== null && exif.longitude !== null && (deps.isPrivateGeometry?.(exif.latitude, exif.longitude) ?? false);
+    latitude !== null && longitude !== null && (deps.isPrivateGeometry?.(latitude, longitude) ?? false);
 
   // R2 and iNaturalist consume the resized images; the YAML action alone does not.
   const { thumb, lightbox } =
@@ -163,8 +176,8 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
     let inat;
     try {
       inat = await deps.publishToInaturalist!({
-        latitude: exif.latitude,
-        longitude: exif.longitude,
+        latitude,
+        longitude,
         observedOn: exif.date,
         photo: lightbox,
         privateLocation: isPrivateGeometry,
@@ -192,7 +205,8 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   }
 
   // iNaturalist above still got the real coordinates (hidden via geoprivacy); the site YAML must not.
-  const yamlExif = isPrivateGeometry ? { ...exif, latitude: null, longitude: null } : exif;
+  const resolvedExif = { ...exif, latitude, longitude };
+  const yamlExif = isPrivateGeometry ? { ...resolvedExif, latitude: null, longitude: null } : resolvedExif;
   await deps.mkdir(args.contentDir);
   await deps.writeFile(yamlPath, buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, organism));
   return result;

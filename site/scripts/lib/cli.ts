@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { extractExif, type PhotoExif } from './exif';
 import { resizePhoto } from './resize';
@@ -18,6 +19,8 @@ export interface CliIo {
   fetch: typeof fetch;
   log: (msg: string) => void;
   mkdir: (path: string) => Promise<unknown>;
+  /** Asks the user a question on stdin/stdout and resolves with their (trimmed) answer. */
+  prompt: (question: string) => Promise<string>;
   readFile: (path: string) => Promise<Buffer>;
   /** Reads a text file, or returns null if it does not exist. */
   readTextFile: (path: string) => Promise<string | null>;
@@ -45,6 +48,14 @@ export function createRealCliIo(): CliIo {
     fetch,
     log: (msg) => console.log(msg),
     mkdir: (path) => mkdir(path, { recursive: true }),
+    prompt: async (question) => {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        return (await rl.question(question)).trim();
+      } finally {
+        rl.close();
+      }
+    },
     readFile,
     readTextFile: async (path) => {
       try {
@@ -96,7 +107,7 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
-  const species = parseSpeciesFlag(flagArgs);
+  let species = parseSpeciesFlag(flagArgs);
   const parsed = parseActionFlags(flagArgs);
   if ('error' in parsed) {
     io.error(parsed.error);
@@ -104,6 +115,12 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
   const { actions } = parsed;
+
+  // Species only matters for iNaturalist and the YAML's `objects` entry; skip asking for r2-only runs.
+  if (!species && (actions.inaturalist || actions.yaml)) {
+    species = (await io.prompt('Species (scientific name, leave blank to skip): ')) || undefined;
+  }
+
   if (actions.inaturalist && !species && flagArgs.includes('--only-inaturalist')) {
     io.error('--only-inaturalist requires --species.');
     io.exit(1);
@@ -174,6 +191,7 @@ export async function runCli(io: CliIo): Promise<void> {
       extractExif: io.extractExif,
       isPrivateGeometry,
       mkdir: io.mkdir,
+      prompt: io.prompt,
       publishToInaturalist,
       readFile: io.readFile,
       readTextFile: io.readTextFile,

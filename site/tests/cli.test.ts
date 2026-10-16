@@ -13,6 +13,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     readTextFile: vi.fn().mockResolvedValue(null),
     writeFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
+    prompt: vi.fn().mockResolvedValue(''),
     extractExif: vi.fn().mockResolvedValue({
       camera: 'Sony A7 IV',
       date: new Date(2026, 5, 14),
@@ -180,6 +181,37 @@ describe('runCli with --species', () => {
       expect.stringContaining('inaturalistObservationId: 999')
     );
     expect(io.exit).not.toHaveBeenCalled();
+  });
+
+  it('prompts for species when --species is omitted but an action that uses it is enabled', async () => {
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--no-r2', '--no-inaturalist'],
+      prompt: vi.fn().mockResolvedValue('Pandion haliaetus'),
+    });
+
+    await runCli(io);
+
+    expect(io.prompt).toHaveBeenCalledWith(expect.stringContaining('Species'));
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('scientificName: "Pandion haliaetus"')
+    );
+  });
+
+  it('does not prompt for species when no enabled action would use it', async () => {
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--only-r2'],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+    });
+
+    await runCli(io);
+
+    expect(io.prompt).not.toHaveBeenCalled();
   });
 });
 

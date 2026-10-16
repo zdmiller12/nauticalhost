@@ -22,6 +22,7 @@ describe('publishPhoto', () => {
     const deps = {
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
@@ -84,6 +85,7 @@ describe('publishPhoto with --species', () => {
     return {
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
@@ -214,6 +216,71 @@ describe('publishPhoto with --species', () => {
     ).rejects.toThrow('iNaturalist publish failed for "Pandion haliaetus": network down');
 
     expect(deps.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('prompts for coordinates when the photo has none and iNaturalist will run', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const prompt = vi.fn().mockResolvedValueOnce('38.9784').mockResolvedValueOnce('-76.4922');
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt,
+      publishToInaturalist,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(prompt).toHaveBeenCalledTimes(2);
+    expect(publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 38.9784, longitude: -76.4922 })
+    );
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: 38.9784');
+    expect(yaml).toContain('longitude: -76.4922');
+  });
+
+  it('proceeds with null coordinates when the prompt is left blank', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt: vi.fn().mockResolvedValue(''),
+      publishToInaturalist,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ latitude: null, longitude: null }));
+  });
+
+  it('does not prompt for coordinates when iNaturalist will not run', async () => {
+    const prompt = vi.fn().mockResolvedValue('');
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    expect(prompt).not.toHaveBeenCalled();
   });
 
   it('leaves the commented placeholder when species is omitted', async () => {
@@ -439,6 +506,7 @@ describe('publishPhoto action toggles', () => {
     return {
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
       publishToInaturalist: vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 7 }),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(existingYaml),
