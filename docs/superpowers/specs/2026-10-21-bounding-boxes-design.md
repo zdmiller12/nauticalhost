@@ -4,6 +4,21 @@
 
 Give each photo object an optional bounding box, so that the subject — not the whole frame — drives what iNaturalist receives, what the Compendium thumbnail shows, and where the photo viewer opens. Supporting tooling lets boxes be drawn in a browser dialog at publish time, replacing the scattered stdin prompts with one screen.
 
+## Delivery in two cycles
+
+This spec covers both cycles, but only **cycle 1** goes to an implementation plan now.
+
+**Cycle 1 — boxes work end to end.** Schema, `src/lib/bounding-box.ts`, the `resize.ts` crop, `--save-crops`, `photo-yaml.ts`, the `publish.ts` generalization from `species` to `objects`, and the whole viewer. Boxes are supplied non-interactively via a new `--box` flag (and a CSV `box` column).
+
+**Cycle 2 — drawing tooling.** The three dialog modules, consolidating the existing stdin prompts into them, duplicate detection, and the CSV two-phase split with `--no-dialog`.
+
+Two consequences of the split that must hold, or cycle 1 ships broken:
+
+- **The existing prompts stay exactly where they are in cycle 1.** Species (`cli.ts:146`) and lat/lon (`publish.ts:156`) only move once the dialog exists to receive them, so `prompt` remains in `PublishDeps` and `publish-csv.ts` keeps its `prompt: async () => ''` stub until cycle 2.
+- **`findDuplicates` is cycle 2.** Its only consumer is the dialog. Cycle 1 appends supplied objects to an existing YAML without duplicate warnings.
+
+The `--box` flag is not scaffolding to be thrown away. It is the permanent non-interactive path — needed for scripted and repeat runs regardless — and it means cycle 2's dialog is just another producer of the same validated input rather than a new code path through the pipeline.
+
 ## Context
 
 - `site/scripts/publish-photo.ts` → `scripts/lib/cli.ts` (`runCli`) → `scripts/lib/publish.ts` (`publishPhoto`) extracts EXIF, resizes to two sizes, uploads both to R2, optionally creates an iNaturalist observation, then writes `{contentDir}/{slug}.yaml`. `scripts/lib/publish-csv.ts` (`publishCsv`) loops the same `publishPhoto` over CSV rows.
@@ -58,7 +73,7 @@ Exports:
 - `type BoundingBox = { bottom: number; left: number; right: number; top: number }`
 - `toPixelRect(box, size)` → integer `{ height, left, top, width }` for `sharp.extract()`. Floors `left`/`top`, ceils `right`/`bottom`, clamps to `[0, size]`, and enforces a 1px floor on each dimension. Deliberate rounding here is what prevents `bad extract area`.
 - `expandToAspect(box, aspect)` → grows the box outward to the target aspect ratio, clamped to the image edges (so a box against an edge grows only inward on that axis). Used for the thumbnail.
-- `intersectionOverUnion(a, b)` → `0..1`, for duplicate detection.
+- `intersectionOverUnion(a, b)` → `0..1`, for duplicate detection. **Deferred to cycle 2** along with its only consumer; adding it earlier would be an unused export.
 - `displayedSize({ height, orientation, width })` → transposes the axes for EXIF orientations 5–8. A three-line pure function, chosen over a second full decode of a 24MP image purely to ask its displayed size.
 
 ## Publish pipeline
@@ -79,14 +94,15 @@ Isolates YAML handling from publish orchestration, with a deliberate read/write 
 ### `scripts/lib/publish.ts`
 
 - `species?: string` generalizes to `objects?: ObjectInput[]`, a discriminated union mirroring the schema and carrying `boundingBox`. `cli.ts` normalizes `--species` into a one-element array, so the flag keeps working unchanged.
+- **`--box <left>,<top>,<right>,<bottom>`** (normalized, repeatable) supplies boxes non-interactively, pairing positionally with `--species`. `publish-photo-csv` gains an equivalent `box` column. Parsing lives in `cli.ts` beside `parseCoordinateFlags`, which it mirrors: reject non-numbers, reject out-of-range, reject non-positive area, and surface the error before any upload.
 - Each organism gets its own observation, with its photo cropped to its own box when it has one, falling back to the full-frame lightbox when it does not. `PublishResult.observationId` becomes `observationIds: number[]`.
 - When the YAML already exists and new objects were supplied, they are appended via `appendObjects` rather than the file being skipped. The existing `other`-backfill behavior is unchanged.
-- **`prompt` is removed from `PublishDeps` entirely.** Both prompts move to the dialog, making `publishPhoto` fully non-interactive. This retires `publish-csv.ts`'s `prompt: async () => ''` stub and moves duplicate confirmation out of the middle of the upload path.
+- **Cycle 2:** `prompt` is removed from `PublishDeps` entirely once the dialog can receive both prompts, making `publishPhoto` fully non-interactive. That retires `publish-csv.ts`'s `prompt: async () => ''` stub and moves duplicate confirmation out of the middle of the upload path. Until then `prompt` stays.
 - `--save-crops` (default off) writes each iNaturalist crop to `scripts/usage/cropped-photos/{STEM}-cropped.JPG`, giving a local record of what was actually sent. Needs no `.gitignore` change: `scripts/usage/` is already ignored recursively. Normal runs stay side-effect-free.
 
-## Dialog
+## Dialog (cycle 2)
 
-Three modules, split so the interactive surface stays thin and the logic stays testable.
+Three modules, split so the interactive surface stays thin and the logic stays testable. Not part of the cycle 1 plan; recorded here because the cycle 1 interfaces are shaped to receive it — `ObjectInput[]` is what the dialog produces, so it plugs into the existing pipeline rather than adding a path through it.
 
 ### `scripts/lib/dialog-session.ts` — pure
 
@@ -127,23 +143,31 @@ Because boxes are normalized, the preview's resolution is irrelevant to correctn
 
 ## Testing
 
-One test file per new module, matching the existing layout:
+One test file per new module, matching the existing layout.
 
-- `tests/bounding-box.test.ts` — rounding and clamping in `toPixelRect` (including edge-abutting and sub-pixel boxes), `expandToAspect` against all four edges, `intersectionOverUnion` (disjoint, identical, partial), `displayedSize` for all eight orientations.
+**Cycle 1:**
+
+- `tests/bounding-box.test.ts` — rounding and clamping in `toPixelRect` (including edge-abutting and sub-pixel boxes), `expandToAspect` against all four edges, `displayedSize` for all eight orientations.
+- `tests/shared-purity.test.ts` — asserts each cross-boundary module's source declares no runtime imports and contains no `import.meta`, `astro:`, or `node:` specifier. This exists because vitest runs through Vite, where `import.meta.env` *is* defined, so an ordinary test cannot catch a Vite-only construct that would break the tsx-run CLI at runtime.
 - `tests/content-schema.test.ts` — extend: box accepted, transposed and zero-area boxes rejected, out-of-range rejected, absent box defaults to `null`, all six existing YAMLs still validate.
 - `tests/resize.test.ts` — extend: thumb crops to the expanded box, lightbox stays full-frame, `cropToBox` output dimensions, rotate-before-extract on an Orientation-6 source.
 - `tests/photo-yaml.test.ts` — append preserves `tier`/`notes`/comments/`other` byte-for-byte, placeholder replacement, parse of landmarks and boxed objects.
-- `tests/publish.test.ts` — extend: per-organism crop selection, multiple observations, append path, `--save-crops`, and that `PublishDeps` no longer needs `prompt`.
+- `tests/publish.test.ts` — extend: per-organism crop selection, multiple observations, append path, `--save-crops`.
+- `tests/cli.test.ts` / `tests/publish-csv.test.ts` — extend: `--box` parsing and rejection cases, positional pairing with `--species`, the CSV `box` column.
+- `tests/zoom.test.ts` — extend: `fitBox` scale and centering, clamping at the `[1, max]` bounds, edge-abutting boxes via `clampPan`.
+- `tests/photo-viewer.test.ts` — extend: initial fit to first box, chip zoom and visibility toggles, declarative view re-derived on expand and resize, and a no-boxes photo behaving exactly as before.
+
+**Cycle 2:**
+
 - `tests/dialog-session.test.ts` — queue construction, payload validation, duplicate detection by details and by IoU.
 - `tests/dialog-server.test.ts` — routing, result resolution, abort, timeout; against an injected server handle.
 - `tests/dialog-client.test.ts` — happy-dom, following `tests/photo-viewer.test.ts`: drag-to-draw, row/box highlight association, reordering, type switching. Drag-to-draw converts client coordinates to normalized ones via the image's bounding rect, which happy-dom reports as all zeros — so that rect must come through an injectable seam (as `initPhotoViewer` takes its root) rather than being read directly off the element.
-- `tests/zoom.test.ts` — extend: `fitBox` scale and centering, clamping at the `[1, max]` bounds, edge-abutting boxes via `clampPan`.
-- `tests/photo-viewer.test.ts` — extend: initial fit to first box, chip zoom and visibility toggles, declarative view re-derived on expand and resize, and a no-boxes photo behaving exactly as before.
 
 Coverage must stay at 100% per file.
 
 ## Explicitly out of scope for this pass
 
+- Everything marked cycle 2 above: the three dialog modules, moving the existing stdin prompts into them, `findDuplicates`/`intersectionOverUnion`, the CSV two-phase split, and `--no-dialog`.
 - Rewriting or synthesizing EXIF on cropped output — verified unnecessary above.
 - More than one box per object. Boxes are 1:1 with objects.
 - Backfilling boxes onto the six existing photos. They stay boxless; adding a box later means re-running publish with `--only-r2` to regenerate the thumbnail.
