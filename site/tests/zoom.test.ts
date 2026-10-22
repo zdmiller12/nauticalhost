@@ -127,4 +127,32 @@ describe('fitBox', () => {
   it('returns UNZOOMED for a degenerate box', () => {
     expect(fitBox({ bottom: 0.5, left: 0.5, right: 0.5, top: 0.5 }, stage, content, 8)).toEqual(UNZOOMED);
   });
+
+  it('includes content.left offset when computing rect position', () => {
+    // Pillarboxed portrait: 400x800 image in 400x400 stage, contained at 200x400
+    // with 100px bands left and right. This tests that content.left is not dropped
+    // from the rect.left calculation.
+    const pillarStage = { height: 400, width: 400 };
+    const pillarContent = { height: 400, left: 100, top: 0, width: 200 };
+    const pillarBox = { bottom: 0.625, left: 0.375, right: 0.625, top: 0.375 };
+    // rect.left = 100 + 0.375*200 = 175, rect.width = 0.25*200 = 50
+    // rect.top = 0 + 0.375*400 = 150, rect.height = 0.25*400 = 100
+    // scale = min(8, max(1, min(400/50, 400/100))) = 4
+    // x = 200 - 4*(175+25) = -600, y = 200 - 4*(150+50) = -600
+    const state = fitBox(pillarBox, pillarStage, pillarContent, 8);
+    expect(state).toEqual({ scale: 4, x: -600, y: -600 });
+  });
+
+  it('enforces scale floor of 1x even when content exceeds stage', () => {
+    // Defensive contract test: a content rect from containRect can never exceed
+    // its stage, so this is unreachable through the real viewer, but fitBox is
+    // exported and the floor documents that it will not zoom out past 1x whatever
+    // it is handed.
+    const overStage = { height: 100, width: 100 };
+    const overContent = { height: 400, left: 0, top: 0, width: 400 };
+    const fullBox = { bottom: 1, left: 0, right: 1, top: 0 };
+    const state = fitBox(fullBox, overStage, overContent, 8);
+    expect(state.scale).toBe(1);
+    expect(state).toEqual({ scale: 1, x: -150, y: -150 });
+  });
 });
