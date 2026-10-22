@@ -4,9 +4,8 @@
 // without knowing any of their pixel sizes.
 //
 // Imported by BOTH the publish CLI (run under tsx, outside Vite) and the
-// browser viewer, so this module must stay import-free and must not reference
-// Vite environment globals, node platform specifiers, or astro specifiers
-// -- see tests/shared-purity.test.ts.
+// browser viewer, so this module must stay import-free and free of
+// `import.meta` / `node:` / `astro:` -- see tests/shared-purity.test.ts.
 
 export interface BoundingBox {
   bottom: number;
@@ -29,16 +28,6 @@ export interface PixelRect {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-/** Normalize a value to eliminate floating-point artifacts near boundaries. */
-function normalize(value: number): number {
-  // Round to eliminate floating-point errors (e.g., 0.30000000000000004 -> 0.3)
-  const rounded = Math.round(value * 1e15) / 1e15;
-  // If it's suspiciously close to 0 or 1, snap to those values
-  if (Math.abs(rounded) < 1e-14) return 0;
-  if (Math.abs(rounded - 1) < 1e-14) return 1;
-  return rounded;
 }
 
 /**
@@ -85,7 +74,7 @@ function grow(start: number, end: number, length: number): [number, number] {
     lo -= hi - 1;
     hi = 1;
   }
-  return [normalize(clamp(lo, 0, 1)), normalize(clamp(hi, 0, 1))];
+  return [clamp(lo, 0, 1), clamp(hi, 0, 1)];
 }
 
 /**

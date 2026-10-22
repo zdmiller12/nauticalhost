@@ -75,12 +75,11 @@ describe('toPixelRect', () => {
 describe('expandToPhotoAspect', () => {
   it('grows the short axis symmetrically', () => {
     // 0.2 wide x 0.4 tall, centered: grows to 0.4 x 0.4.
-    expect(expandToPhotoAspect({ bottom: 0.7, left: 0.4, right: 0.6, top: 0.3 })).toEqual({
-      bottom: 0.7,
-      left: 0.3,
-      right: 0.7,
-      top: 0.3,
-    });
+    const result = expandToPhotoAspect({ bottom: 0.7, left: 0.4, right: 0.6, top: 0.3 });
+    expect(result.bottom).toBe(0.7);
+    expect(result.left).toBeCloseTo(0.3);
+    expect(result.right).toBeCloseTo(0.7);
+    expect(result.top).toBeCloseTo(0.3);
   });
 
   it('leaves an already-square box alone', () => {
@@ -103,6 +102,9 @@ describe('expandToPhotoAspect', () => {
 
   it('clamps to the full frame when the box is wider than it is tall by more than the frame', () => {
     const grown = expandToPhotoAspect({ bottom: 0.55, left: 0, right: 1, top: 0.45 });
-    expect(grown).toEqual({ bottom: 1, left: 0, right: 1, top: 0 });
+    expect(grown.bottom).toBe(1);
+    expect(grown.left).toBe(0);
+    expect(grown.right).toBe(1);
+    expect(grown.top).toBeCloseTo(0);
   });
 });

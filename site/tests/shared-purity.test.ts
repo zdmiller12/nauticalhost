@@ -8,6 +8,15 @@ import { readFileSync } from 'node:fs';
 // reading the source instead.
 const SHARED_MODULES = ['src/lib/bounding-box.ts'];
 
+/** Strip line and block comments from source code. */
+function stripComments(source: string): string {
+  // Remove block comments first: /* ... */
+  let stripped = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Remove line comments: // ...
+  stripped = stripped.replace(/\/\/.*$/gm, '');
+  return stripped;
+}
+
 describe('cross-boundary shared modules', () => {
   for (const path of SHARED_MODULES) {
     describe(path, () => {
@@ -19,9 +28,10 @@ describe('cross-boundary shared modules', () => {
       });
 
       it('references no Vite-only or platform-only specifier', () => {
-        expect(source).not.toMatch(/import\.meta/);
-        expect(source).not.toMatch(/from\s+['"]node:/);
-        expect(source).not.toMatch(/from\s+['"]astro:/);
+        const sourceWithoutComments = stripComments(source);
+        expect(sourceWithoutComments).not.toMatch(/import\.meta/);
+        expect(sourceWithoutComments).not.toMatch(/from\s+['"]node:/);
+        expect(sourceWithoutComments).not.toMatch(/from\s+['"]astro:/);
       });
     });
   }
