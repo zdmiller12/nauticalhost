@@ -22,7 +22,9 @@ describe('publishPhoto', () => {
     const deps = {
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
+      readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
       uploadObject: vi.fn().mockResolvedValue(undefined),
       writeFile: vi.fn().mockResolvedValue(undefined),
@@ -68,6 +70,236 @@ describe('publishPhoto', () => {
   });
 });
 
+describe('publishPhoto with --species', () => {
+  const exif: PhotoExif = {
+    camera: 'Sony A7 IV',
+    date: new Date(2026, 5, 14, 12, 0, 0),
+    latitude: 38.9784,
+    lens: '100-400mm GM',
+    longitude: -76.4922,
+    other: {},
+    utcOffsetMinutes: null,
+  };
+
+  function makeDeps(overrides: Partial<Parameters<typeof publishPhoto>[0]> = {}) {
+    return {
+      extractExif: vi.fn().mockResolvedValue(exif),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
+      readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
+      readTextFile: vi.fn().mockResolvedValue(null),
+      resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
+      uploadObject: vi.fn().mockResolvedValue(undefined),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
+  }
+
+  it('writes a real organism entry when the iNaturalist call succeeds', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const deps = makeDeps({ publishToInaturalist });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(publishToInaturalist).toHaveBeenCalledWith({
+      latitude: 38.9784,
+      longitude: -76.4922,
+      observedOn: exif.date,
+      photo: Buffer.from('l'),
+      privateLocation: false,
+      species: 'Pandion haliaetus',
+    });
+
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('commonName: "Osprey"');
+    expect(yaml).toContain('scientificName: "Pandion haliaetus"');
+    expect(yaml).toContain('inaturalistObservationId: 999');
+    expect(yaml).toContain('objectType: organism');
+  });
+
+  it('sends real coordinates to iNaturalist but strips them from the YAML when the location is in the private geometry', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const isPrivateGeometry = vi.fn().mockReturnValue(true);
+    const deps = makeDeps({ isPrivateGeometry, publishToInaturalist });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(isPrivateGeometry).toHaveBeenCalledWith(38.9784, -76.4922);
+    expect(publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 38.9784, longitude: -76.4922, privateLocation: true })
+    );
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: null');
+    expect(yaml).toContain('longitude: null');
+    expect(yaml).not.toContain('38.9784');
+  });
+
+  it('strips coordinates from the YAML for a private location even without --species', async () => {
+    const deps = makeDeps({ isPrivateGeometry: () => true });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: null');
+    expect(yaml).toContain('longitude: null');
+  });
+
+  it('keeps coordinates when the location is outside the private geometry', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const deps = makeDeps({ isPrivateGeometry: () => false, publishToInaturalist });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ privateLocation: false }));
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: 38.9784');
+  });
+
+  it('does not check the geometry when the photo has no location', async () => {
+    const isPrivateGeometry = vi.fn().mockReturnValue(true);
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      isPrivateGeometry,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    expect(isPrivateGeometry).not.toHaveBeenCalled();
+  });
+
+  it('throws instead of publishing partial output when the iNaturalist call fails', async () => {
+    const publishToInaturalist = vi.fn().mockRejectedValue(new Error('network down'));
+    const deps = makeDeps({ publishToInaturalist });
+
+    await expect(
+      publishPhoto(deps, {
+        bucket: 'photos',
+        contentDir: 'src/content/photos',
+        r2KeyPrefix: 'ospreys/osprey-nest-01',
+        slug: '2026-06-14-osprey-nest',
+        sourcePath: '/tmp/source.jpg',
+        species: 'Pandion haliaetus',
+      })
+    ).rejects.toThrow('iNaturalist publish failed for "Pandion haliaetus": network down');
+
+    expect(deps.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('prompts for coordinates when the photo has none and iNaturalist will run', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const prompt = vi.fn().mockResolvedValue('38.9784, -76.4922');
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt,
+      publishToInaturalist,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(prompt).toHaveBeenCalledWith(expect.stringContaining('Latitude, Longitude'));
+    expect(publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 38.9784, longitude: -76.4922 })
+    );
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('latitude: 38.9784');
+    expect(yaml).toContain('longitude: -76.4922');
+  });
+
+  it('proceeds with null coordinates when the prompt is left blank', async () => {
+    const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt: vi.fn().mockResolvedValue(''),
+      publishToInaturalist,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+      species: 'Pandion haliaetus',
+    });
+
+    expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ latitude: null, longitude: null }));
+  });
+
+  it('does not prompt for coordinates when iNaturalist will not run', async () => {
+    const prompt = vi.fn().mockResolvedValue('');
+    const deps = makeDeps({
+      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
+      prompt,
+    });
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it('leaves the commented placeholder when species is omitted', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      bucket: 'photos',
+      contentDir: 'src/content/photos',
+      r2KeyPrefix: 'ospreys/osprey-nest-01',
+      slug: '2026-06-14-osprey-nest',
+      sourcePath: '/tmp/source.jpg',
+    });
+
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('#   objectType: organism');
+  });
+});
+
 describe('buildMetadataYaml', () => {
   it('renders EXIF-derived fields and placeholders for hand-authored fields', () => {
     const exif: PhotoExif = {
@@ -94,6 +326,20 @@ describe('buildMetadataYaml', () => {
     expect(yaml).toContain('objects:');
     // `other` is alphabetized by key, matching this codebase's ordering convention.
     expect(yaml).toContain('other:\n  FNumber: 4\n  ISO: 400\n');
+  });
+
+  it('renders a string `other` value with quotes', () => {
+    const exif: PhotoExif = {
+      camera: null,
+      date: null,
+      latitude: null,
+      lens: null,
+      longitude: null,
+      other: { Software: 'Lightroom' },
+      utcOffsetMinutes: null,
+    };
+    const yaml = buildMetadataYaml('untitled', 'misc/untitled', exif);
+    expect(yaml).toContain('other:\n  Software: "Lightroom"\n');
   });
 
   it('renders an empty `other` map as an inline empty object', () => {
@@ -207,8 +453,8 @@ describe('buildMetadataYaml round-trip through the schema', () => {
     parsed.tier = 'B';
     parsed.objects = [
       {
-        details: { common_name: 'Osprey', description: null, scientific_name: 'Pandion haliaetus' },
-        object_type: 'organism',
+        details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+        objectType: 'organism',
       },
     ];
 
@@ -232,10 +478,97 @@ describe('buildMetadataYaml round-trip through the schema', () => {
 
     parsed.tier = 'A';
     parsed.objects = [
-      { details: { description: 'Cape Charles Lighthouse' }, object_type: 'landmark' },
+      { details: { description: 'Cape Charles Lighthouse' }, objectType: 'landmark' },
     ];
 
     const result = photoSchema.safeParse(parsed);
     expect(result.success).toBe(true);
+  });
+});
+
+describe('publishPhoto action toggles', () => {
+  const exif: PhotoExif = {
+    camera: 'Sony A7 IV',
+    date: new Date(2026, 5, 14, 12, 0, 0),
+    latitude: 38.9784,
+    lens: '100-400mm GM',
+    longitude: -76.4922,
+    other: { ISO: 400 },
+    utcOffsetMinutes: null,
+  };
+  const args = {
+    bucket: 'photos',
+    contentDir: 'src/content/photos',
+    r2KeyPrefix: 'ospreys/osprey-nest-01',
+    slug: 'osprey',
+    sourcePath: '/tmp/source.jpg',
+  };
+  function makeDeps(existingYaml: string | null = null) {
+    return {
+      extractExif: vi.fn().mockResolvedValue(exif),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      prompt: vi.fn().mockResolvedValue(''),
+      publishToInaturalist: vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 7 }),
+      readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
+      readTextFile: vi.fn().mockResolvedValue(existingYaml),
+      resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
+      uploadObject: vi.fn().mockResolvedValue(undefined),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it('skips the R2 upload when r2 is disabled', async () => {
+    const deps = makeDeps();
+    await publishPhoto(deps, { ...args, actions: { inaturalist: true, r2: false, yaml: true } });
+    expect(deps.uploadObject).not.toHaveBeenCalled();
+    expect(deps.writeFile).toHaveBeenCalled();
+  });
+
+  it('skips iNaturalist when disabled but still records the species', async () => {
+    const deps = makeDeps();
+    await publishPhoto(deps, { ...args, species: 'Pandion haliaetus', actions: { inaturalist: false, r2: true, yaml: true } });
+    expect(deps.publishToInaturalist).not.toHaveBeenCalled();
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('scientificName: "Pandion haliaetus"');
+    expect(yaml).toContain('inaturalistObservationId: null');
+  });
+
+  it('writes no YAML when yaml is disabled, and reports the observation id', async () => {
+    const deps = makeDeps();
+    const result = await publishPhoto(deps, {
+      ...args,
+      species: 'Pandion haliaetus',
+      actions: { inaturalist: true, r2: false, yaml: false },
+    });
+    expect(result.observationId).toBe(7);
+    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(deps.mkdir).not.toHaveBeenCalled();
+    expect(deps.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it('yaml-only does not resize or upload', async () => {
+    const deps = makeDeps();
+    await publishPhoto(deps, { ...args, actions: { inaturalist: false, r2: false, yaml: true } });
+    expect(deps.resizePhoto).not.toHaveBeenCalled();
+    expect(deps.uploadObject).not.toHaveBeenCalled();
+    expect(deps.writeFile).toHaveBeenCalled();
+  });
+
+  it('appends `other:` to an existing YAML instead of overwriting it', async () => {
+    const deps = makeDeps('---\nslug: osprey\ntier: A\n');
+    const result = await publishPhoto(deps, { ...args, actions: { inaturalist: false, r2: false, yaml: true } });
+    expect(result.backfilled).toBe('appended');
+    expect(deps.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      '---\nslug: osprey\ntier: A\nother:\n  ISO: 400\n'
+    );
+  });
+
+  it('leaves an existing YAML that already has `other:` untouched, without reading the source', async () => {
+    const deps = makeDeps('---\nother:\n  ISO: 100\nslug: osprey\n');
+    const result = await publishPhoto(deps, { ...args, actions: { inaturalist: false, r2: false, yaml: true } });
+    expect(result.backfilled).toBe('skipped');
+    expect(deps.readFile).not.toHaveBeenCalled();
+    expect(deps.writeFile).not.toHaveBeenCalled();
   });
 });

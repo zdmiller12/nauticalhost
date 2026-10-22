@@ -10,14 +10,14 @@ import {
 } from '../src/lib/photo-display';
 
 const osprey: PhotoObject = {
-  details: { common_name: 'Osprey', description: null, scientific_name: 'Pandion haliaetus' },
-  object_type: 'organism',
+  details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+  objectType: 'organism',
 };
 const heron: PhotoObject = {
-  details: { common_name: 'Great Blue Heron', description: null, scientific_name: 'Ardea herodias' },
-  object_type: 'organism',
+  details: { commonName: 'Great Blue Heron', description: null, scientificName: 'Ardea herodias' },
+  objectType: 'organism',
 };
-const platform: PhotoObject = { details: { description: 'Nesting platform' }, object_type: 'landmark' };
+const platform: PhotoObject = { details: { description: 'Nesting platform' }, objectType: 'landmark' };
 
 describe('objectName / photoTitle', () => {
   it('names organisms by common name and landmarks by description', () => {

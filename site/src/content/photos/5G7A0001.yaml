@@ -2,16 +2,17 @@
 camera: "Canon Canon EOS R7"
 datetime: 2025-09-13T23:05:44Z
 file: compendium/alpha/5G7A0001.JPG
-latitude: 37.162349
+latitude:
 lens: "RF70-200mm F2.8 L IS USM"
-longitude: -80.447362
+longitude:
 notes: First shot!
 objects:
   - details:
-      common_name: "Littleleaf Box[wood]"
+      commonName: "Littleleaf Box[wood]"
       description: Topiary style.
-      scientific_name: "Buxus microphylla"
-    object_type: organism
+      inaturalistObservationId: null
+      scientificName: "Buxus microphylla"
+    objectType: organism
 slug: 5G7A0001
 tier: E
 other:

@@ -2,21 +2,12 @@
 
 Astro static site for zdmiller12's personal/portfolio page.
 
-## Local development
-
-    npm install
-    npm run dev
-
-## Build
-
-    npm run build      # outputs to dist/
-    npm run preview    # preview the production build locally
+For setup, everyday commands, layout, and the publish/sync/deploy workflows, see
+[USER_GUIDE.md](USER_GUIDE.md). This README keeps the longer-form detail.
 
 ## Tests
 
-    npm test
-
-`npm test` runs Vitest with V8 coverage and enforces a 100% threshold
+`npm test` (see [USER_GUIDE.md](USER_GUIDE.md)) enforces a 100% threshold
 (statements/branches/functions/lines) on every file under `scripts/` and
 `src/`, checked per-file — a single undertested file fails the run even if
 the overall average looks fine. A handful of lines that would require
@@ -24,13 +15,7 @@ tricking the process into actually exiting or exec'ing the real CLI (e.g.
 `scripts/publish-photo.ts`'s `import.meta.url` bootstrap guard, and
 `process.exit` in `scripts/lib/cli.ts`) are marked with narrow
 `/* v8 ignore */` comments rather than tested; everything else is real
-coverage. `.astro` files are not included in the coverage scope. After a
-run, `coverage/index.html` has a line-by-line report.
-
-## Before first deploy
-
-**Important:** `site/public/resume.pdf` must be added before deploying. The Resume page
-includes a download link to `/resume.pdf`, which will return a 404 if the file is missing.
+coverage. `.astro` files are not included in the coverage scope.
 
 ## Deployment (Cloudflare Workers, git-connected build)
 
@@ -78,15 +63,19 @@ consistency between local and cloud builds.
       it, image URLs on the compendium page silently break in production.
 2. Copy `.env.example` to `.env` and fill in the four R2 values from step 1
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
-3. Run:
+3. Run (standard case — publishes to iNaturalist, R2, and writes the YAML):
 
-       npm run publish-photo -- <path-to-source-image> <r2-key-prefix>
+       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>"
 
-   e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys`
+   e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys --species "Pandion haliaetus"`
 
-   The slug is always the source image's file stem (its file name without
-   extension), and the R2 key is always `<r2-key-prefix>/<file name>`
-   (any trailing slashes on `<r2-key-prefix>` are stripped first).
+   Slug, R2 key, and the per-action flags are described in
+   [USER_GUIDE.md](USER_GUIDE.md#publishing-a-photo). Extra detail: trailing
+   slashes on `<r2-key-prefix>` are stripped; combine several `--only-*` flags
+   to run exactly those actions; R2/iNaturalist env vars are only required for
+   actions that run; the `other:` EXIF append replaces the old
+   `backfill-exif-other` script, e.g.
+   `npm run publish-photo -- <image> <prefix> --only-yaml`.
 
 4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
@@ -104,4 +93,4 @@ consistency between local and cloud builds.
    deferred: reintroducing them as a real, displayed feature (with a
    nullable schema field, since EXIF doesn't always have them) is future
    work, not a bug.
-6. Commit and push — Cloudflare deploys automatically.
+6. Commit and push — Cloudflare deploys automatically (see the guide).

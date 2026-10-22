@@ -49,11 +49,11 @@ describe('photoSchema', () => {
       objects: [
         {
           details: {
-            common_name: 'Osprey',
+            commonName: 'Osprey',
             description: null,
-            scientific_name: 'Pandion haliaetus',
+            scientificName: 'Pandion haliaetus',
           },
-          object_type: 'organism',
+          objectType: 'organism',
         },
       ],
       notes: 'Nesting platform, low tide.',
@@ -61,11 +61,61 @@ describe('photoSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts an organism object with an inaturalistObservationId', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          details: {
+            commonName: 'Osprey',
+            description: null,
+            inaturalistObservationId: 123456,
+            scientificName: 'Pandion haliaetus',
+          },
+          objectType: 'organism',
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('defaults inaturalistObservationId to null when omitted', () => {
+    const result = photoSchema.parse({
+      ...basePhoto,
+      objects: [
+        {
+          details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+          objectType: 'organism',
+        },
+      ],
+    });
+    const organism = result.objects[0] as { details: { inaturalistObservationId: number | null } };
+    expect(organism.details.inaturalistObservationId).toBeNull();
+  });
+
+  it('rejects a non-numeric inaturalistObservationId', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          details: {
+            commonName: 'Osprey',
+            description: null,
+            inaturalistObservationId: 'not-a-number',
+            scientificName: 'Pandion haliaetus',
+          },
+          objectType: 'organism',
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts a valid photo with a landmark object and no notes', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       objects: [
-        { details: { description: 'Osprey platform, Chesapeake Bay' }, object_type: 'landmark' },
+        { details: { description: 'Osprey platform, Chesapeake Bay' }, objectType: 'landmark' },
       ],
     });
     expect(result.success).toBe(true);
@@ -74,7 +124,7 @@ describe('photoSchema', () => {
   it('rejects a tier value outside S-F', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
-      objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+      objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
       tier: 'Z',
     });
     expect(result.success).toBe(false);
@@ -85,11 +135,11 @@ describe('photoSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects an organism object missing scientific_name', () => {
+  it('rejects an organism object missing scientificName', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       objects: [
-        { details: { common_name: 'Osprey', description: null }, object_type: 'organism' },
+        { details: { commonName: 'Osprey', description: null }, objectType: 'organism' },
       ],
     });
     expect(result.success).toBe(false);
@@ -99,7 +149,7 @@ describe('photoSchema', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       latitude: 200,
-      objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+      objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
     });
     expect(result.success).toBe(false);
   });
@@ -111,7 +161,7 @@ describe('photoSchema camera and lens', () => {
     file: 'compendium/alpha/5G7A0001.JPG',
     latitude: null,
     longitude: null,
-    objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+    objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
     slug: '5G7A0001',
     tier: 'D',
   };
@@ -133,7 +183,7 @@ describe('photoSchema other', () => {
     file: 'compendium/alpha/5G7A0001.JPG',
     latitude: null,
     longitude: null,
-    objects: [{ details: { description: 'x' }, object_type: 'landmark' }],
+    objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
     slug: '5G7A0001',
     tier: 'D',
   };
