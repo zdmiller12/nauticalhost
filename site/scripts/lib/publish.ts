@@ -1,4 +1,4 @@
-import { appendObjects, renderObjectsBlock, type PhotoObjectEntry } from './photo-yaml';
+import { appendObjects, parsePhotoObjects, renderObjectsBlock, type PhotoObjectEntry } from './photo-yaml';
 import type { PhotoExif } from './exif';
 import type { BoundingBox } from '../../src/lib/bounding-box';
 
@@ -163,8 +163,13 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   const isPrivateGeometry =
     latitude !== null && longitude !== null && (deps.isPrivateGeometry?.(latitude, longitude) ?? false);
 
-  // The thumbnail crops to the FIRST object's box, per the design.
-  const thumbBox = inputs[0]?.boundingBox ?? null;
+  // The thumbnail crops to the FIRST object's box, per the design. On an
+  // append run that "first object" is already-published (this invocation's
+  // inputs land AFTER it), so resolve it from the existing YAML rather than
+  // from `inputs` — otherwise a re-uploaded thumbnail silently re-crops to
+  // whatever was just appended instead of the photo's established subject.
+  const thumbBox =
+    existingYaml !== null ? parsePhotoObjects(existingYaml)[0]?.boundingBox ?? null : inputs[0]?.boundingBox ?? null;
   const { lightbox, thumb } =
     actions.r2 || runInaturalist
       ? await deps.resizePhoto(source, thumbBox)

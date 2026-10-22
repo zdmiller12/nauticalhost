@@ -72,7 +72,7 @@ Exports:
 
 - `type BoundingBox = { bottom: number; left: number; right: number; top: number }`
 - `toPixelRect(box, size)` → integer `{ height, left, top, width }` for `sharp.extract()`. Floors `left`/`top`, ceils `right`/`bottom`, clamps to `[0, size]`, and enforces a 1px floor on each dimension. Deliberate rounding here is what prevents `bad extract area`.
-- `expandToAspect(box, aspect)` → grows the box outward to the target aspect ratio, clamped to the image edges (so a box against an edge grows only inward on that axis). Used for the thumbnail.
+- `expandToPhotoAspect(box)` → grows the box outward to the full photo's displayed aspect ratio, clamped to the image edges (so a box against an edge grows only inward on that axis). Used for the thumbnail. (Shipped without a separate `aspect` parameter, unlike the `expandToAspect(box, aspect)` named earlier in this spec: a normalized box with equal width and height *is* the box whose pixel aspect matches the photo's, so the photo's aspect ratio is implicit in the box's own coordinate space and needs no second argument. Cycle 2 should follow the shipped signature, not the name used above.)
 - `intersectionOverUnion(a, b)` → `0..1`, for duplicate detection. **Deferred to cycle 2** along with its only consumer; adding it earlier would be an unused export.
 - `displayedSize({ height, orientation, width })` → transposes the axes for EXIF orientations 5–8. A three-line pure function, chosen over a second full decode of a 24MP image purely to ask its displayed size.
 
@@ -80,7 +80,7 @@ Exports:
 
 ### `scripts/lib/resize.ts`
 
-- `resizePhoto(source, thumbBox?)` — `lightbox` stays **full-frame** (the viewer needs the whole photo to pan around in). Only `thumb` changes: when `thumbBox` is given, `expandToAspect(box, displayedAspect)` → `.rotate().extract(...)` → resize to 480px. Called with the **first** object's box.
+- `resizePhoto(source, thumbBox?)` — `lightbox` stays **full-frame** (the viewer needs the whole photo to pan around in). Only `thumb` changes: when `thumbBox` is given, `expandToPhotoAspect(box)` → `.rotate().extract(...)` → resize to 480px. Called with the **first** object's box — concretely, the first object in the *resulting* YAML: on a fresh write that's `inputs[0]`, but on an append run (existing YAML) it's the existing file's first object, since this invocation's supplied objects land after it.
 - `cropToBox(source, box)` — `.rotate().extract(toPixelRect(box, displayedSize(metadata)))` → `.resize({ width: LIGHTBOX_WIDTH, withoutEnlargement: true }).jpeg({ quality: 85 })`, matching the lightbox it replaces for iNaturalist. `withoutEnlargement` is essential here in a way it is not for the full-frame lightbox: a tightly drawn box is often far narrower than 1600px, and upscaling it would add no detail while inflating the upload. `.rotate()` must precede `.extract()`: boxes are drawn in displayed space, and with EXIF stripped, orientation only survives if baked into the pixels.
 
 ### `scripts/lib/photo-yaml.ts` (new)
@@ -132,6 +132,15 @@ Because boxes are normalized, the preview's resolution is irrelevant to correctn
 
 `publishCsv` gains two phases. Phase 1 opens **one** dialog session and walks every row needing input, collecting all boxes up front. Phase 2 publishes the whole batch unattended, logging failures exactly as today. The user draws everything in one sitting without waiting on uploads, and a failure at row 6 does not discard rows 7–8 of drawing work. `--no-dialog` preserves today's fully unattended behavior.
 
+### Known coupling: the dialog's organism description vs. `sync-inaturalist.ts`
+
+Cycle 1 newly plumbs `description` end-to-end for organisms, but every cycle-1 producer (the CLI, the CSV `box` column) only ever writes `description: null` for an organism — the dialog's row UI above ("organism: scientific name + optional description") is the **first** path that can write a non-null organism description. That collides with `scripts/lib/sync-inaturalist.ts`: its `replaceOrganism` hard-codes `description: null` in the block it pattern-matches, while `parseOrganisms` matches *any* description. For an organism with a non-null description, the backfill branch creates a new iNaturalist observation, the subsequent `yaml.replace()` matches nothing (because the live block's `description:` line isn't literally `null`), the file is rewritten unchanged, and the next nightly run creates another observation — forever.
+
+`sync-inaturalist.ts` is out of scope for this spec (see "Explicitly out of scope"), so cycle 2 must do one of:
+
+- Relax `replaceOrganism`'s pattern to match any `description:` value rather than a literal `null` — which itself requires lifting the `sync-inaturalist.ts`-out-of-scope restriction for that one function, or
+- Keep the dialog from ever writing a non-null organism description (i.e. drop or disable that field for organism rows) until the sync script is updated.
+
 ## Viewer
 
 - `PhotoViewer.astro` takes a new `boxes: { box, label }[]` prop, built in `src/pages/compendium/photos/[slug].astro` from `objects`, reusing `objectName()` from `src/lib/photo-display.ts` for labels. Objects without a box are absent, so a photo with no boxes renders with no overlay and no chips — behavior identical to today.
@@ -147,7 +156,7 @@ One test file per new module, matching the existing layout.
 
 **Cycle 1:**
 
-- `tests/bounding-box.test.ts` — rounding and clamping in `toPixelRect` (including edge-abutting and sub-pixel boxes), `expandToAspect` against all four edges, `displayedSize` for all eight orientations.
+- `tests/bounding-box.test.ts` — rounding and clamping in `toPixelRect` (including edge-abutting and sub-pixel boxes), `expandToPhotoAspect` against all four edges, `displayedSize` for all eight orientations.
 - `tests/shared-purity.test.ts` — asserts each cross-boundary module's source declares no runtime imports and contains no `import.meta`, `astro:`, or `node:` specifier. This exists because vitest runs through Vite, where `import.meta.env` *is* defined, so an ordinary test cannot catch a Vite-only construct that would break the tsx-run CLI at runtime.
 - `tests/content-schema.test.ts` — extend: box accepted, transposed and zero-area boxes rejected, out-of-range rejected, absent box defaults to `null`, all six existing YAMLs still validate.
 - `tests/resize.test.ts` — extend: thumb crops to the expanded box, lightbox stays full-frame, `cropToBox` output dimensions, rotate-before-extract on an Orientation-6 source.

@@ -48,8 +48,15 @@ const subtitle = objects.length === 1 && firstObject.objectType === 'organism' ?
 const cameraLabel = formatCamera(camera);
 const lensLabel = lens?.trim() || null;
 const location = formatLocation(latitude, longitude);
+// publish.ts writes `commonName: ''` for a known species published with
+// iNaturalist skipped (`--no-inaturalist`/`--only-r2`), so objectName(obj)
+// can be empty for an organism; fall back to the scientific name (or a
+// generic label for a landmark, which has no such gap) rather than render a
+// chip with no accessible name.
 const viewerBoxes = objects.flatMap((obj) =>
-  obj.boundingBox ? [{ box: obj.boundingBox, label: objectName(obj) }] : []
+  obj.boundingBox
+    ? [{ box: obj.boundingBox, label: objectName(obj) || (obj.objectType === 'organism' ? obj.details.scientificName : 'Object') }]
+    : []
 );
 
 const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text-ink-muted';

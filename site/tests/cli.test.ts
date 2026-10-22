@@ -678,7 +678,7 @@ describe('runCli action flags', () => {
       'src/content/photos/photo.yaml',
       expect.stringContaining('scientificName: "Pandion haliaetus"')
     );
-    expect(io.log).toHaveBeenCalledWith(expect.stringContaining("already has an 'other' field"));
+    expect(io.log).toHaveBeenCalledWith(expect.stringContaining("Kept the existing 'other' block"));
     expect(io.log).toHaveBeenCalledWith('Appended 1 object(s) to src/content/photos/photo.yaml.');
   });
 

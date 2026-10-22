@@ -47,6 +47,14 @@ export function renderObject(entry: PhotoObjectEntry): string {
   if (entry.objectType === 'organism') {
     lines.push(
       `      commonName: ${JSON.stringify(entry.details.commonName)}`,
+      // A non-null description here is not round-trippable by
+      // sync-inaturalist.ts's replaceOrganism, which matches a literal
+      // `description: null` in the block it searches for. Unreachable today
+      // (every producer hard-codes description: null for organisms), but a
+      // future producer that fills this in for an organism will need
+      // replaceOrganism's pattern relaxed first, or the sync job's
+      // yaml.replace() silently matches nothing and the YAML is rewritten
+      // unchanged on every nightly run.
       renderDescription(entry.details.description),
       `      inaturalistObservationId: ${entry.details.inaturalistObservationId ?? 'null'}`,
       `      scientificName: ${JSON.stringify(entry.details.scientificName)}`,
@@ -65,6 +73,7 @@ export function renderObjectsBlock(entries: PhotoObjectEntry[]): string {
   #   details:
   #     commonName: ""
   #     description: null
+  #     inaturalistObservationId: null
   #     scientificName: ""
   #   objectType: organism`;
   }

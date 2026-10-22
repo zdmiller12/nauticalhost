@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { load } from 'js-yaml';
 import { projectSchema } from '../src/content/schema';
 import { photoSchema } from '../src/content/schema';
 
@@ -268,5 +270,21 @@ describe('photoSchema other', () => {
   it('rejects a non-scalar value', () => {
     const result = photoSchema.safeParse({ ...photo, other: { nested: { a: 1 } } });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('photoSchema against real content', () => {
+  it('validates every existing photo YAML in src/content/photos', () => {
+    const dir = 'src/content/photos';
+    const files = readdirSync(dir).filter((name) => name.endsWith('.yaml'));
+
+    // So this test can't silently pass by iterating nothing.
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const parsed = load(readFileSync(`${dir}/${file}`, 'utf-8'));
+      const result = photoSchema.safeParse(parsed);
+      expect(result.success, `${file}: ${result.success ? '' : JSON.stringify(result.error.issues)}`).toBe(true);
+    }
   });
 });

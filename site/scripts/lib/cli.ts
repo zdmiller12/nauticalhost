@@ -331,7 +331,10 @@ export async function runCli(io: CliIo): Promise<void> {
   if (result.backfilled === 'appended') {
     io.log(`Backfilled 'other' into ${yamlFile}.`);
   } else if (result.backfilled === 'skipped') {
-    io.log(`Skipped ${yamlFile}: already has an 'other' field.`);
+    // `backfilled === 'skipped'` means the `other:` field itself was left
+    // alone — it can co-occur with appended objects, so this must describe
+    // that field's outcome rather than claim the whole file was untouched.
+    io.log(`Kept the existing 'other' block in ${yamlFile}.`);
   } else if (actions.yaml) {
     io.log(`Published ${slug} (${ran}). Fill in tier/notes (and objects, if --species was omitted) in ${yamlFile}`);
     return;

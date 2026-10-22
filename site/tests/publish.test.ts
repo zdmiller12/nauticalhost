@@ -219,6 +219,48 @@ tier: E
     expect(result.appendedObjects).toBe(1);
   });
 
+  it('thumbs to the EXISTING file\'s first object box on an append run, not the newly-supplied object', async () => {
+    const existingBox = { bottom: 0.5, left: 0.1, right: 0.4, top: 0.1 };
+    const existing = `---
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: ${existingBox.bottom}
+      left: ${existingBox.left}
+      right: ${existingBox.right}
+      top: ${existingBox.top}
+    details:
+      description: "Existing first object"
+    objectType: landmark
+other: {}
+slug: osprey-nest
+tier: E
+`;
+    const deps = makeDeps({ readTextFile: vi.fn().mockResolvedValue(existing) });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'Newly appended', objectType: 'landmark' }],
+    });
+
+    // The append-run's own supplied box must NOT win; the already-published
+    // first object's box still drives the re-uploaded thumbnail.
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), existingBox);
+  });
+
+  it('thumbs to the newly-supplied first object box on a fresh write (no existing YAML)', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), boundingBox);
+  });
+
   it('backfills `other` and appends an object in the same write when the YAML has neither', async () => {
     const existing = `---
 objects:

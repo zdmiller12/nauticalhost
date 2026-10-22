@@ -112,6 +112,24 @@ describe('renderObjectsBlock', () => {
     expect(block.startsWith('objects:\n')).toBe(true);
     expect(block).toContain('# - boundingBox: null');
     expect(block).toContain('#   objectType: organism');
+    // Without this line, an organism hand-added from this scaffold validates
+    // against the schema (which defaults the field to null) but is silently
+    // invisible to sync-inaturalist.ts's backfill, which requires a literal
+    // `inaturalistObservationId:` line to match.
+    expect(block).toContain('#     inaturalistObservationId: null');
+  });
+
+  it('places the placeholder\'s inaturalistObservationId line alphabetically, between description and scientificName', () => {
+    const lines = renderObjectsBlock([])
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('#') && line.includes(':'));
+    const descriptionIndex = lines.indexOf('#     description: null');
+    const idIndex = lines.indexOf('#     inaturalistObservationId: null');
+    const scientificNameIndex = lines.findIndex((line) => line.startsWith('#     scientificName'));
+    expect(descriptionIndex).toBeGreaterThanOrEqual(0);
+    expect(idIndex).toBeGreaterThan(descriptionIndex);
+    expect(scientificNameIndex).toBeGreaterThan(idIndex);
   });
 
   it('renders each entry under the objects key', () => {
