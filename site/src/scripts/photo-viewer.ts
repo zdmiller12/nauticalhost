@@ -244,7 +244,7 @@ export function initPhotoViewer(root: HTMLElement): () => void {
       () => {
         visible[index] = !visible[index];
         toggle.setAttribute('aria-pressed', String(visible[index]));
-        const label = root.querySelector<HTMLElement>(`[data-viewer-box="${index}"] span`)?.textContent?.trim() ?? '';
+        const label = toggle.dataset.label!;
         toggle.setAttribute('aria-label', `${visible[index] ? 'Hide' : 'Show'} ${label} outline`);
         positionBoxes();
       },

@@ -52,7 +52,10 @@ function wheel(deltaY: number, deltaMode = 0): WheelEvent {
   return event;
 }
 
-function renderViewerWithBoxes(boxes: { bottom: number; left: number; right: number; top: number }[]): HTMLElement {
+function renderViewerWithBoxes(
+  boxes: { bottom: number; left: number; right: number; top: number }[],
+  labels: string[] = boxes.map((_, index) => `Box ${index}`)
+): HTMLElement {
   document.body.innerHTML = `
     <figure data-photo-viewer>
       <div data-viewer-stage>
@@ -76,7 +79,7 @@ function renderViewerWithBoxes(boxes: { bottom: number; left: number; right: num
             (_, index) => `
           <li>
             <button data-viewer-zoom-box="${index}"></button>
-            <button data-viewer-toggle-box="${index}" aria-pressed="true"></button>
+            <button data-viewer-toggle-box="${index}" data-label="${labels[index]}" aria-pressed="true"></button>
           </li>`
           )
           .join('')}
@@ -206,6 +209,18 @@ describe('initPhotoViewer box controls', () => {
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('keeps the toggle aria-label accurate as the outline hides and reshows', () => {
+    const root = renderViewerWithBoxes([twoBoxes[0]], ['Osprey']);
+    stop = initPhotoViewer(root);
+    const toggle = root.querySelector<HTMLButtonElement>('[data-viewer-toggle-box="0"]')!;
+
+    toggle.click();
+    expect(toggle.getAttribute('aria-label')).toBe('Show Osprey outline');
+
+    toggle.click();
+    expect(toggle.getAttribute('aria-label')).toBe('Hide Osprey outline');
+  });
+
   it('keeps the box framing when expanding to full view', () => {
     const root = renderViewerWithBoxes(twoBoxes);
     stop = initPhotoViewer(root);
@@ -243,6 +258,24 @@ describe('initPhotoViewer box controls', () => {
 
     window.dispatchEvent(new Event('resize'));
     expect(image.style.transform).toBe(manual);
+  });
+
+  it('keeps a manual zoom free instead of snapping to a box when expanding', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="zoom-in"]')!.click();
+    const manual = image.style.transform;
+
+    // happy-dom does not change the stage's clientWidth/clientHeight on
+    // expand, so this does not pin the pixel outcome of a genuine resize --
+    // only that `view` stayed 'free' and applyView() replayed `state` rather
+    // than re-deriving a box fit (which would differ from `manual`) or
+    // resetting to scale(1) (the pre-Task-9 behavior).
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="expand"]')!.click();
+    expect(image.style.transform).toBe(manual);
+    expect(image.style.transform).not.toBe('translate(0px, 0px) scale(1)');
   });
 });
 
