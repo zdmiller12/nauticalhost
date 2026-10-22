@@ -77,9 +77,9 @@ describe('expandToPhotoAspect', () => {
     // 0.2 wide x 0.4 tall, centered: grows to 0.4 x 0.4.
     const result = expandToPhotoAspect({ bottom: 0.7, left: 0.4, right: 0.6, top: 0.3 });
     expect(result.bottom).toBe(0.7);
-    expect(result.left).toBeCloseTo(0.3);
-    expect(result.right).toBeCloseTo(0.7);
-    expect(result.top).toBeCloseTo(0.3);
+    expect(result.left).toBeCloseTo(0.3, 10);
+    expect(result.right).toBeCloseTo(0.7, 10);
+    expect(result.top).toBeCloseTo(0.3, 10);
   });
 
   it('leaves an already-square box alone', () => {
@@ -90,14 +90,14 @@ describe('expandToPhotoAspect', () => {
   it('slides inward instead of overflowing the left edge', () => {
     const grown = expandToPhotoAspect({ bottom: 0.9, left: 0, right: 0.1, top: 0.5 });
     expect(grown.left).toBe(0);
-    expect(grown.right).toBeCloseTo(0.4);
-    expect(grown.bottom - grown.top).toBeCloseTo(grown.right - grown.left);
+    expect(grown.right).toBeCloseTo(0.4, 10);
+    expect(grown.bottom - grown.top).toBeCloseTo(grown.right - grown.left, 10);
   });
 
   it('slides inward instead of overflowing the bottom edge', () => {
     const grown = expandToPhotoAspect({ bottom: 1, left: 0.4, right: 0.8, top: 0.9 });
     expect(grown.bottom).toBe(1);
-    expect(grown.top).toBeCloseTo(0.6);
+    expect(grown.top).toBeCloseTo(0.6, 10);
   });
 
   it('clamps to the full frame when the box is wider than it is tall by more than the frame', () => {
@@ -105,6 +105,6 @@ describe('expandToPhotoAspect', () => {
     expect(grown.bottom).toBe(1);
     expect(grown.left).toBe(0);
     expect(grown.right).toBe(1);
-    expect(grown.top).toBeCloseTo(0);
+    expect(grown.top).toBeCloseTo(0, 10);
   });
 });
