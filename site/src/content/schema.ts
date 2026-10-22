@@ -11,14 +11,29 @@ export const projectSchema = z.object({
 
 export type Project = z.infer<typeof projectSchema>;
 
+const boundingBoxSchema = z
+  .object({
+    bottom: z.number().min(0).max(1),
+    left: z.number().min(0).max(1),
+    right: z.number().min(0).max(1),
+    top: z.number().min(0).max(1),
+  })
+  // Rejected here, where the error is legible, rather than at publish time:
+  // sharp throws a bare `extract_area: bad extract area` that names no edge.
+  .refine((box) => box.right > box.left && box.bottom > box.top, {
+    message: 'bounding box must have positive area',
+  });
+
 export const photoObjectSchema = z.discriminatedUnion('objectType', [
   z.object({
+    boundingBox: boundingBoxSchema.nullable().default(null),
     details: z.object({
       description: z.string(),
     }),
     objectType: z.literal('landmark'),
   }),
   z.object({
+    boundingBox: boundingBoxSchema.nullable().default(null),
     details: z.object({
       commonName: z.string(),
       description: z.string().nullable(),

@@ -153,6 +153,70 @@ describe('photoSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  const organismObject = {
+    details: {
+      commonName: 'Osprey',
+      description: null,
+      inaturalistObservationId: null,
+      scientificName: 'Pandion haliaetus',
+    },
+    objectType: 'organism',
+  };
+
+  it('defaults a missing boundingBox to null', () => {
+    const result = photoSchema.safeParse({ ...basePhoto, objects: [organismObject] });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.objects[0].boundingBox).toBeNull();
+  });
+
+  it('accepts an explicit boundingBox', () => {
+    const boundingBox = { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 };
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [{ ...organismObject, boundingBox }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.objects[0].boundingBox).toEqual(boundingBox);
+  });
+
+  it('accepts a boundingBox on a landmark', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [
+        {
+          boundingBox: { bottom: 1, left: 0, right: 1, top: 0 },
+          details: { description: 'The lighthouse at Portland Head.' },
+          objectType: 'landmark',
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a transposed boundingBox', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [{ ...organismObject, boundingBox: { bottom: 0.2, left: 0.6, right: 0.3, top: 0.8 } }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a zero-area boundingBox', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [{ ...organismObject, boundingBox: { bottom: 0.5, left: 0.5, right: 0.5, top: 0.5 } }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects boundingBox values outside 0..1', () => {
+    const result = photoSchema.safeParse({
+      ...basePhoto,
+      objects: [{ ...organismObject, boundingBox: { bottom: 1.4, left: -0.1, right: 0.5, top: 0 } }],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('photoSchema camera and lens', () => {
