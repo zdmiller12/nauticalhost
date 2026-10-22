@@ -69,6 +69,10 @@ describe('parseBoundingBox', () => {
     expect('error' in parseBoundingBox('0.5,0.5,0.5,0.5')).toBe(true);
     expect('error' in parseBoundingBox('0.6,0.2,0.3,0.8')).toBe(true);
   });
+
+  it('rejects a non-positive area via the bottom<=top clause alone (right>left)', () => {
+    expect('error' in parseBoundingBox('0.2,0.8,0.6,0.3')).toBe(true);
+  });
 });
 
 describe('parseObjectFlags', () => {

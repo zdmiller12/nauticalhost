@@ -32,7 +32,7 @@ Astro 7 + Tailwind 4 static site (personal/portfolio + photo "Compendium"). Depl
 ## Publishing a photo
 
 ```
-npm run publish-photo -- <path-to-image> <r2-key-prefix> [--species "<scientific name>"] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
+npm run publish-photo -- <path-to-image> <r2-key-prefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
 ```
 
 **Standard usage** — publish a new wildlife photo to iNaturalist, R2, and generate its YAML in one shot:
@@ -56,12 +56,20 @@ npm run publish-photo -- ~/photos/ospreys/nest.jpg ospreys --only-yaml
 # Only create the iNaturalist observation (R2 upload and YAML already done)
 npm run publish-photo -- ~/photos/ospreys/nest.jpg ospreys --species "Pandion haliaetus" --only-inaturalist
 
+# Two organisms in one photo, each with its own box, pairing by position
+# (1st --box goes with 1st --species, 2nd with 2nd)
+npm run publish-photo -- ~/photos/ospreys/pair.jpg ospreys \
+  --species "Pandion haliaetus" --box 0.1,0.2,0.4,0.6 \
+  --species "Haliaeetus leucocephalus" --box 0.5,0.3,0.9,0.7
+
 # Upload to R2 without touching iNaturalist or YAML
 npm run publish-photo -- ~/photos/scenery/sunset.jpg landscapes --no-inaturalist --no-yaml
 ```
 
 - Slug = image file stem; R2 key = `<prefix>/<filename>`.
 - Actions: `inaturalist` (needs `--species`), `r2`, `yaml`. Skip with `--no-<action>`, run only some with `--only-<action>` (combine multiple `--only-*` flags to run exactly those together).
+- `--box <left>,<top>,<right>,<bottom>` marks where an object sits in the photo, as fractions (0–1) of the displayed image measured from the top-left. The Nth `--box` pairs with the Nth `--species`; boxes are optional, so a species can go unboxed. A box has three effects: only that box's crop is sent to iNaturalist as the observation photo, the Compendium thumbnail crops to the first object's box (expanded to the photo's own aspect ratio), and the photo page opens zoomed to the first box.
+- `--save-crops` writes a local copy of each cropped photo sent to iNaturalist to `scripts/usage/cropped-photos/<slug>-cropped.JPG` (additional organisms on the same photo get `-2`, `-3`, ... suffixes). Off by default; that directory is already git-ignored.
 - Existing YAML is never overwritten (an `other:` EXIF block is appended if missing — re-run with `--only-yaml` to backfill it on older photos).
 - Then edit `src/content/photos/<slug>.yaml`: set `tier` (S/A/B/C/D/E/F), `objects`, optional `notes`; `latitude`/`longitude` may be `null`. `camera`/`lens` are informational only.
 - Commit and push to `main` — Cloudflare deploys.
