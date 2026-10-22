@@ -26,7 +26,7 @@ export interface CliIo {
   readFile: (path: string) => Promise<Buffer>;
   /** Reads a text file, or returns null if it does not exist. */
   readTextFile: (path: string) => Promise<string | null>;
-  resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
+  resizePhoto: (buffer: Buffer, thumbBox?: BoundingBox | null) => Promise<{ lightbox: Buffer; thumb: Buffer }>;
   uploadObject: (
     client: Pick<S3Client, 'send'>,
     bucket: string,

@@ -103,6 +103,62 @@ describe('publishPhoto with bounding boxes', () => {
     expect(result.observationIds).toEqual([1, 2]);
   });
 
+  it('crops each organism to its own box, in order (not reusing the first box for every organism)', async () => {
+    const box1 = boundingBox;
+    const box2 = { bottom: 0.95, left: 0.7, right: 0.9, top: 0.8 };
+    const deps = makeDeps({
+      publishToInaturalist: vi
+        .fn()
+        .mockResolvedValueOnce({ commonName: 'Osprey', observationId: 1 })
+        .mockResolvedValueOnce({ commonName: 'Bald Eagle', observationId: 2 }),
+    });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: box1, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+        { boundingBox: box2, description: null, objectType: 'organism', scientificName: 'Haliaeetus leucocephalus' },
+      ],
+    });
+
+    expect(deps.cropToBox).toHaveBeenNthCalledWith(1, Buffer.from('source-bytes'), box1);
+    expect(deps.cropToBox).toHaveBeenNthCalledWith(2, Buffer.from('source-bytes'), box2);
+  });
+
+  it('crops the thumbnail to the FIRST object\'s box even when that object is a landmark (not the first organism)', async () => {
+    const landmarkBox = { bottom: 0.5, left: 0.1, right: 0.4, top: 0.1 };
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: landmarkBox, description: 'Portland Head Light', objectType: 'landmark' },
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), landmarkBox);
+  });
+
+  it('names already-created observation ids in the thrown error when a later organism fails', async () => {
+    const deps = makeDeps({
+      publishToInaturalist: vi
+        .fn()
+        .mockResolvedValueOnce({ commonName: 'Osprey', observationId: 111 })
+        .mockRejectedValueOnce(new Error('network down')),
+    });
+
+    await expect(
+      publishPhoto(deps, {
+        ...baseArgs,
+        objects: [
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Haliaeetus leucocephalus' },
+        ],
+      })
+    ).rejects.toThrow('observations already created: 111');
+  });
+
   it('writes the box into a new YAML and validates against the schema', async () => {
     const deps = makeDeps();
 
@@ -438,7 +494,9 @@ describe('publishPhoto with --species', () => {
           { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
         ],
       })
-    ).rejects.toThrow('iNaturalist publish failed for "Pandion haliaetus": network down');
+    ).rejects.toThrow(
+      'iNaturalist publish failed for "Pandion haliaetus" (observations already created: none): network down'
+    );
 
     expect(deps.writeFile).not.toHaveBeenCalled();
   });

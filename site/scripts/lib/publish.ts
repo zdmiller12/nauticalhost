@@ -213,10 +213,13 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
         species: input.scientificName,
       });
     } catch (err) {
-      // Stop here rather than writing R2/YAML output that silently omits the
-      // observation: a half-published photo is easy to miss and hard to find later.
+      // R2 (if enabled) already uploaded above, and any earlier organisms in
+      // this loop already have real iNaturalist observations — this throw
+      // only prevents the YAML write, so it must not let those surviving ids
+      // get lost; name them in the message, since nothing else records them.
+      const created = result.observationIds.length > 0 ? result.observationIds.join(', ') : 'none';
       throw new Error(
-        `iNaturalist publish failed for "${input.scientificName}": ${(err as Error).message}`,
+        `iNaturalist publish failed for "${input.scientificName}" (observations already created: ${created}): ${(err as Error).message}`,
         { cause: err }
       );
     }
