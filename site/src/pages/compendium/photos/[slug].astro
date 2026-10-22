@@ -9,6 +9,7 @@ import {
   formatCaptureDate,
   formatCaptureTime,
   formatLocation,
+  objectName,
   photoTitle,
 } from '../../../lib/photo-display';
 import { SORT_KEYS, photoPositions, toPhotoSummary, type SortNav } from '../../../lib/photo-sort';
@@ -47,6 +48,9 @@ const subtitle = objects.length === 1 && firstObject.objectType === 'organism' ?
 const cameraLabel = formatCamera(camera);
 const lensLabel = lens?.trim() || null;
 const location = formatLocation(latitude, longitude);
+const viewerBoxes = objects.flatMap((obj) =>
+  obj.boundingBox ? [{ box: obj.boundingBox, label: objectName(obj) }] : []
+);
 
 const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text-ink-muted';
 ---
@@ -59,7 +63,7 @@ const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text
   </header>
 
   <div class="mt-6">
-    <PhotoViewer src={`${r2Base}/${file}-lg.jpg`} alt={notes ?? title} />
+    <PhotoViewer src={`${r2Base}/${file}-lg.jpg`} alt={notes ?? title} boxes={viewerBoxes} />
   </div>
 
   {notes && <p class="mt-6 text-lg">{notes}</p>}

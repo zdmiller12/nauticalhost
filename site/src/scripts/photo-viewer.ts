@@ -1,4 +1,5 @@
-import { UNZOOMED, clampPan, containRect, maxScale, zoomAt, type Point, type ZoomState } from '../lib/zoom';
+import type { BoundingBox } from '../lib/bounding-box';
+import { UNZOOMED, clampPan, containRect, fitBox, maxScale, zoomAt, type Point, type ZoomState } from '../lib/zoom';
 
 const ZOOM_STEP = 1.5;
 const DOUBLE_CLICK_SCALE = 2.5;
@@ -27,6 +28,10 @@ export function initPhotoViewer(root: HTMLElement): () => void {
   const expandButton = button('expand');
   if (!stage || !image || !zoomInButton || !zoomOutButton || !resetButton || !expandButton) return () => {};
 
+  const boxElements = [...root.querySelectorAll<HTMLElement>('[data-viewer-box]')];
+  const boxes = boxElements.map((element) => JSON.parse(element.dataset.box!) as BoundingBox);
+  const visible = boxes.map(() => true);
+
   const listeners = new AbortController();
   const { signal } = listeners;
   let state: ZoomState = UNZOOMED;
@@ -46,6 +51,23 @@ export function initPhotoViewer(root: HTMLElement): () => void {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
+  // Positioned in stage pixels rather than inheriting the image's
+  // `translate() scale()`: a transformed overlay would scale its borders and
+  // labels too, so a 1px outline becomes 8px of mush at 8x.
+  const positionBoxes = (): void => {
+    const rect = content();
+    boxElements.forEach((element, index) => {
+      element.classList.toggle('hidden', !visible[index]);
+      /* v8 ignore next -- always true until Task 9 adds the chip toggle that can set it false */
+      if (!visible[index]) return;
+      const box = boxes[index];
+      element.style.left = `${state.x + (rect.left + box.left * rect.width) * state.scale}px`;
+      element.style.top = `${state.y + (rect.top + box.top * rect.height) * state.scale}px`;
+      element.style.width = `${(box.right - box.left) * rect.width * state.scale}px`;
+      element.style.height = `${(box.bottom - box.top) * rect.height * state.scale}px`;
+    });
+  };
+
   const render = (next: ZoomState): void => {
     state = clampPan(next, box(), content());
     image.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
@@ -56,6 +78,7 @@ export function initPhotoViewer(root: HTMLElement): () => void {
     zoomInButton.disabled = state.scale >= limit();
     zoomOutButton.disabled = !zoomed;
     resetButton.disabled = !zoomed;
+    positionBoxes();
   };
 
   const zoomTo = (scale: number, point: Point = center()): void => render(zoomAt(state, scale, point, limit()));
@@ -175,9 +198,18 @@ export function initPhotoViewer(root: HTMLElement): () => void {
   );
 
   window.addEventListener('resize', () => render(state), { signal });
-  image.addEventListener('load', () => render(state), { signal });
+  image.addEventListener(
+    'load',
+    () => {
+      if (boxes.length > 0) render(fitBox(boxes[0], box(), content(), limit()));
+      else render(state);
+    },
+    { signal },
+  );
 
-  render(UNZOOMED);
+  // Open framed on the subject when there is one.
+  if (boxes.length > 0) render(fitBox(boxes[0], box(), content(), limit()));
+  else render(UNZOOMED);
   return () => listeners.abort();
 }
 

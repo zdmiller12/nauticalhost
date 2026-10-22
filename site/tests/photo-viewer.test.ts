@@ -52,6 +52,88 @@ function wheel(deltaY: number, deltaMode = 0): WheelEvent {
   return event;
 }
 
+function renderViewerWithBoxes(boxes: { bottom: number; left: number; right: number; top: number }[]): HTMLElement {
+  document.body.innerHTML = `
+    <figure data-photo-viewer>
+      <div data-viewer-stage>
+        <img data-viewer-image src="x.jpg" alt="" />
+        <div data-viewer-overlay>
+          ${boxes
+            .map(
+              (box, index) =>
+                `<div data-viewer-box="${index}" data-box='${JSON.stringify(box)}' class="hidden"></div>`
+            )
+            .join('')}
+        </div>
+      </div>
+      <button data-viewer-action="zoom-out"></button>
+      <button data-viewer-action="zoom-in"></button>
+      <button data-viewer-action="reset"></button>
+      <button data-viewer-action="expand"></button>
+    </figure>`;
+  const stage = document.querySelector('[data-viewer-stage]')!;
+  Object.defineProperty(stage, 'clientWidth', { configurable: true, value: 400 });
+  Object.defineProperty(stage, 'clientHeight', { configurable: true, value: 400 });
+  const image = document.querySelector('[data-viewer-image]')!;
+  Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 800 });
+  Object.defineProperty(image, 'naturalHeight', { configurable: true, value: 400 });
+  return document.querySelector<HTMLElement>('[data-photo-viewer]')!;
+}
+
+describe('initPhotoViewer with boxes', () => {
+  it('opens zoomed to the first box', () => {
+    const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
+    initPhotoViewer(root);
+
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+    expect(image.style.transform).toBe('translate(-200px, -200px) scale(2)');
+    expect(root.hasAttribute('data-zoomed')).toBe(true);
+  });
+
+  it('positions an outline in stage pixels, not via a CSS transform', () => {
+    const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
+    initPhotoViewer(root);
+
+    const outline = root.querySelector<HTMLElement>('[data-viewer-box="0"]')!;
+    // Box is content (100,100)-(300,300); at scale 2 with offset -200 that is
+    // stage (0,0)-(400,400).
+    expect(outline.style.left).toBe('0px');
+    expect(outline.style.top).toBe('0px');
+    expect(outline.style.width).toBe('400px');
+    expect(outline.style.height).toBe('400px');
+    expect(outline.style.transform).toBe('');
+  });
+
+  it('re-fits to the first box once the image loads, even after a reset', () => {
+    const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
+    initPhotoViewer(root);
+
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="reset"]')!.click();
+    expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
+
+    image.dispatchEvent(new Event('load'));
+    expect(image.style.transform).toBe('translate(-200px, -200px) scale(2)');
+    expect(root.hasAttribute('data-zoomed')).toBe(true);
+  });
+
+  it('shows outlines by default', () => {
+    const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
+    initPhotoViewer(root);
+
+    expect(root.querySelector('[data-viewer-box="0"]')!.classList.contains('hidden')).toBe(false);
+  });
+
+  it('leaves a boxless viewer unzoomed and behaving as before', () => {
+    const root = renderViewerWithBoxes([]);
+    initPhotoViewer(root);
+
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+    expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
+    expect(root.hasAttribute('data-zoomed')).toBe(false);
+  });
+});
+
 let teardown: () => void = () => {};
 
 describe('initPhotoViewer', () => {

@@ -1,10 +1,18 @@
 ---
+import type { BoundingBox } from '../lib/bounding-box';
+
+export interface ViewerBox {
+  box: BoundingBox;
+  label: string;
+}
+
 interface Props {
   alt: string;
+  boxes?: ViewerBox[];
   src: string;
 }
 
-const { alt, src } = Astro.props;
+const { alt, boxes = [], src } = Astro.props;
 
 const buttonClass =
   'flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper/90 text-ink shadow-sm transition-colors hover:text-clay disabled:opacity-40 disabled:hover:text-ink';
@@ -25,6 +33,19 @@ const buttonClass =
       draggable="false"
       class="block h-auto max-h-[75vh] w-full origin-top-left select-none object-contain group-data-expanded:h-full group-data-expanded:max-h-none"
     />
+    <div data-viewer-overlay class="pointer-events-none absolute inset-0" aria-hidden="true">
+      {boxes.map((entry, index) => (
+        <div
+          data-viewer-box={index}
+          data-box={JSON.stringify(entry.box)}
+          class="absolute hidden rounded-sm border-2 border-clay shadow-[0_0_0_1px_rgba(0,0,0,0.45)]"
+        >
+          <span class="absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-t-sm bg-clay px-1 py-0.5 text-[10px] font-medium leading-tight text-paper">
+            {entry.label}
+          </span>
+        </div>
+      ))}
+    </div>
   </div>
   <div class="absolute bottom-3 right-3 flex gap-2">
     <button type="button" data-viewer-action="zoom-out" aria-label="Zoom out" class={buttonClass}>
@@ -33,7 +54,7 @@ const buttonClass =
     <button type="button" data-viewer-action="zoom-in" aria-label="Zoom in" class={buttonClass}>
       <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h12M10 4v12" /></svg>
     </button>
-    <button type="button" data-viewer-action="reset" aria-label="Reset zoom" class={buttonClass}>
+    <button type="button" data-viewer-action="reset" aria-label="Fit whole photo" class={buttonClass}>
       <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8V4h4M16 12v4h-4M16 8V4h-4M4 12v4h4" /></svg>
     </button>
     <button type="button" data-viewer-action="expand" aria-label="Open full view" aria-pressed="false" class={buttonClass}>
