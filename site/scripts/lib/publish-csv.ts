@@ -2,7 +2,7 @@ import { basename, extname } from 'node:path';
 import { parse } from 'csv-parse/sync';
 import { createIsWithin } from './private-geometry';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
-import { publishPhoto, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
+import { publishPhoto, type ObjectInput, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
 import { parseActionFlags, createRealCliIo, type CliIo } from './cli';
 
 /** A single parsed CSV data row; column names match the single-photo CLI's param names. */
@@ -64,6 +64,11 @@ export function buildRowArgs(
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
   const r2KeyPrefix = `${row.r2KeyPrefix.replace(/\/+$/, '')}/${fileName}`;
 
+  // Box is always null here — Task 6 adds the CSV `box` column.
+  const objects: ObjectInput[] = row.species
+    ? [{ boundingBox: null, description: null, objectType: 'organism', scientificName: row.species }]
+    : [];
+
   return {
     args: {
       actions,
@@ -71,10 +76,10 @@ export function buildRowArgs(
       contentDir,
       latitude,
       longitude,
+      objects,
       r2KeyPrefix,
       slug,
       sourcePath: row.sourcePath,
-      species: row.species || undefined,
     },
   };
 }
@@ -125,6 +130,7 @@ export async function publishCsv(
   if (privateGeometryWkt) isPrivateGeometry = createIsWithin(privateGeometryWkt);
 
   const publishDeps: PublishDeps = {
+    cropToBox: deps.cropToBox,
     extractExif: deps.extractExif,
     isPrivateGeometry,
     mkdir: deps.mkdir,

@@ -29,6 +29,7 @@ const exif = {
 function makeDeps(overrides: Partial<PublishCsvDeps> = {}): PublishCsvDeps {
   return {
     createR2Client: vi.fn().mockReturnValue({ send: vi.fn() } as unknown as Pick<S3Client, 'send'>),
+    cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
     env: {},
     extractExif: vi.fn().mockResolvedValue(exif),
     fetch: vi.fn(),
@@ -102,10 +103,12 @@ describe('buildRowArgs', () => {
         contentDir: 'src/content/photos',
         latitude: 1.5,
         longitude: 2.5,
+        objects: [
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+        ],
         r2KeyPrefix: 'ospreys/osprey-nest-01/2026-06-14-osprey.jpg',
         slug: '2026-06-14-osprey',
         sourcePath: '/tmp/2026-06-14-osprey.jpg',
-        species: 'Pandion haliaetus',
       },
     });
   });
@@ -125,10 +128,10 @@ describe('buildRowArgs', () => {
         contentDir: 'src/content/photos',
         latitude: undefined,
         longitude: undefined,
+        objects: [],
         r2KeyPrefix: 'prefix/a.jpg',
         slug: 'a',
         sourcePath: '/tmp/a.jpg',
-        species: undefined,
       },
     });
   });
@@ -350,6 +353,7 @@ function makeIo(overrides: Partial<CsvIo> = {}): CsvIo {
   return {
     argv: ['node', 'publish-photo-csv.ts'],
     createR2Client: vi.fn().mockReturnValue({ send: vi.fn() } as unknown as Pick<S3Client, 'send'>),
+    cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
     env: {},
     error: vi.fn(),
     exit: vi.fn() as unknown as CsvIo['exit'],

@@ -3,15 +3,17 @@ import { basename, extname } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { extractExif, type PhotoExif } from './exif';
-import { resizePhoto } from './resize';
+import { cropToBox, resizePhoto } from './resize';
 import { createR2Client, uploadObject } from './r2';
 import { createIsWithin } from './private-geometry';
-import { publishPhoto, type PublishActions } from './publish';
+import { publishPhoto, type PublishActions, type ObjectInput } from './publish';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
+import type { BoundingBox } from '../../src/lib/bounding-box';
 
 export interface CliIo {
   argv: string[];
   createR2Client: typeof createR2Client;
+  cropToBox: (source: Buffer, box: BoundingBox) => Promise<Buffer>;
   env: NodeJS.ProcessEnv;
   error: (msg: string) => void;
   exit: (code: number) => void;
@@ -40,6 +42,7 @@ export function createRealCliIo(): CliIo {
   return {
     argv: process.argv,
     createR2Client,
+    cropToBox,
     env: process.env,
     error: (msg) => console.error(msg),
     /* v8 ignore next -- calling the real process.exit would kill the test runner */
@@ -211,8 +214,13 @@ export async function runCli(io: CliIo): Promise<void> {
       ? io.createR2Client({ accessKeyId, accountId, bucket, secretAccessKey })
       : undefined;
 
+  const objects: ObjectInput[] = species
+    ? [{ boundingBox: null, description: null, objectType: 'organism', scientificName: species }]
+    : [];
+
   const result = await publishPhoto(
     {
+      cropToBox: io.cropToBox,
       extractExif: io.extractExif,
       isPrivateGeometry,
       mkdir: io.mkdir,
@@ -230,16 +238,18 @@ export async function runCli(io: CliIo): Promise<void> {
       contentDir: 'src/content/photos',
       latitude: coords.latitude,
       longitude: coords.longitude,
+      objects,
       r2KeyPrefix,
       slug,
       sourcePath,
-      species,
     }
   );
 
   const yamlFile = `src/content/photos/${slug}.yaml`;
   const ran = ACTION_NAMES.filter((name) => actions[name]).join(', ');
-  if (result.observationId) io.log(`iNaturalist observation ${result.observationId}`);
+  for (const observationId of result.observationIds) {
+    io.log(`iNaturalist observation ${observationId}`);
+  }
   if (result.backfilled === 'appended') {
     io.log(`Backfilled 'other' into ${yamlFile}.`);
   } else if (result.backfilled === 'skipped') {
@@ -247,6 +257,9 @@ export async function runCli(io: CliIo): Promise<void> {
   } else if (actions.yaml) {
     io.log(`Published ${slug} (${ran}). Fill in tier/notes (and objects, if --species was omitted) in ${yamlFile}`);
     return;
+  }
+  if (result.appendedObjects > 0) {
+    io.log(`Appended ${result.appendedObjects} object(s) to ${yamlFile}.`);
   }
   io.log(`Done ${slug} (${ran}).`);
 }

@@ -23,6 +23,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
       utcOffsetMinutes: null,
     }),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
+    cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
     createR2Client: vi.fn().mockReturnValue({ send: vi.fn() } as unknown as Pick<S3Client, 'send'>),
     uploadObject: vi.fn().mockResolvedValue(undefined),
     fetch: vi.fn(),
@@ -384,6 +385,28 @@ describe('runCli action flags', () => {
     await runCli(io);
     expect(io.writeFile).toHaveBeenCalledWith('src/content/photos/photo.yaml', expect.stringContaining('other:'));
     expect(io.log).toHaveBeenCalledWith(expect.stringContaining("Backfilled 'other'"));
+  });
+
+  it('reports appended objects separately from a `other:`-already-present skip', async () => {
+    // Ruling P2: appending a new object to a YAML that already has `other:`
+    // must not be reported as a bare "Skipped" with no other evidence that
+    // anything was written.
+    const io = makeIo({
+      argv: [...argvBase, '--only-yaml', '--species', 'Pandion haliaetus'],
+      env: {},
+      readTextFile: vi.fn().mockResolvedValue(
+        '---\nobjects:\n  # - boundingBox: null\n  #   details:\n  #     commonName: ""\n  #     description: null\n  #     scientificName: ""\n  #   objectType: organism\nother: {}\nslug: photo\ntier: E\n'
+      ),
+    });
+
+    await runCli(io);
+
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/photo.yaml',
+      expect.stringContaining('scientificName: "Pandion haliaetus"')
+    );
+    expect(io.log).toHaveBeenCalledWith(expect.stringContaining("already has an 'other' field"));
+    expect(io.log).toHaveBeenCalledWith('Appended 1 object(s) to src/content/photos/photo.yaml.');
   });
 
   it('--only-inaturalist without --species exits 1', async () => {
