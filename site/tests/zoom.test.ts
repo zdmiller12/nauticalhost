@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { UNZOOMED, clampPan, containRect, maxScale, zoomAt } from '../src/lib/zoom';
+import { UNZOOMED, clampPan, containRect, fitBox, maxScale, zoomAt } from '../src/lib/zoom';
 
 describe('containRect', () => {
   it('letterboxes a landscape image in a square box', () => {
@@ -83,5 +83,48 @@ describe('zoomAt', () => {
   it('clamps to [1, max]', () => {
     expect(zoomAt(UNZOOMED, 0.2, { x: 0, y: 0 }, 8).scale).toBe(1);
     expect(zoomAt(UNZOOMED, 20, { x: 0, y: 0 }, 8).scale).toBe(8);
+  });
+});
+
+describe('fitBox', () => {
+  // A 400x400 stage showing an 800x400 image: contained it is 400x200, with
+  // 100px letterbox bands above and below. This mirrors the fixture in
+  // tests/photo-viewer.test.ts.
+  const stage = { height: 400, width: 400 };
+  const content = { height: 200, left: 0, top: 100, width: 400 };
+
+  it('scales so the box exactly fills the limiting axis', () => {
+    // Middle half horizontally, full height: 200x200 in stage px => 2x.
+    const state = fitBox({ bottom: 1, left: 0.25, right: 0.75, top: 0 }, stage, content, 8);
+    expect(state.scale).toBe(2);
+  });
+
+  it('centers the box in the stage', () => {
+    // Box center is at content (200, 200); at 2x that is (400, 400), and the
+    // stage center is (200, 200), so the offset is -200 on each axis.
+    const state = fitBox({ bottom: 1, left: 0.25, right: 0.75, top: 0 }, stage, content, 8);
+    expect(state.x).toBe(-200);
+    expect(state.y).toBe(-200);
+  });
+
+  it('never zooms past the supplied maximum', () => {
+    const state = fitBox({ bottom: 0.52, left: 0.5, right: 0.52, top: 0.5 }, stage, content, 4);
+    expect(state.scale).toBe(4);
+  });
+
+  it('never zooms out below 1x for a box larger than the stage', () => {
+    const state = fitBox({ bottom: 1, left: 0, right: 1, top: 0 }, stage, content, 8);
+    expect(state.scale).toBe(1);
+  });
+
+  it('keeps the image edges outside the stage for a box in the corner', () => {
+    const state = fitBox({ bottom: 0.25, left: 0, right: 0.25, top: 0 }, stage, content, 8);
+    // clampPan must not leave dead space to the left of the image.
+    expect(state.x).toBeLessThanOrEqual(0);
+    expect(state).toEqual(clampPan(state, stage, content));
+  });
+
+  it('returns UNZOOMED for a degenerate box', () => {
+    expect(fitBox({ bottom: 0.5, left: 0.5, right: 0.5, top: 0.5 }, stage, content, 8)).toEqual(UNZOOMED);
   });
 });

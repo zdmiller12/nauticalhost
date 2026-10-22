@@ -3,6 +3,8 @@
 // `translate(x, y) scale(scale)` from its top-left corner, so every value
 // here is in stage pixels.
 
+import type { BoundingBox } from './bounding-box';
+
 export interface Point {
   x: number;
   y: number;
@@ -69,4 +71,30 @@ export function zoomAt(state: ZoomState, targetScale: number, point: Point, max:
     x: point.x - (point.x - state.x) * ratio,
     y: point.y - (point.y - state.y) * ratio,
   };
+}
+
+/**
+ * The zoom state that frames `box` as large as possible while keeping all of
+ * it visible. The box is normalized against the image, so it maps into stage
+ * pixels through `content` first; taking the `min` of the two axis ratios is
+ * what keeps the whole box in view without changing the stage's aspect ratio.
+ */
+export function fitBox(box: BoundingBox, stage: Size, content: Rect, max: number): ZoomState {
+  const rect: Rect = {
+    height: (box.bottom - box.top) * content.height,
+    left: content.left + box.left * content.width,
+    top: content.top + box.top * content.height,
+    width: (box.right - box.left) * content.width,
+  };
+  if (rect.width <= 0 || rect.height <= 0) return UNZOOMED;
+  const scale = Math.min(max, Math.max(1, Math.min(stage.width / rect.width, stage.height / rect.height)));
+  return clampPan(
+    {
+      scale,
+      x: stage.width / 2 - scale * (rect.left + rect.width / 2),
+      y: stage.height / 2 - scale * (rect.top + rect.height / 2),
+    },
+    stage,
+    content
+  );
 }
