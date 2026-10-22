@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runCli, type CliIo } from '../scripts/lib/cli';
+import {
+  createSaveCrop,
+  parseBoundingBox,
+  parseObjectFlags,
+  runCli,
+  type CliIo,
+} from '../scripts/lib/cli';
 import type { S3Client } from '@aws-sdk/client-s3';
 
 function makeIo(overrides: Partial<CliIo> = {}): CliIo {
@@ -12,6 +18,7 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
     readTextFile: vi.fn().mockResolvedValue(null),
     writeFile: vi.fn().mockResolvedValue(undefined),
+    writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
     prompt: vi.fn().mockResolvedValue(''),
     extractExif: vi.fn().mockResolvedValue({
@@ -30,6 +37,155 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     ...overrides,
   };
 }
+
+describe('parseBoundingBox', () => {
+  it('parses four normalized values', () => {
+    expect(parseBoundingBox('0.25,0.4,0.6,0.75')).toEqual({
+      box: { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 },
+    });
+  });
+
+  it('tolerates surrounding whitespace', () => {
+    expect(parseBoundingBox(' 0, 0 , 1 ,1 ')).toEqual({ box: { bottom: 1, left: 0, right: 1, top: 0 } });
+  });
+
+  it('rejects a missing value', () => {
+    expect(parseBoundingBox(undefined)).toEqual({ error: expect.stringContaining('--box') });
+  });
+
+  it('rejects the wrong number of components', () => {
+    expect('error' in parseBoundingBox('0.1,0.2,0.3')).toBe(true);
+  });
+
+  it('rejects non-numbers', () => {
+    expect('error' in parseBoundingBox('a,b,c,d')).toBe(true);
+  });
+
+  it('rejects values outside 0..1', () => {
+    expect('error' in parseBoundingBox('0,0,1.5,1')).toBe(true);
+  });
+
+  it('rejects a non-positive area', () => {
+    expect('error' in parseBoundingBox('0.5,0.5,0.5,0.5')).toBe(true);
+    expect('error' in parseBoundingBox('0.6,0.2,0.3,0.8')).toBe(true);
+  });
+});
+
+describe('parseObjectFlags', () => {
+  it('returns no objects when no species is given', () => {
+    expect(parseObjectFlags(['--no-r2'])).toEqual({ objects: [] });
+  });
+
+  it('pairs each box with the species at the same position', () => {
+    const parsed = parseObjectFlags([
+      '--species',
+      'Pandion haliaetus',
+      '--box',
+      '0,0,0.5,0.5',
+      '--species',
+      'Haliaeetus leucocephalus',
+      '--box',
+      '0.5,0.5,1,1',
+    ]);
+
+    expect(parsed).toEqual({
+      objects: [
+        {
+          boundingBox: { bottom: 0.5, left: 0, right: 0.5, top: 0 },
+          description: null,
+          objectType: 'organism',
+          scientificName: 'Pandion haliaetus',
+        },
+        {
+          boundingBox: { bottom: 1, left: 0.5, right: 1, top: 0.5 },
+          description: null,
+          objectType: 'organism',
+          scientificName: 'Haliaeetus leucocephalus',
+        },
+      ],
+    });
+  });
+
+  it('leaves the box null when fewer boxes than species are given', () => {
+    const parsed = parseObjectFlags(['--species', 'Pandion haliaetus']);
+    expect(parsed).toEqual({
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+  });
+
+  it('rejects more boxes than species', () => {
+    const parsed = parseObjectFlags(['--species', 'Pandion haliaetus', '--box', '0,0,1,1', '--box', '0,0,1,1']);
+    expect('error' in parsed).toBe(true);
+  });
+
+  it('surfaces an invalid box', () => {
+    expect('error' in parseObjectFlags(['--species', 'X', '--box', 'nope'])).toBe(true);
+  });
+});
+
+describe('createSaveCrop', () => {
+  it('mkdirs the crop directory then writes the un-suffixed filename on the first call for a slug', async () => {
+    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const saveCrop = createSaveCrop(io);
+
+    await saveCrop('osprey-nest', Buffer.from('a'));
+
+    expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
+    expect(io.writeBinaryFile).toHaveBeenCalledWith(
+      'scripts/usage/cropped-photos/osprey-nest-cropped.JPG',
+      Buffer.from('a')
+    );
+    const mkdirOrder = io.mkdir.mock.invocationCallOrder[0];
+    const writeOrder = io.writeBinaryFile.mock.invocationCallOrder[0];
+    expect(mkdirOrder).toBeLessThan(writeOrder);
+  });
+
+  it('suffixes the second and third crop for the same slug, keeping the first unsuffixed', async () => {
+    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const saveCrop = createSaveCrop(io);
+
+    await saveCrop('multi', Buffer.from('a'));
+    await saveCrop('multi', Buffer.from('b'));
+    await saveCrop('multi', Buffer.from('c'));
+
+    expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
+      1,
+      'scripts/usage/cropped-photos/multi-cropped.JPG',
+      Buffer.from('a')
+    );
+    expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
+      2,
+      'scripts/usage/cropped-photos/multi-cropped-2.JPG',
+      Buffer.from('b')
+    );
+    expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
+      3,
+      'scripts/usage/cropped-photos/multi-cropped-3.JPG',
+      Buffer.from('c')
+    );
+  });
+
+  it('keeps per-slug counters independent, so two different slugs each get an unsuffixed first file', async () => {
+    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const saveCrop = createSaveCrop(io);
+
+    await saveCrop('alpha', Buffer.from('a'));
+    await saveCrop('beta', Buffer.from('b'));
+
+    expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
+      1,
+      'scripts/usage/cropped-photos/alpha-cropped.JPG',
+      Buffer.from('a')
+    );
+    expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
+      2,
+      'scripts/usage/cropped-photos/beta-cropped.JPG',
+      Buffer.from('b')
+    );
+  });
+});
 
 describe('runCli', () => {
   it('prints usage and exits 1 when a required argument is missing', async () => {
@@ -308,6 +464,119 @@ describe('runCli with --species', () => {
 
     expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--lat/--lon must be numbers'));
     expect(io.exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('runCli with --box', () => {
+  function jsonResponse(body: unknown, ok = true, status = 200) {
+    return { ok, status, json: () => Promise.resolve(body) } as unknown as Response;
+  }
+
+  it('passes the parsed box through to publishPhoto and saves the crop', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/a.JPG',
+        'compendium/alpha',
+        '--species',
+        'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
+        '--save-crops',
+        '--no-r2',
+      ],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+    });
+
+    await runCli(io);
+
+    expect(io.cropToBox).toHaveBeenCalledWith(
+      Buffer.from('source-bytes'),
+      { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 }
+    );
+    expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
+    expect(io.writeBinaryFile).toHaveBeenCalledWith(
+      'scripts/usage/cropped-photos/a-cropped.JPG',
+      expect.any(Buffer)
+    );
+    expect(io.exit).not.toHaveBeenCalled();
+  });
+
+  it('does not save a crop when --save-crops is omitted', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/a.JPG',
+        'compendium/alpha',
+        '--species',
+        'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
+        '--no-r2',
+      ],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+    });
+
+    await runCli(io);
+
+    expect(io.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid --box before any upload happens', async () => {
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/a.JPG',
+        'compendium/alpha',
+        '--species',
+        'Pandion haliaetus',
+        '--box',
+        'nope',
+      ],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+    });
+
+    await runCli(io);
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--box'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+    expect(io.readFile).not.toHaveBeenCalled();
   });
 });
 

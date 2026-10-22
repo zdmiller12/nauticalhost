@@ -6,7 +6,7 @@ import { extractExif, type PhotoExif } from './exif';
 import { cropToBox, resizePhoto } from './resize';
 import { createR2Client, uploadObject } from './r2';
 import { createIsWithin } from './private-geometry';
-import { publishPhoto, type PublishActions, type ObjectInput } from './publish';
+import { publishPhoto, type ObjectInput, type PublishActions } from './publish';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 import type { BoundingBox } from '../../src/lib/bounding-box';
 
@@ -34,6 +34,7 @@ export interface CliIo {
     body: Buffer,
     contentType: string
   ) => Promise<void>;
+  writeBinaryFile: (path: string, body: Buffer) => Promise<void>;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
 
@@ -70,15 +71,84 @@ export function createRealCliIo(): CliIo {
     },
     resizePhoto,
     uploadObject,
+    writeBinaryFile: (path, body) => writeFile(path, body),
     writeFile,
   };
 }
 
-/** Pulls `--species "<name>"` out of the trailing CLI args, if present. */
-function parseSpeciesFlag(flagArgs: string[]): string | undefined {
-  const index = flagArgs.indexOf('--species');
-  if (index === -1) return undefined;
-  return flagArgs[index + 1];
+/** Collects every occurrence of `--<name> <value>` in CLI-argument order. */
+function parseRepeatedFlag(flagArgs: string[], name: string): (string | undefined)[] {
+  return flagArgs.flatMap((arg, index) => (arg === `--${name}` ? [flagArgs[index + 1]] : []));
+}
+
+/** Parses `--box <left>,<top>,<right>,<bottom>` as normalized (0-1) fractions. */
+export function parseBoundingBox(raw: string | undefined): { box: BoundingBox } | { error: string } {
+  if (raw === undefined) return { error: '--box requires <left>,<top>,<right>,<bottom>.' };
+  const parts = raw.split(',').map((part) => part.trim());
+  if (parts.length !== 4) {
+    return { error: `--box needs exactly 4 comma-separated values, got ${parts.length}: "${raw}"` };
+  }
+  const [left, top, right, bottom] = parts.map(Number);
+  if ([bottom, left, right, top].some((value) => Number.isNaN(value))) {
+    return { error: `--box values must be numbers: "${raw}"` };
+  }
+  if ([bottom, left, right, top].some((value) => value < 0 || value > 1)) {
+    return { error: `--box values are normalized fractions and must be within 0..1: "${raw}"` };
+  }
+  if (right <= left || bottom <= top) {
+    return { error: `--box must have positive area (left<right, top<bottom): "${raw}"` };
+  }
+  return { box: { bottom, left, right, top } };
+}
+
+/**
+ * Builds the photo's objects from `--species` and `--box`, paired positionally:
+ * the Nth `--box` belongs to the Nth `--species`. Boxes are optional, so fewer
+ * boxes than species is fine; the extras are left unboxed.
+ */
+export function parseObjectFlags(flagArgs: string[]): { objects: ObjectInput[] } | { error: string } {
+  const speciesList = parseRepeatedFlag(flagArgs, 'species').filter((value): value is string => !!value);
+  const rawBoxes = parseRepeatedFlag(flagArgs, 'box');
+  if (rawBoxes.length > speciesList.length) {
+    return { error: `Got ${rawBoxes.length} --box flag(s) but only ${speciesList.length} --species flag(s).` };
+  }
+  const boxes: (BoundingBox | null)[] = [];
+  for (const raw of rawBoxes) {
+    const parsed = parseBoundingBox(raw);
+    if ('error' in parsed) return parsed;
+    boxes.push(parsed.box);
+  }
+  return {
+    objects: speciesList.map((scientificName, index) => ({
+      boundingBox: boxes[index] ?? null,
+      description: null,
+      objectType: 'organism',
+      scientificName,
+    })),
+  };
+}
+
+/** Where `--save-crops` writes a local copy of each iNaturalist crop. */
+const CROP_DIR = 'scripts/usage/cropped-photos';
+
+/**
+ * Builds the `saveCrop` dep for `--save-crops`. The directory is already
+ * git-ignored via the existing `scripts/usage/` entry.
+ *
+ * Keyed per slug: one saveCrop serves a whole CSV batch, so a single counter
+ * would number crops across photos rather than within one.
+ */
+export function createSaveCrop(
+  io: Pick<CliIo, 'mkdir' | 'writeBinaryFile'>
+): (slug: string, photo: Buffer) => Promise<void> {
+  const counts = new Map<string, number>();
+  return async (slug, photo) => {
+    const n = (counts.get(slug) ?? 0) + 1;
+    counts.set(slug, n);
+    const suffix = n > 1 ? `-${n}` : '';
+    await io.mkdir(CROP_DIR);
+    await io.writeBinaryFile(`${CROP_DIR}/${slug}-cropped${suffix}.JPG`, photo);
+  };
 }
 
 /** Pulls `--lat <deg> --lon <deg>` out of the trailing CLI args. Both or neither must be given. */
@@ -123,12 +193,19 @@ export function parseActionFlags(flagArgs: string[]): { actions: PublishActions 
 export async function runCli(io: CliIo): Promise<void> {
   const [sourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
   if (!sourcePath || !r2KeyPrefixArg) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--lat <deg> --lon <deg>] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
     io.exit(1);
     return;
   }
 
-  let species = parseSpeciesFlag(flagArgs);
+  const parsedObjects = parseObjectFlags(flagArgs);
+  if ('error' in parsedObjects) {
+    io.error(parsedObjects.error);
+    io.exit(1);
+    return;
+  }
+  let objects = parsedObjects.objects;
+
   const parsed = parseActionFlags(flagArgs);
   if ('error' in parsed) {
     io.error(parsed.error);
@@ -144,12 +221,16 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
-  // Species only matters for iNaturalist and the YAML's `objects` entry; skip asking for r2-only runs.
-  if (!species && (actions.inaturalist || actions.yaml)) {
-    species = (await io.prompt('Species (scientific name, leave blank to skip): ')) || undefined;
+  // Species only matters for iNaturalist and the YAML's `objects` entry; skip
+  // asking for r2-only runs. Cycle 2 moves this into the drawing dialog.
+  if (objects.length === 0 && (actions.inaturalist || actions.yaml)) {
+    const answer = await io.prompt('Species (scientific name, leave blank to skip): ');
+    if (answer) {
+      objects = [{ boundingBox: null, description: null, objectType: 'organism', scientificName: answer }];
+    }
   }
 
-  if (actions.inaturalist && !species && flagArgs.includes('--only-inaturalist')) {
+  if (actions.inaturalist && objects.length === 0 && flagArgs.includes('--only-inaturalist')) {
     io.error('--only-inaturalist requires --species.');
     io.exit(1);
     return;
@@ -180,7 +261,7 @@ export async function runCli(io: CliIo): Promise<void> {
     species: string;
   }) => Promise<{ commonName: string; observationId: number }>) | undefined;
 
-  if (species && actions.inaturalist) {
+  if (objects.length > 0 && actions.inaturalist) {
     const appId = io.env.INATURALIST_APP_ID;
     const appSecret = io.env.INATURALIST_APP_SECRET;
     const password = io.env.INATURALIST_PASSWORD;
@@ -214,10 +295,6 @@ export async function runCli(io: CliIo): Promise<void> {
       ? io.createR2Client({ accessKeyId, accountId, bucket, secretAccessKey })
       : undefined;
 
-  const objects: ObjectInput[] = species
-    ? [{ boundingBox: null, description: null, objectType: 'organism', scientificName: species }]
-    : [];
-
   const result = await publishPhoto(
     {
       cropToBox: io.cropToBox,
@@ -229,6 +306,7 @@ export async function runCli(io: CliIo): Promise<void> {
       readFile: io.readFile,
       readTextFile: io.readTextFile,
       resizePhoto: io.resizePhoto,
+      saveCrop: flagArgs.includes('--save-crops') ? createSaveCrop(io) : undefined,
       uploadObject: (b, key, body, contentType) => io.uploadObject(client!, b, key, body, contentType),
       writeFile: io.writeFile,
     },

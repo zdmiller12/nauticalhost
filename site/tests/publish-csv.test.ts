@@ -39,6 +39,7 @@ function makeDeps(overrides: Partial<PublishCsvDeps> = {}): PublishCsvDeps {
     readTextFile: vi.fn().mockResolvedValue(null),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
     uploadObject: vi.fn().mockResolvedValue(undefined),
+    writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -137,6 +138,64 @@ describe('buildRowArgs', () => {
   });
 });
 
+describe('buildRowArgs with a box column', () => {
+  it('parses the box into the organism object', () => {
+    const built = buildRowArgs(
+      {
+        box: '0.25,0.4,0.6,0.75',
+        r2KeyPrefix: 'compendium/alpha',
+        sourcePath: '/tmp/5G7A0094.JPG',
+        species: 'Junonia coenia',
+      },
+      { inaturalist: true, r2: true, yaml: true },
+      'photos',
+      'src/content/photos'
+    );
+
+    expect('args' in built && built.args.objects).toEqual([
+      {
+        boundingBox: { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 },
+        description: null,
+        objectType: 'organism',
+        scientificName: 'Junonia coenia',
+      },
+    ]);
+  });
+
+  it('leaves the box null when the column is empty', () => {
+    const built = buildRowArgs(
+      { box: '', r2KeyPrefix: 'compendium/alpha', sourcePath: '/tmp/a.JPG', species: 'Junonia coenia' },
+      { inaturalist: true, r2: true, yaml: true },
+      'photos',
+      'src/content/photos'
+    );
+
+    expect('args' in built && built.args.objects?.[0].boundingBox).toBeNull();
+  });
+
+  it('rejects a malformed box', () => {
+    const built = buildRowArgs(
+      { box: 'nope', r2KeyPrefix: 'compendium/alpha', sourcePath: '/tmp/a.JPG', species: 'Junonia coenia' },
+      { inaturalist: true, r2: true, yaml: true },
+      'photos',
+      'src/content/photos'
+    );
+
+    expect('error' in built).toBe(true);
+  });
+
+  it('rejects a box with no species to attach it to', () => {
+    const built = buildRowArgs(
+      { box: '0,0,1,1', r2KeyPrefix: 'compendium/alpha', sourcePath: '/tmp/a.JPG' },
+      { inaturalist: true, r2: true, yaml: true },
+      'photos',
+      'src/content/photos'
+    );
+
+    expect('error' in built).toBe(true);
+  });
+});
+
 describe('formatLog', () => {
   it('renders the invocation command and one section per failure', () => {
     const failures: PublishCsvRowFailure[] = [
@@ -166,7 +225,7 @@ describe('publishCsv', () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
 
     expect(result).toEqual({ failures: [], logPath: undefined, succeeded: 2, total: 2 });
     expect(deps.writeFile).toHaveBeenCalledWith('src/content/photos/a.yaml', expect.any(String));
@@ -178,7 +237,7 @@ describe('publishCsv', () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix\n,prefix/a\n/tmp/b.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, 'npm run publish-photo-csv -- photos.csv');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'npm run publish-photo-csv -- photos.csv');
 
     expect(result.succeeded).toBe(1);
     expect(result.failures).toHaveLength(1);
@@ -195,7 +254,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ readFile });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/bad.jpg,prefix/a\n/tmp/good.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.succeeded).toBe(1);
     expect(result.failures).toHaveLength(1);
@@ -214,7 +273,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
 
     expect(deps.createR2Client).toHaveBeenCalledWith({
       accessKeyId: 'key',
@@ -235,7 +294,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ env: {} });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
 
     expect(deps.createR2Client).not.toHaveBeenCalled();
   });
@@ -246,7 +305,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
 
     expect(deps.createR2Client).not.toHaveBeenCalled();
   });
@@ -270,7 +329,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/2026-06-14-osprey-nest.jpg,ospreys/osprey-nest-01,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -284,7 +343,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ env: {} });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.fetch).not.toHaveBeenCalled();
@@ -296,7 +355,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.fetch).not.toHaveBeenCalled();
@@ -322,7 +381,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -334,9 +393,65 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
 
     expect(result.failures).toEqual([]);
+  });
+
+  it('writes a saved crop for a boxed row when saveCrops is true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+    const deps = makeDeps({
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+    });
+    const csv =
+      'sourcePath,r2KeyPrefix,species,box\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus,"0,0,1,1"\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, true, 'cmd');
+
+    expect(result.failures).toEqual([]);
+    expect(deps.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
+    expect(deps.writeBinaryFile).toHaveBeenCalledWith(
+      'scripts/usage/cropped-photos/osprey-cropped.JPG',
+      expect.any(Buffer)
+    );
+  });
+
+  it('does not write a saved crop when saveCrops is false', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+    const deps = makeDeps({
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+    });
+    const csv =
+      'sourcePath,r2KeyPrefix,species,box\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus,"0,0,1,1"\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+
+    expect(result.failures).toEqual([]);
+    expect(deps.writeBinaryFile).not.toHaveBeenCalled();
   });
 });
 
@@ -367,6 +482,7 @@ function makeIo(overrides: Partial<CsvIo> = {}): CsvIo {
     readTextFile: vi.fn().mockResolvedValue(null),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
     uploadObject: vi.fn().mockResolvedValue(undefined),
+    writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -473,6 +589,42 @@ describe('runPublishCsv', () => {
 
     expect(io.log).toHaveBeenCalledWith('Published 1/1.');
     expect(io.exit).not.toHaveBeenCalled();
+  });
+
+  it('passes --save-crops through to publishCsv so a boxed row writes a crop file', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+    const io = makeIo({
+      argv: ['node', 'publish-photo-csv.ts', 'photos.csv', '--no-r2', '--save-crops'],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+      readTextFile: vi.fn((path: string) =>
+        Promise.resolve(
+          path === 'photos.csv'
+            ? 'sourcePath,r2KeyPrefix,species,box\n/tmp/a.jpg,prefix/a,Pandion haliaetus,"0,0,1,1"\n'
+            : null
+        )
+      ),
+    });
+
+    await runPublishCsv(io);
+
+    expect(io.log).toHaveBeenCalledWith('Published 1/1.');
+    expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
+    expect(io.writeBinaryFile).toHaveBeenCalledWith(
+      'scripts/usage/cropped-photos/a-cropped.JPG',
+      expect.any(Buffer)
+    );
   });
 
   it('logs the failure count and exits 1 when any row fails', async () => {

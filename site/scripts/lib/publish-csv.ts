@@ -3,10 +3,12 @@ import { parse } from 'csv-parse/sync';
 import { createIsWithin } from './private-geometry';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 import { publishPhoto, type ObjectInput, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
-import { parseActionFlags, createRealCliIo, type CliIo } from './cli';
+import { createRealCliIo, createSaveCrop, parseActionFlags, parseBoundingBox, type CliIo } from './cli';
+import type { BoundingBox } from '../../src/lib/bounding-box';
 
 /** A single parsed CSV data row; column names match the single-photo CLI's param names. */
 export interface CsvRowInput {
+  box?: string;
   lat?: string;
   lon?: string;
   r2KeyPrefix?: string;
@@ -60,13 +62,20 @@ export function buildRowArgs(
     }
   }
 
+  let boundingBox: BoundingBox | null = null;
+  if (row.box) {
+    if (!row.species) return { error: '"box" requires a "species" to attach it to.' };
+    const parsed = parseBoundingBox(row.box);
+    if ('error' in parsed) return { error: parsed.error };
+    boundingBox = parsed.box;
+  }
+
   const fileName = basename(row.sourcePath);
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
   const r2KeyPrefix = `${row.r2KeyPrefix.replace(/\/+$/, '')}/${fileName}`;
 
-  // Box is always null here — Task 6 adds the CSV `box` column.
   const objects: ObjectInput[] = row.species
-    ? [{ boundingBox: null, description: null, objectType: 'organism', scientificName: row.species }]
+    ? [{ boundingBox, description: null, objectType: 'organism', scientificName: row.species }]
     : [];
 
   return {
@@ -99,6 +108,7 @@ export async function publishCsv(
   deps: PublishCsvDeps,
   csvContents: string,
   actions: PublishActions,
+  saveCrops: boolean,
   invocationCommand: string
 ): Promise<PublishCsvResult> {
   const rows = parseCsvRows(csvContents);
@@ -140,6 +150,7 @@ export async function publishCsv(
     readFile: deps.readFile,
     readTextFile: deps.readTextFile,
     resizePhoto: deps.resizePhoto,
+    saveCrop: saveCrops ? createSaveCrop(deps) : undefined,
     uploadObject: (b, key, body, contentType) => deps.uploadObject(client!, b, key, body, contentType),
     writeFile: deps.writeFile,
   };
@@ -182,7 +193,7 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
   const [csvPath, ...flagArgs] = io.argv.slice(2);
   if (!csvPath) {
     io.error(
-      'Usage: npm run publish-photo-csv -- <csvPath> [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
+      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
     );
     io.exit(1);
     return;
@@ -225,8 +236,9 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
     }
   }
 
+  const saveCrops = flagArgs.includes('--save-crops');
   const invocationCommand = `npm run publish-photo-csv -- ${[csvPath, ...flagArgs].join(' ')}`;
-  const result = await publishCsv(io, csvContents, actions, invocationCommand);
+  const result = await publishCsv(io, csvContents, actions, saveCrops, invocationCommand);
 
   io.log(`Published ${result.succeeded}/${result.total}.`);
   if (result.failures.length > 0) {
