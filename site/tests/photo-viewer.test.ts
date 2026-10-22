@@ -70,6 +70,17 @@ function renderViewerWithBoxes(boxes: { bottom: number; left: number; right: num
       <button data-viewer-action="zoom-in"></button>
       <button data-viewer-action="reset"></button>
       <button data-viewer-action="expand"></button>
+      <ul data-viewer-chips>
+        ${boxes
+          .map(
+            (_, index) => `
+          <li>
+            <button data-viewer-zoom-box="${index}"></button>
+            <button data-viewer-toggle-box="${index}" aria-pressed="true"></button>
+          </li>`
+          )
+          .join('')}
+      </ul>
     </figure>`;
   const stage = document.querySelector('[data-viewer-stage]')!;
   Object.defineProperty(stage, 'clientWidth', { configurable: true, value: 400 });
@@ -104,7 +115,24 @@ describe('initPhotoViewer with boxes', () => {
     expect(outline.style.transform).toBe('');
   });
 
-  it('re-fits to the first box once the image loads, even after a reset', () => {
+  it('re-fits to the first box once the image loads, against the current layout', () => {
+    const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
+    initPhotoViewer(root);
+
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+    expect(image.style.transform).toBe('translate(-200px, -200px) scale(2)');
+
+    // The stage grows taller before the image finishes loading (e.g. a
+    // responsive layout shift); applyView() re-derives the box fit against
+    // the new geometry rather than replaying the stale transform.
+    const stageEl = root.querySelector<HTMLElement>('[data-viewer-stage]')!;
+    Object.defineProperty(stageEl, 'clientHeight', { configurable: true, value: 800 });
+    image.dispatchEvent(new Event('load'));
+    expect(image.style.transform).toBe('translate(-200px, -400px) scale(2)');
+    expect(root.hasAttribute('data-zoomed')).toBe(true);
+  });
+
+  it('keeps the whole-photo view across a load once the user has reset', () => {
     const root = renderViewerWithBoxes([{ bottom: 1, left: 0.25, right: 0.75, top: 0 }]);
     initPhotoViewer(root);
 
@@ -112,9 +140,10 @@ describe('initPhotoViewer with boxes', () => {
     root.querySelector<HTMLButtonElement>('[data-viewer-action="reset"]')!.click();
     expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
 
+    // The reset expressed the user's intent as 'whole', not a transform, so a
+    // later load must not snap back to the box fit.
     image.dispatchEvent(new Event('load'));
-    expect(image.style.transform).toBe('translate(-200px, -200px) scale(2)');
-    expect(root.hasAttribute('data-zoomed')).toBe(true);
+    expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
   });
 
   it('shows outlines by default', () => {
@@ -131,6 +160,89 @@ describe('initPhotoViewer with boxes', () => {
     const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
     expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
     expect(root.hasAttribute('data-zoomed')).toBe(false);
+  });
+});
+
+describe('initPhotoViewer box controls', () => {
+  const twoBoxes = [
+    { bottom: 1, left: 0.25, right: 0.75, top: 0 },
+    { bottom: 0.5, left: 0, right: 0.25, top: 0 },
+  ];
+
+  let stop: () => void = () => {};
+
+  afterEach(() => {
+    stop();
+    document.documentElement.style.overflow = '';
+  });
+
+  it('zooms to the chosen box', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-viewer-zoom-box="1"]')!.click();
+
+    // The second box is a quarter wide and half tall of a 400x200 content
+    // rect, so it fits at 4x -- a different transform from the first box.
+    expect(image.style.transform).not.toBe('translate(-200px, -200px) scale(2)');
+    expect(root.hasAttribute('data-zoomed')).toBe(true);
+  });
+
+  it('toggles one outline without affecting the other', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const toggle = root.querySelector<HTMLButtonElement>('[data-viewer-toggle-box="0"]')!;
+
+    toggle.click();
+
+    expect(root.querySelector('[data-viewer-box="0"]')!.classList.contains('hidden')).toBe(true);
+    expect(root.querySelector('[data-viewer-box="1"]')!.classList.contains('hidden')).toBe(false);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+    toggle.click();
+
+    expect(root.querySelector('[data-viewer-box="0"]')!.classList.contains('hidden')).toBe(false);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps the box framing when expanding to full view', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+    const before = image.style.transform;
+
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="expand"]')!.click();
+
+    // The stage size is unchanged in happy-dom, so re-deriving the same view
+    // must reproduce the same transform -- the point is that it is NOT reset
+    // to scale(1), which is what the old render(UNZOOMED) did.
+    expect(image.style.transform).toBe(before);
+    expect(image.style.transform).not.toBe('translate(0px, 0px) scale(1)');
+  });
+
+  it('resets to the whole photo and stays there across a resize', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="reset"]')!.click();
+    expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
+
+    window.dispatchEvent(new Event('resize'));
+    expect(image.style.transform).toBe('translate(0px, 0px) scale(1)');
+  });
+
+  it('keeps a manual zoom across a resize instead of snapping back to a box', () => {
+    const root = renderViewerWithBoxes(twoBoxes);
+    stop = initPhotoViewer(root);
+    const image = root.querySelector<HTMLImageElement>('[data-viewer-image]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-viewer-action="zoom-in"]')!.click();
+    const manual = image.style.transform;
+
+    window.dispatchEvent(new Event('resize'));
+    expect(image.style.transform).toBe(manual);
   });
 });
 
