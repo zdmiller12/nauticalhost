@@ -49,6 +49,18 @@ describe('resolveTaxon', () => {
       /taxon lookup failed: 500/
     );
   });
+
+  it('omits the body when the failure response has no text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
+    } as unknown as Response);
+    await expect(resolveTaxon({ fetch: fetchMock }, 'Pandion haliaetus')).rejects.toThrow(
+      /taxon lookup failed: 503$/
+    );
+  });
 });
 
 describe('fetchAccessToken', () => {

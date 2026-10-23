@@ -218,6 +218,16 @@ describe('formatLog', () => {
 
     expect(log).toContain('--- Row 2: (unknown) ---');
   });
+
+  it('falls back to the error message when the error has no stack', () => {
+    const error = new Error('no stack here');
+    error.stack = undefined;
+    const failures: PublishCsvRowFailure[] = [{ error, input: { sourcePath: '/tmp/a.jpg' }, rowNumber: 1 }];
+
+    const log = formatLog('cmd', failures);
+
+    expect(log).toContain('Error:\nno stack here');
+  });
 });
 
 describe('publishCsv', () => {

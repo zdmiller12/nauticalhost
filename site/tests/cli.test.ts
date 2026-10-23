@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
+  createRealCliIo,
   createSaveCrop,
   parseBoundingBox,
   parseObjectFlags,
@@ -7,6 +11,13 @@ import {
   type CliIo,
 } from '../scripts/lib/cli';
 import type { S3Client } from '@aws-sdk/client-s3';
+
+vi.mock('node:readline/promises', () => ({
+  createInterface: vi.fn(() => ({
+    question: vi.fn().mockResolvedValue('  answer  '),
+    close: vi.fn(),
+  })),
+}));
 
 function makeIo(overrides: Partial<CliIo> = {}): CliIo {
   return {
@@ -701,5 +712,57 @@ describe('runCli action flags', () => {
     await runCli(io);
     expect(io.exit).not.toHaveBeenCalled();
     expect(io.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('createRealCliIo', () => {
+  it('prompts on stdin and returns the trimmed answer', async () => {
+    const io = createRealCliIo();
+    await expect(io.prompt('Species: ')).resolves.toBe('answer');
+  });
+
+  it('readTextFile returns file contents when the file exists', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const path = join(dir, 'exists.txt');
+      await writeFile(path, 'hello');
+      const io = createRealCliIo();
+      await expect(io.readTextFile(path)).resolves.toBe('hello');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('readTextFile returns null when the file does not exist', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const io = createRealCliIo();
+      await expect(io.readTextFile(join(dir, 'missing.txt'))).resolves.toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('readTextFile rethrows non-ENOENT errors', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const io = createRealCliIo();
+      // Reading a directory as a file fails with EISDIR, not ENOENT.
+      await expect(io.readTextFile(dir)).rejects.toMatchObject({ code: 'EISDIR' });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writeBinaryFile writes the buffer to disk', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const path = join(dir, 'out.bin');
+      const io = createRealCliIo();
+      await io.writeBinaryFile(path, Buffer.from('bytes'));
+      await expect(readFile(path)).resolves.toEqual(Buffer.from('bytes'));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
