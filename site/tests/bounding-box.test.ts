@@ -152,11 +152,11 @@ describe('intersectionOverUnion', () => {
     expect(intersectionOverUnion(box(0.5, 0, 0.2, 0.5), box(0, 0, 1, 1))).toBe(0);
   });
 
-  it('handles floating point precision in union calculation', () => {
-    // Test with numbers that might cause floating point precision issues
-    // Using very small boxes to exercise the union <= 0 defensive branch
-    const tinyBox1 = { bottom: 1e-16, left: 0, right: 1e-16, top: 0 };
-    const tinyBox2 = { bottom: 1e-16, left: 0, right: 1e-16, top: 0 };
-    expect(intersectionOverUnion(tinyBox1, tinyBox2)).toBeLessThanOrEqual(1);
+  it('is 0 when the overlap area underflows to zero', () => {
+    // Dimensions are positive, so the width/height guard passes, but their
+    // product underflows below the subnormal floor -- the union collapses to 0
+    // and the ratio would be NaN without the final guard.
+    const tiny = { bottom: 1e-170, left: 0, right: 1e-170, top: 0 };
+    expect(intersectionOverUnion(tiny, tiny)).toBe(0);
   });
 });

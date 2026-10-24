@@ -97,8 +97,9 @@ export function expandToPhotoAspect(box: BoundingBox): BoundingBox {
  * Intersection-over-union of two normalized boxes, `0..1`. Used to flag a
  * newly drawn box that is probably a duplicate of one already on the photo.
  *
- * Returns 0 rather than NaN for a zero-area union, so a degenerate box can
- * never silently defeat a `> threshold` duplicate check.
+ * Returns 0 rather than NaN when union underflows to zero (e.g., dimension
+ * products below the subnormal floor), so a subnormal box can never silently
+ * defeat a `> threshold` duplicate check via NaN comparison.
  */
 export function intersectionOverUnion(a: BoundingBox, b: BoundingBox): number {
   const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
