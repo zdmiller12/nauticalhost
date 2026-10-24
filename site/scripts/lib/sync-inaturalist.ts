@@ -21,28 +21,37 @@ export interface SyncResult {
 
 interface OrganismMatch {
   commonName: string;
+  description: string;
   inaturalistObservationId: number | null;
   scientificName: string;
 }
 
 const ORGANISM_BLOCK =
-  /commonName: "(?<commonName>[^"]*)"\n\s+description: [^\n]*\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
+  /commonName: "(?<commonName>[^"]*)"\n\s+description: (?<description>[^\n]*)\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
 
 function parseOrganisms(yaml: string): OrganismMatch[] {
   return [...yaml.matchAll(ORGANISM_BLOCK)].map((match) => ({
     commonName: match.groups!.commonName,
+    description: match.groups!.description,
     inaturalistObservationId: match.groups!.id === 'null' ? null : Number(match.groups!.id),
     scientificName: match.groups!.scientificName,
   }));
 }
 
-/** Replaces one organism's three fields in place, matched by its current (pre-update) values. */
+/**
+ * Replaces one organism's three sync-owned fields in place, matched by its
+ * current (pre-update) values. `description` is carried across verbatim --
+ * the sync job owns commonName/inaturalistObservationId/scientificName and
+ * nothing else, and the block is rebuilt as a literal string for
+ * `String.replace`, so any field it does not echo back it would silently
+ * clobber.
+ */
 function replaceOrganism(yaml: string, before: OrganismMatch, after: OrganismMatch): string {
   const idText = before.inaturalistObservationId === null ? 'null' : String(before.inaturalistObservationId);
-  const oldBlock = `commonName: "${before.commonName}"\n      description: null\n      inaturalistObservationId: ${idText}\n      scientificName: "${before.scientificName}"`;
+  const oldBlock = `commonName: "${before.commonName}"\n      description: ${before.description}\n      inaturalistObservationId: ${idText}\n      scientificName: "${before.scientificName}"`;
   // `after.inaturalistObservationId` is always a real id here — the caller only ever
   // supplies a freshly created (backfill) or preserved (refresh) numeric id, never null.
-  const newBlock = `commonName: "${after.commonName}"\n      description: null\n      inaturalistObservationId: ${after.inaturalistObservationId}\n      scientificName: "${after.scientificName}"`;
+  const newBlock = `commonName: "${after.commonName}"\n      description: ${before.description}\n      inaturalistObservationId: ${after.inaturalistObservationId}\n      scientificName: "${after.scientificName}"`;
   return yaml.replace(oldBlock, newBlock);
 }
 
@@ -76,6 +85,7 @@ export async function syncInaturalist(
         });
         updated = replaceOrganism(updated, organism, {
           commonName,
+          description: organism.description,
           inaturalistObservationId: observation.id,
           scientificName: organism.scientificName,
         });
@@ -89,6 +99,7 @@ export async function syncInaturalist(
         ) {
           updated = replaceOrganism(updated, organism, {
             commonName: taxon.commonName,
+            description: organism.description,
             inaturalistObservationId: organism.inaturalistObservationId,
             scientificName: taxon.scientificName,
           });
