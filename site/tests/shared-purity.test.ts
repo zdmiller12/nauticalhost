@@ -6,7 +6,11 @@ import { readFileSync } from 'node:fs';
 // test cannot catch a Vite-only construct that would break the CLI at
 // runtime with "Cannot read properties of undefined". This guards it by
 // reading the source instead.
-const SHARED_MODULES = ['src/lib/bounding-box.ts'];
+//
+// dialog-client.ts is here for a second reason: dialog-server.ts ships it
+// through `esbuild.transform()`, which does NOT bundle, so a runtime import
+// would reach the browser as an unresolvable bare specifier.
+const SHARED_MODULES = ['scripts/lib/dialog-client.ts', 'src/lib/bounding-box.ts'];
 
 /** Strip line and block comments from source code. */
 function stripComments(source: string): string {
