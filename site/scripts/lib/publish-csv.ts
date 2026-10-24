@@ -1,5 +1,6 @@
 import { basename, extname } from 'node:path';
 import { parse } from 'csv-parse/sync';
+import { buildQueue } from './dialog-session';
 import { createIsWithin } from './private-geometry';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 import { publishPhoto, type ObjectInput, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
@@ -30,8 +31,8 @@ export interface PublishCsvResult {
   total: number;
 }
 
-/** Everything publishCsv needs besides argv/exit/log/prompt-style CLI concerns. */
-export type PublishCsvDeps = Omit<CliIo, 'argv' | 'error' | 'exit' | 'log' | 'prompt'> & {
+/** Everything publishCsv needs besides argv/exit/prompt-style CLI concerns. `log` is kept so phase 1 can print the dialog URL. */
+export type PublishCsvDeps = Omit<CliIo, 'argv' | 'error' | 'exit' | 'prompt'> & {
   now: () => Date;
 };
 
@@ -109,6 +110,7 @@ export async function publishCsv(
   csvContents: string,
   actions: PublishActions,
   saveCrops: boolean,
+  useDialog: boolean,
   invocationCommand: string
 ): Promise<PublishCsvResult> {
   const rows = parseCsvRows(csvContents);
@@ -156,6 +158,18 @@ export async function publishCsv(
   const failures: PublishCsvRowFailure[] = [];
   let succeeded = 0;
 
+  const writeLog = async (): Promise<string | undefined> => {
+    if (failures.length === 0) return undefined;
+    const logPath = `scripts/usage/publish-photo-csv-${deps.now().toISOString().replace(/[:.]/g, '-')}.log`;
+    await deps.mkdir('scripts/usage');
+    await deps.writeFile(logPath, formatLog(invocationCommand, failures));
+    return logPath;
+  };
+
+  // Phase 0: validate and build every row's args up front, so a malformed row
+  // is reported before the user is asked to draw anything.
+  type Pending = { args: PublishArgs; row: CsvRowInput; rowNumber: number };
+  const pending: Pending[] = [];
   for (const [index, row] of rows.entries()) {
     const rowNumber = index + 1;
     const built = buildRowArgs(row, actions, bucket, contentDir);
@@ -163,22 +177,58 @@ export async function publishCsv(
       failures.push({ error: new Error(built.error), input: row, rowNumber });
       continue;
     }
-    try {
-      await publishPhoto(publishDeps, built.args);
-      succeeded++;
-    } catch (err) {
-      failures.push({ error: err as Error, input: row, rowNumber });
+    pending.push({ args: built.args, row, rowNumber });
+  }
+
+  // Phase 1: one dialog for every row with no objects yet. Collecting all the
+  // drawing up front means a phase-2 failure at row 6 does not throw away the
+  // work done for rows 7 and 8.
+  // `buildRowArgs` always populates `objects` (empty array when the column is blank),
+  // so this never needs the `?? []` fallback that type alone would suggest.
+  const needsInput = useDialog ? pending.filter((entry) => entry.args.objects!.length === 0) : [];
+  if (needsInput.length > 0) {
+    const queue = buildQueue(
+      await Promise.all(
+        needsInput.map(async (entry) => ({
+          exif: await deps.extractExif(await deps.readFile(entry.args.sourcePath)),
+          existingYaml: await deps.readTextFile(`${contentDir}/${entry.args.slug}.yaml`),
+          slug: entry.args.slug,
+          sourcePath: entry.args.sourcePath,
+        }))
+      )
+    );
+    const outcome = await deps.openDialog(queue);
+    if (outcome.kind !== 'completed') {
+      const reason = outcome.kind === 'aborted' ? 'Dialog cancelled' : 'Dialog timed out';
+      for (const entry of needsInput) {
+        failures.push({
+          error: new Error(`${reason}; nothing was published.`),
+          input: entry.row,
+          rowNumber: entry.rowNumber,
+        });
+      }
+      return { failures, logPath: await writeLog(), succeeded: 0, total: rows.length };
+    }
+    // `buildQueue` indexes by position in `needsInput`, so the two line up.
+    for (const photo of outcome.photos) {
+      const entry = needsInput[photo.index];
+      entry.args.objects = photo.objects;
+      entry.args.latitude = entry.args.latitude ?? photo.latitude ?? undefined;
+      entry.args.longitude = entry.args.longitude ?? photo.longitude ?? undefined;
     }
   }
 
-  let logPath: string | undefined;
-  if (failures.length > 0) {
-    logPath = `scripts/usage/publish-photo-csv-${deps.now().toISOString().replace(/[:.]/g, '-')}.log`;
-    await deps.mkdir('scripts/usage');
-    await deps.writeFile(logPath, formatLog(invocationCommand, failures));
+  // Phase 2: unattended. Failures are logged per row exactly as before.
+  for (const entry of pending) {
+    try {
+      await publishPhoto(publishDeps, entry.args);
+      succeeded++;
+    } catch (err) {
+      failures.push({ error: err as Error, input: entry.row, rowNumber: entry.rowNumber });
+    }
   }
 
-  return { failures, logPath, succeeded, total: rows.length };
+  return { failures, logPath: await writeLog(), succeeded, total: rows.length };
 }
 
 export type CsvIo = CliIo & { now: () => Date };
@@ -191,7 +241,7 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
   const [csvPath, ...flagArgs] = io.argv.slice(2);
   if (!csvPath) {
     io.error(
-      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
+      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
     );
     io.exit(1);
     return;
@@ -236,7 +286,14 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
 
   const saveCrops = flagArgs.includes('--save-crops');
   const invocationCommand = `npm run publish-photo-csv -- ${[csvPath, ...flagArgs].join(' ')}`;
-  const result = await publishCsv(io, csvContents, actions, saveCrops, invocationCommand);
+  const result = await publishCsv(
+    io,
+    csvContents,
+    actions,
+    saveCrops,
+    !flagArgs.includes('--no-dialog'),
+    invocationCommand
+  );
 
   io.log(`Published ${result.succeeded}/${result.total}.`);
   if (result.failures.length > 0) {

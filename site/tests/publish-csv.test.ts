@@ -16,6 +16,23 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
   return { ok, status, json: () => Promise.resolve(body) } as unknown as Response;
 }
 
+/** The 5 responses one iNaturalist publish makes: taxon search, access token, jwt, create observation, attach photo. */
+function inaturalistResponses(observationId: number) {
+  return [
+    jsonResponse({ results: [{ id: observationId * 10, preferred_common_name: 'Some Bird' }] }),
+    jsonResponse({ access_token: 'token-123' }),
+    jsonResponse({ api_token: 'jwt-abc' }),
+    jsonResponse({ results: [{ id: observationId, uuid: `obs-uuid-${observationId}` }] }),
+    jsonResponse({}, true, 200),
+  ];
+}
+
+/** Parses the JSON body of the Nth fetch call (0-based). */
+function fetchBody(fetchMock: ReturnType<typeof vi.fn>, callIndex: number): { observation: Record<string, unknown> } {
+  const init = fetchMock.mock.calls[callIndex][1] as RequestInit;
+  return JSON.parse(init.body as string);
+}
+
 const exif = {
   camera: 'Sony A7 IV',
   date: new Date(2026, 5, 14, 12, 0, 0),
@@ -33,6 +50,7 @@ function makeDeps(overrides: Partial<PublishCsvDeps> = {}): PublishCsvDeps {
     env: {},
     extractExif: vi.fn().mockResolvedValue(exif),
     fetch: vi.fn(),
+    log: vi.fn(),
     mkdir: vi.fn().mockResolvedValue(undefined),
     now: () => new Date(2026, 5, 14, 9, 30, 0),
     openDialog: vi.fn().mockResolvedValue({ kind: 'completed', photos: [] }),
@@ -236,7 +254,7 @@ describe('publishCsv', () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result).toEqual({ failures: [], logPath: undefined, succeeded: 2, total: 2 });
     expect(deps.writeFile).toHaveBeenCalledWith('src/content/photos/a.yaml', expect.any(String));
@@ -248,7 +266,7 @@ describe('publishCsv', () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix\n,prefix/a\n/tmp/b.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'npm run publish-photo-csv -- photos.csv');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, false, 'npm run publish-photo-csv -- photos.csv');
 
     expect(result.succeeded).toBe(1);
     expect(result.failures).toHaveLength(1);
@@ -265,7 +283,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ readFile });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/bad.jpg,prefix/a\n/tmp/good.jpg,prefix/b\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.succeeded).toBe(1);
     expect(result.failures).toHaveLength(1);
@@ -284,7 +302,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, false, 'cmd');
 
     expect(deps.createR2Client).toHaveBeenCalledWith({
       accessKeyId: 'key',
@@ -305,7 +323,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ env: {} });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, false, 'cmd');
 
     expect(deps.createR2Client).not.toHaveBeenCalled();
   });
@@ -316,7 +334,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, 'cmd');
+    await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, false, 'cmd');
 
     expect(deps.createR2Client).not.toHaveBeenCalled();
   });
@@ -340,7 +358,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/2026-06-14-osprey-nest.jpg,ospreys/osprey-nest-01,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -354,7 +372,7 @@ describe('publishCsv', () => {
     const deps = makeDeps({ env: {} });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.fetch).not.toHaveBeenCalled();
@@ -366,7 +384,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.fetch).not.toHaveBeenCalled();
@@ -392,7 +410,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(5);
@@ -404,7 +422,7 @@ describe('publishCsv', () => {
     });
     const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
   });
@@ -429,7 +447,7 @@ describe('publishCsv', () => {
     const csv =
       'sourcePath,r2KeyPrefix,species,box\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus,"0,0,1,1"\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, true, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, true, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
@@ -459,10 +477,287 @@ describe('publishCsv', () => {
     const csv =
       'sourcePath,r2KeyPrefix,species,box\n/tmp/osprey.jpg,prefix/osprey,Pandion haliaetus,"0,0,1,1"\n';
 
-    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, 'cmd');
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, false, 'cmd');
 
     expect(result.failures).toEqual([]);
     expect(deps.writeBinaryFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('publishCsv with the drawing dialog', () => {
+  const YAML_ONLY = { inaturalist: false, r2: false, yaml: true };
+
+  it('opens one dialog for every row that needs input', async () => {
+    const deps = makeDeps();
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(deps.openDialog).toHaveBeenCalledOnce();
+    const queue = (deps.openDialog as ReturnType<typeof vi.fn>).mock.calls[0][0] as { slug: string }[];
+    expect(queue.map((photo) => photo.slug)).toEqual(['a', 'b']);
+  });
+
+  it('leaves rows that already carry a species out of the queue', async () => {
+    const deps = makeDeps();
+    const csv =
+      'sourcePath,r2KeyPrefix,species,box\n/tmp/a.jpg,prefix/a,Species A,"0,0,1,1"\n/tmp/b.jpg,prefix/b,,\n';
+
+    await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(deps.openDialog).toHaveBeenCalledOnce();
+    const queue = (deps.openDialog as ReturnType<typeof vi.fn>).mock.calls[0][0] as { slug: string }[];
+    expect(queue.map((photo) => photo.slug)).toEqual(['b']);
+  });
+
+  it('does not open a dialog when every row carries a species', async () => {
+    const deps = makeDeps();
+    const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Species A\n/tmp/b.jpg,prefix/b,Species B\n';
+
+    await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(deps.openDialog).not.toHaveBeenCalled();
+  });
+
+  it('does not open a dialog when useDialog is false', async () => {
+    const deps = makeDeps();
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, YAML_ONLY, false, false, 'cmd');
+
+    expect(deps.openDialog).not.toHaveBeenCalled();
+    expect(result.succeeded).toBe(2);
+    expect(result.failures).toEqual([]);
+  });
+
+  it('publishes the whole batch after the dialog closes', async () => {
+    const deps = makeDeps({
+      openDialog: vi.fn().mockResolvedValue({
+        kind: 'completed',
+        photos: [
+          {
+            index: 0,
+            latitude: null,
+            longitude: null,
+            objects: [
+              { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Dialog Species' },
+            ],
+            slug: 'b',
+            sourcePath: '/tmp/b.jpg',
+          },
+        ],
+      }),
+    });
+    const csv =
+      'sourcePath,r2KeyPrefix,species,box\n/tmp/a.jpg,prefix/a,CSV Species,"0,0,1,1"\n/tmp/b.jpg,prefix/b,,\n';
+
+    const result = await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(result.failures).toEqual([]);
+    expect(result.succeeded).toBe(2);
+    expect(deps.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/a.yaml',
+      expect.stringContaining('scientificName: "CSV Species"')
+    );
+    expect(deps.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/b.yaml',
+      expect.stringContaining('scientificName: "Dialog Species"')
+    );
+  });
+
+  it("applies the dialog's coordinates to the row it belongs to", async () => {
+    const fetchMock = vi.fn();
+    for (const id of [111, 222]) {
+      for (const response of inaturalistResponses(id)) fetchMock.mockResolvedValueOnce(response);
+    }
+    const deps = makeDeps({
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+      openDialog: vi.fn().mockResolvedValue({
+        kind: 'completed',
+        photos: [
+          {
+            index: 0,
+            latitude: 10,
+            longitude: 20,
+            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species A' }],
+            slug: 'a',
+            sourcePath: '/tmp/a.jpg',
+          },
+          {
+            index: 1,
+            latitude: 30,
+            longitude: 40,
+            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species B' }],
+            slug: 'b',
+            sourcePath: '/tmp/b.jpg',
+          },
+        ],
+      }),
+    });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, true, 'cmd');
+
+    expect(result.failures).toEqual([]);
+    expect(fetchBody(fetchMock, 3).observation).toMatchObject({ latitude: 10, longitude: 20 });
+    expect(fetchBody(fetchMock, 8).observation).toMatchObject({ latitude: 30, longitude: 40 });
+  });
+
+  it("prefers the CSV's lat/lon over the dialog's", async () => {
+    const fetchMock = vi.fn();
+    for (const response of inaturalistResponses(999)) fetchMock.mockResolvedValueOnce(response);
+    const deps = makeDeps({
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+      openDialog: vi.fn().mockResolvedValue({
+        kind: 'completed',
+        photos: [
+          {
+            index: 0,
+            latitude: 99,
+            longitude: 99,
+            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species A' }],
+            slug: 'a',
+            sourcePath: '/tmp/a.jpg',
+          },
+        ],
+      }),
+    });
+    const csv = 'sourcePath,r2KeyPrefix,lat,lon\n/tmp/a.jpg,prefix/a,1.5,2.5\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, true, 'cmd');
+
+    expect(result.failures).toEqual([]);
+    expect(fetchBody(fetchMock, 3).observation).toMatchObject({ latitude: 1.5, longitude: 2.5 });
+  });
+
+  it('publishes nothing when the dialog is cancelled', async () => {
+    const deps = makeDeps({ openDialog: vi.fn().mockResolvedValue({ kind: 'aborted' }) });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(result.succeeded).toBe(0);
+    expect(result.total).toBe(2);
+    expect(result.failures).toHaveLength(2);
+    expect(result.failures.every((failure) => failure.error.message.includes('Dialog cancelled'))).toBe(true);
+    expect(deps.writeFile).toHaveBeenCalledWith(result.logPath, expect.stringContaining('Dialog cancelled'));
+  });
+
+  it('publishes nothing when the dialog times out', async () => {
+    const deps = makeDeps({ openDialog: vi.fn().mockResolvedValue({ kind: 'timeout' }) });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(result.succeeded).toBe(0);
+    expect(result.total).toBe(2);
+    expect(result.failures).toHaveLength(2);
+    expect(result.failures.every((failure) => failure.error.message.includes('Dialog timed out'))).toBe(true);
+    expect(deps.writeFile).toHaveBeenCalledWith(result.logPath, expect.stringContaining('Dialog timed out'));
+  });
+
+  it('still reports a phase-2 failure per row', async () => {
+    const uploadObject = vi.fn((_client: unknown, _bucket: string, key: string) =>
+      key.startsWith('prefix/b') ? Promise.reject(new Error('upload failed')) : Promise.resolve(undefined)
+    );
+    const deps = makeDeps({
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      openDialog: vi.fn().mockResolvedValue({
+        kind: 'completed',
+        photos: [
+          { index: 0, latitude: null, longitude: null, objects: [], slug: 'a', sourcePath: '/tmp/a.jpg' },
+          { index: 1, latitude: null, longitude: null, objects: [], slug: 'b', sourcePath: '/tmp/b.jpg' },
+        ],
+      }),
+      uploadObject,
+    });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: true }, false, true, 'cmd');
+
+    expect(result.succeeded).toBe(1);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].rowNumber).toBe(2);
+    expect(result.logPath).toBeDefined();
+    expect(deps.writeFile).toHaveBeenCalledWith(result.logPath, expect.stringContaining('upload failed'));
+  });
+
+  it('keeps drawing work for later rows when an earlier row fails to publish', async () => {
+    const uploadObject = vi.fn((_client: unknown, _bucket: string, key: string) =>
+      key.startsWith('prefix/a') ? Promise.reject(new Error('upload failed')) : Promise.resolve(undefined)
+    );
+    const deps = makeDeps({
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      openDialog: vi.fn().mockResolvedValue({
+        kind: 'completed',
+        photos: [
+          {
+            index: 0,
+            latitude: null,
+            longitude: null,
+            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species A' }],
+            slug: 'a',
+            sourcePath: '/tmp/a.jpg',
+          },
+          {
+            index: 1,
+            latitude: null,
+            longitude: null,
+            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species B' }],
+            slug: 'b',
+            sourcePath: '/tmp/b.jpg',
+          },
+        ],
+      }),
+      uploadObject,
+    });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: true }, false, true, 'cmd');
+
+    expect(result.succeeded).toBe(1);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].rowNumber).toBe(1);
+    expect(deps.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/b.yaml',
+      expect.stringContaining('scientificName: "Species B"')
+    );
+    expect(deps.writeFile).not.toHaveBeenCalledWith('src/content/photos/a.yaml', expect.any(String));
+  });
+
+  it('reports a malformed row before opening the dialog', async () => {
+    const deps = makeDeps();
+    const csv = 'sourcePath,r2KeyPrefix\n,prefix/a\n';
+
+    const result = await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
+
+    expect(deps.openDialog).not.toHaveBeenCalled();
+    expect(result.succeeded).toBe(0);
+    expect(result.total).toBe(1);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].error.message).toContain('Missing required column "sourcePath".');
   });
 });
 
