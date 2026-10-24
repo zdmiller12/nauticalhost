@@ -144,8 +144,6 @@ export async function publishCsv(
     extractExif: deps.extractExif,
     isPrivateGeometry,
     mkdir: deps.mkdir,
-    // Batch runs are unattended: never block on stdin, just skip whatever a prompt would have supplied.
-    prompt: async () => '',
     publishToInaturalist,
     readFile: deps.readFile,
     readTextFile: deps.readTextFile,

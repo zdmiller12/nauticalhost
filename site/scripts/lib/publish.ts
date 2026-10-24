@@ -8,8 +8,6 @@ export interface PublishDeps {
   /** Whether a location falls inside the configured private geometry. Omitted when none is configured. */
   isPrivateGeometry?: (latitude: number, longitude: number) => boolean;
   mkdir: (path: string) => Promise<unknown>;
-  /** Asks the user a question on stdin/stdout and resolves with their (trimmed) answer. */
-  prompt: (question: string) => Promise<string>;
   publishToInaturalist?: (args: {
     latitude: number | null;
     longitude: number | null;
@@ -143,22 +141,12 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
 
-  // Many older photos predate GPS tagging; iNaturalist observations need
-  // coordinates, so ask rather than fail. --lat/--lon (args) take precedence
-  // over EXIF, e.g. to supply or correct what the camera recorded.
-  let latitude = args.latitude ?? exif.latitude;
-  let longitude = args.longitude ?? exif.longitude;
-  if (runInaturalist && (latitude === null || longitude === null)) {
-    const input = (await deps.prompt('Photo has no GPS coordinates. Latitude, Longitude (blank to skip): ')).trim();
-    if (input) {
-      const [latInput, lonInput] = input.split(',').map((part) => part.trim());
-      latitude = Number(latInput);
-      longitude = Number(lonInput);
-    } else {
-      latitude = null;
-      longitude = null;
-    }
-  }
+  // --lat/--lon or the dialog (args) take precedence over EXIF, e.g. to supply
+  // coordinates a camera never recorded or to correct what it did. Nothing is
+  // asked here: every caller resolves coordinates before publishing, so an
+  // upload can never block on stdin halfway through.
+  const latitude = args.latitude ?? exif.latitude;
+  const longitude = args.longitude ?? exif.longitude;
 
   const isPrivateGeometry =
     latitude !== null && longitude !== null && (deps.isPrivateGeometry?.(latitude, longitude) ?? false);

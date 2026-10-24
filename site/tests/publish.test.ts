@@ -17,7 +17,6 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
       utcOffsetMinutes: null,
     } satisfies PhotoExif),
     mkdir: vi.fn().mockResolvedValue(undefined),
-    prompt: vi.fn().mockResolvedValue(''),
     publishToInaturalist: vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 777 }),
     readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
     readTextFile: vi.fn().mockResolvedValue(null),
@@ -336,7 +335,6 @@ describe('publishPhoto', () => {
       cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
-      prompt: vi.fn().mockResolvedValue(''),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
@@ -400,7 +398,6 @@ describe('publishPhoto with --species', () => {
       cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
-      prompt: vi.fn().mockResolvedValue(''),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(null),
       resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
@@ -543,18 +540,19 @@ describe('publishPhoto with --species', () => {
     expect(deps.writeFile).not.toHaveBeenCalled();
   });
 
-  it('prompts for coordinates when the photo has none and iNaturalist will run', async () => {
+  it('publishes with the coordinates it was given, asking nothing', async () => {
     const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
-    const prompt = vi.fn().mockResolvedValue('38.9784, -76.4922');
     const deps = makeDeps({
       extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
-      prompt,
       publishToInaturalist,
     });
+    expect(deps.prompt).toBeUndefined();
 
     await publishPhoto(deps, {
       bucket: 'photos',
       contentDir: 'src/content/photos',
+      latitude: 38.9784,
+      longitude: -76.4922,
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
@@ -563,8 +561,6 @@ describe('publishPhoto with --species', () => {
       ],
     });
 
-    expect(prompt).toHaveBeenCalledTimes(1);
-    expect(prompt).toHaveBeenCalledWith(expect.stringContaining('Latitude, Longitude'));
     expect(publishToInaturalist).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 38.9784, longitude: -76.4922 })
     );
@@ -573,11 +569,10 @@ describe('publishPhoto with --species', () => {
     expect(yaml).toContain('longitude: -76.4922');
   });
 
-  it('proceeds with null coordinates when the prompt is left blank', async () => {
+  it('publishes an organism with no coordinates at all', async () => {
     const publishToInaturalist = vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 999 });
     const deps = makeDeps({
       extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
-      prompt: vi.fn().mockResolvedValue(''),
       publishToInaturalist,
     });
 
@@ -593,24 +588,6 @@ describe('publishPhoto with --species', () => {
     });
 
     expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ latitude: null, longitude: null }));
-  });
-
-  it('does not prompt for coordinates when iNaturalist will not run', async () => {
-    const prompt = vi.fn().mockResolvedValue('');
-    const deps = makeDeps({
-      extractExif: vi.fn().mockResolvedValue({ ...exif, latitude: null, longitude: null }),
-      prompt,
-    });
-
-    await publishPhoto(deps, {
-      bucket: 'photos',
-      contentDir: 'src/content/photos',
-      r2KeyPrefix: 'ospreys/osprey-nest-01',
-      slug: '2026-06-14-osprey-nest',
-      sourcePath: '/tmp/source.jpg',
-    });
-
-    expect(prompt).not.toHaveBeenCalled();
   });
 
   it('leaves the commented placeholder when species is omitted', async () => {
@@ -837,7 +814,6 @@ describe('publishPhoto action toggles', () => {
       cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
-      prompt: vi.fn().mockResolvedValue(''),
       publishToInaturalist: vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 7 }),
       readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
       readTextFile: vi.fn().mockResolvedValue(existingYaml),

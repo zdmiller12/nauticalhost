@@ -11,12 +11,19 @@ import {
   type CliIo,
 } from '../scripts/lib/cli';
 import type { S3Client } from '@aws-sdk/client-s3';
+import type { QueuePhoto } from '../scripts/lib/dialog-session';
+import { createRealDialogIo, runDialog } from '../scripts/lib/dialog-server';
 
 vi.mock('node:readline/promises', () => ({
   createInterface: vi.fn(() => ({
     question: vi.fn().mockResolvedValue('  answer  '),
     close: vi.fn(),
   })),
+}));
+
+vi.mock('../scripts/lib/dialog-server', () => ({
+  createRealDialogIo: vi.fn().mockReturnValue({ realDialogIo: true }),
+  runDialog: vi.fn().mockResolvedValue({ kind: 'completed', photos: [] }),
 }));
 
 function makeIo(overrides: Partial<CliIo> = {}): CliIo {
@@ -31,6 +38,10 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     writeFile: vi.fn().mockResolvedValue(undefined),
     writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
+    openDialog: vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [{ index: 0, latitude: null, longitude: null, objects: [], slug: '', sourcePath: '' }],
+    }),
     prompt: vi.fn().mockResolvedValue(''),
     extractExif: vi.fn().mockResolvedValue({
       camera: 'Sony A7 IV',
@@ -355,22 +366,141 @@ describe('runCli with --species', () => {
     expect(io.exit).not.toHaveBeenCalled();
   });
 
-  it('prompts for species when --species is omitted but an action that uses it is enabled', async () => {
+  it('opens the dialog when no objects were supplied', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Gull' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [
+        {
+          index: 0,
+          latitude: 44.1,
+          longitude: -68.2,
+          objects: [
+            {
+              boundingBox: { bottom: 0.6, left: 0.1, right: 0.5, top: 0.1 },
+              description: null,
+              objectType: 'organism',
+              scientificName: 'Larus argentatus',
+            },
+          ],
+          slug: 'DSC_0001',
+          sourcePath: 'photos/DSC_0001.JPG',
+        },
+      ],
+    });
     const io = makeIo({
-      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--no-r2', '--no-inaturalist'],
-      prompt: vi.fn().mockResolvedValue('Pandion haliaetus'),
+      argv: ['node', 'publish-photo.ts', 'photos/DSC_0001.JPG', 'photos/2026'],
+      env: {
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      fetch: fetchMock,
+      openDialog,
     });
 
     await runCli(io);
 
-    expect(io.prompt).toHaveBeenCalledWith(expect.stringContaining('Species'));
+    expect(openDialog).toHaveBeenCalledOnce();
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/DSC_0001.yaml',
+      expect.stringContaining('scientificName: "Larus argentatus"')
+    );
+    const [, yaml] = (io.writeFile as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(yaml).toContain('latitude: 44.1');
+    expect(yaml).toContain('longitude: -68.2');
+  });
+
+  it("seeds the dialog queue with the photo's EXIF and existing objects", async () => {
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [{ index: 0, latitude: null, longitude: null, objects: [], slug: 'osprey', sourcePath: '/tmp/osprey.jpg' }],
+    });
+    const existingYaml =
+      '---\nobjects:\n  - boundingBox: null\n    details:\n      commonName: "Osprey"\n      description: null\n      inaturalistObservationId: 1\n      scientificName: "Pandion haliaetus"\n    objectType: organism\nslug: osprey\n';
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--no-r2'],
+      openDialog,
+      readTextFile: vi.fn().mockResolvedValue(existingYaml),
+    });
+
+    await runCli(io);
+
+    expect(openDialog).toHaveBeenCalledWith([
+      expect.objectContaining({
+        existingObjects: [
+          expect.objectContaining({ objectType: 'organism' }),
+        ],
+        latitude: 38.9784,
+        longitude: -76.4922,
+        slug: 'osprey',
+        sourcePath: '/tmp/osprey.jpg',
+      }),
+    ]);
+  });
+
+  it('skips the dialog when --species was given', async () => {
+    const openDialog = vi.fn();
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/osprey.jpg',
+        'ospreys/osprey-nest-01',
+        '--no-r2',
+        '--no-inaturalist',
+        '--species',
+        'Pandion haliaetus',
+      ],
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(openDialog).not.toHaveBeenCalled();
     expect(io.writeFile).toHaveBeenCalledWith(
       'src/content/photos/osprey.yaml',
       expect.stringContaining('scientificName: "Pandion haliaetus"')
     );
   });
 
-  it('does not prompt for species when no enabled action would use it', async () => {
+  it('skips the dialog when --no-dialog is passed, and publishes nothing but r2/yaml', async () => {
+    const openDialog = vi.fn();
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--no-dialog'],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(openDialog).not.toHaveBeenCalled();
+    expect(io.fetch).not.toHaveBeenCalled();
+    expect(io.uploadObject).toHaveBeenCalled();
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('# - boundingBox: null')
+    );
+  });
+
+  it('skips the dialog for an r2-only run', async () => {
+    const openDialog = vi.fn();
     const io = makeIo({
       argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--only-r2'],
       env: {
@@ -379,11 +509,108 @@ describe('runCli with --species', () => {
         R2_BUCKET_NAME: 'photos',
         R2_SECRET_ACCESS_KEY: 'secret',
       },
+      openDialog,
     });
 
     await runCli(io);
 
-    expect(io.prompt).not.toHaveBeenCalled();
+    expect(openDialog).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 without publishing when the dialog is cancelled', async () => {
+    const openDialog = vi.fn().mockResolvedValue({ kind: 'aborted' });
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01'],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(io.exit).toHaveBeenCalledWith(1);
+    expect(io.error).toHaveBeenCalledWith(expect.stringMatching(/cancel/i));
+    expect(io.uploadObject).not.toHaveBeenCalled();
+    expect(io.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 when the dialog times out', async () => {
+    const openDialog = vi.fn().mockResolvedValue({ kind: 'timeout' });
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01'],
+      env: {
+        R2_ACCESS_KEY_ID: 'key',
+        R2_ACCOUNT_ID: 'acct',
+        R2_BUCKET_NAME: 'photos',
+        R2_SECRET_ACCESS_KEY: 'secret',
+      },
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(io.exit).toHaveBeenCalledWith(1);
+    expect(io.error).toHaveBeenCalledWith(expect.stringMatching(/timed? ?out/i));
+    expect(io.uploadObject).not.toHaveBeenCalled();
+    expect(io.writeFile).not.toHaveBeenCalled();
+  });
+
+  it("takes the dialog's coordinates over EXIF", async () => {
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [{ index: 0, latitude: 10, longitude: 20, objects: [], slug: 'osprey', sourcePath: '/tmp/osprey.jpg' }],
+    });
+    const io = makeIo({
+      argv: ['node', 'publish-photo.ts', '/tmp/osprey.jpg', 'ospreys/osprey-nest-01', '--no-r2'],
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('latitude: 10')
+    );
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('longitude: 20')
+    );
+  });
+
+  it("still prefers --lat/--lon over the dialog", async () => {
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [{ index: 0, latitude: 10, longitude: 20, objects: [], slug: 'osprey', sourcePath: '/tmp/osprey.jpg' }],
+    });
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/osprey.jpg',
+        'ospreys/osprey-nest-01',
+        '--no-r2',
+        '--lat',
+        '1.5',
+        '--lon',
+        '2.5',
+      ],
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('latitude: 1.5')
+    );
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('longitude: 2.5')
+    );
   });
 
   it('overrides EXIF coordinates with --lat/--lon', async () => {
@@ -416,7 +643,7 @@ describe('runCli with --species', () => {
     );
   });
 
-  it('skips the coordinate prompt when --lat/--lon are given and the photo has no EXIF GPS data', async () => {
+  it('publishes using --lat/--lon with no prompting when the photo has no EXIF GPS data', async () => {
     const io = makeIo({
       argv: [
         'node',
@@ -456,7 +683,11 @@ describe('runCli with --species', () => {
 
     await runCli(io);
 
-    expect(io.prompt).not.toHaveBeenCalledWith(expect.stringContaining('coordinates'));
+    expect(io.prompt).not.toHaveBeenCalled();
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('inaturalistObservationId: 999')
+    );
   });
 
   it('rejects --lat without --lon', async () => {
@@ -719,6 +950,16 @@ describe('createRealCliIo', () => {
   it('prompts on stdin and returns the trimmed answer', async () => {
     const io = createRealCliIo();
     await expect(io.prompt('Species: ')).resolves.toBe('answer');
+  });
+
+  it('openDialog delegates to runDialog with a real DialogIo', async () => {
+    const io = createRealCliIo();
+    const queue: QueuePhoto[] = [];
+
+    await expect(io.openDialog(queue)).resolves.toEqual({ kind: 'completed', photos: [] });
+
+    expect(createRealDialogIo).toHaveBeenCalledOnce();
+    expect(runDialog).toHaveBeenCalledWith({ realDialogIo: true }, queue);
   });
 
   it('readTextFile returns file contents when the file exists', async () => {

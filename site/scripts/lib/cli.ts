@@ -8,6 +8,8 @@ import { createR2Client, uploadObject } from './r2';
 import { createIsWithin } from './private-geometry';
 import { publishPhoto, type ObjectInput, type PublishActions } from './publish';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
+import { createRealDialogIo, runDialog, type DialogOutcome } from './dialog-server';
+import { buildQueue, type QueuePhoto } from './dialog-session';
 import type { BoundingBox } from '../../src/lib/bounding-box';
 
 export interface CliIo {
@@ -21,6 +23,8 @@ export interface CliIo {
   fetch: typeof fetch;
   log: (msg: string) => void;
   mkdir: (path: string) => Promise<unknown>;
+  /** Opens the drawing dialog for a queue of photos and resolves with what the user did. */
+  openDialog: (queue: QueuePhoto[]) => Promise<DialogOutcome>;
   /** Asks the user a question on stdin/stdout and resolves with their (trimmed) answer. */
   prompt: (question: string) => Promise<string>;
   readFile: (path: string) => Promise<Buffer>;
@@ -52,6 +56,7 @@ export function createRealCliIo(): CliIo {
     fetch,
     log: (msg) => console.log(msg),
     mkdir: (path) => mkdir(path, { recursive: true }),
+    openDialog: (queue) => runDialog(createRealDialogIo(), queue),
     prompt: async (question) => {
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       try {
@@ -193,7 +198,7 @@ export function parseActionFlags(flagArgs: string[]): { actions: PublishActions 
 export async function runCli(io: CliIo): Promise<void> {
   const [sourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
   if (!sourcePath || !r2KeyPrefixArg) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
     io.exit(1);
     return;
   }
@@ -221,15 +226,6 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
-  // Species only matters for iNaturalist and the YAML's `objects` entry; skip
-  // asking for r2-only runs. Cycle 2 moves this into the drawing dialog.
-  if (objects.length === 0 && (actions.inaturalist || actions.yaml)) {
-    const answer = await io.prompt('Species (scientific name, leave blank to skip): ');
-    if (answer) {
-      objects = [{ boundingBox: null, description: null, objectType: 'organism', scientificName: answer }];
-    }
-  }
-
   if (actions.inaturalist && objects.length === 0 && flagArgs.includes('--only-inaturalist')) {
     io.error('--only-inaturalist requires --species.');
     io.exit(1);
@@ -250,6 +246,34 @@ export async function runCli(io: CliIo): Promise<void> {
     io.error('Missing R2 env vars. Copy site/.env.example to site/.env and fill it in.');
     io.exit(1);
     return;
+  }
+
+  // Objects only matter for iNaturalist and the YAML's `objects` entry, so an
+  // r2-only run needs no dialog. --species/--box and --no-dialog are the
+  // non-interactive paths.
+  let latitude = coords.latitude;
+  let longitude = coords.longitude;
+  if (objects.length === 0 && !flagArgs.includes('--no-dialog') && (actions.inaturalist || actions.yaml)) {
+    const existingYaml = await io.readTextFile(`src/content/photos/${slug}.yaml`);
+    const source = await io.readFile(sourcePath);
+    const outcome = await io.openDialog(
+      buildQueue([{ exif: await io.extractExif(source), existingYaml, slug, sourcePath }])
+    );
+    if (outcome.kind !== 'completed') {
+      io.error(
+        outcome.kind === 'aborted'
+          ? 'Dialog cancelled; nothing was published.'
+          : 'Dialog timed out; nothing was published.'
+      );
+      io.exit(1);
+      return;
+    }
+    const [photo] = outcome.photos;
+    objects = photo.objects;
+    // An explicit --lat/--lon still wins: a flag is a deliberate override,
+    // whereas the dialog's fields are prefilled from the same EXIF.
+    latitude = latitude ?? photo.latitude ?? undefined;
+    longitude = longitude ?? photo.longitude ?? undefined;
   }
 
   let publishToInaturalist: ((args: {
@@ -301,7 +325,6 @@ export async function runCli(io: CliIo): Promise<void> {
       extractExif: io.extractExif,
       isPrivateGeometry,
       mkdir: io.mkdir,
-      prompt: io.prompt,
       publishToInaturalist,
       readFile: io.readFile,
       readTextFile: io.readTextFile,
@@ -314,8 +337,8 @@ export async function runCli(io: CliIo): Promise<void> {
       actions,
       bucket: bucket ?? '',
       contentDir: 'src/content/photos',
-      latitude: coords.latitude,
-      longitude: coords.longitude,
+      latitude,
+      longitude,
       objects,
       r2KeyPrefix,
       slug,
@@ -336,7 +359,7 @@ export async function runCli(io: CliIo): Promise<void> {
     // that field's outcome rather than claim the whole file was untouched.
     io.log(`Kept the existing 'other' block in ${yamlFile}.`);
   } else if (actions.yaml) {
-    io.log(`Published ${slug} (${ran}). Fill in tier/notes (and objects, if --species was omitted) in ${yamlFile}`);
+    io.log(`Published ${slug} (${ran}). Fill in tier/notes (and objects, if --no-dialog was passed) in ${yamlFile}`);
     return;
   }
   if (result.appendedObjects > 0) {
