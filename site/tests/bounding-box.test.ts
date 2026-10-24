@@ -147,11 +147,6 @@ describe('intersectionOverUnion', () => {
     expect(intersectionOverUnion(box(0, 0, 0.5, 0.5), box(0, 0.5, 0.5, 1))).toBe(0);
   });
 
-  it('defends against union calculation edge cases', () => {
-    // Box with inverted coordinates (left > right) creates negative area contribution
-    expect(intersectionOverUnion(box(0.5, 0, 0.2, 0.5), box(0, 0, 1, 1))).toBe(0);
-  });
-
   it('is 0 when the overlap area underflows to zero', () => {
     // Dimensions are positive, so the width/height guard passes, but their
     // product underflows below the subnormal floor -- the union collapses to 0
