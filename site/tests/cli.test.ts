@@ -860,6 +860,10 @@ describe('runCli with PRIVATE_GEOMETRY_WKT', () => {
 });
 
 describe('runCli action flags', () => {
+  function jsonResponse(body: unknown, ok = true, status = 200) {
+    return { ok, status, json: () => Promise.resolve(body) } as unknown as Response;
+  }
+
   const baseEnv = {
     R2_ACCESS_KEY_ID: 'key',
     R2_ACCOUNT_ID: 'acct',
@@ -927,6 +931,64 @@ describe('runCli action flags', () => {
   it('--only-inaturalist without --species exits 1', async () => {
     const io = makeIo({ argv: [...argvBase, '--only-inaturalist'], env: baseEnv });
     await runCli(io);
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('requires --species'));
+    expect(io.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('--only-inaturalist without --species publishes when the dialog supplies an organism', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' }))
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }))
+      .mockResolvedValueOnce(jsonResponse({}, true, 200));
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [
+        {
+          index: 0,
+          latitude: null,
+          longitude: null,
+          objects: [
+            { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+          ],
+          slug: 'photo',
+          sourcePath: '/tmp/photo.jpg',
+        },
+      ],
+    });
+    const io = makeIo({
+      argv: [...argvBase, '--only-inaturalist'],
+      env: {
+        ...baseEnv,
+        INATURALIST_APP_ID: 'app-id',
+        INATURALIST_APP_SECRET: 'app-secret',
+        INATURALIST_PASSWORD: 'pw',
+        INATURALIST_USERNAME: 'user',
+      },
+      fetch: fetchMock,
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(openDialog).toHaveBeenCalledOnce();
+    expect(io.error).not.toHaveBeenCalled();
+    expect(io.exit).not.toHaveBeenCalledWith(1);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('--only-inaturalist without --species exits 1 when the dialog is submitted with no objects', async () => {
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [{ index: 0, latitude: null, longitude: null, objects: [], slug: 'photo', sourcePath: '/tmp/photo.jpg' }],
+    });
+    const io = makeIo({ argv: [...argvBase, '--only-inaturalist'], env: baseEnv, openDialog });
+
+    await runCli(io);
+
+    expect(openDialog).toHaveBeenCalledOnce();
     expect(io.error).toHaveBeenCalledWith(expect.stringContaining('requires --species'));
     expect(io.exit).toHaveBeenCalledWith(1);
   });

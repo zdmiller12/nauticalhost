@@ -226,12 +226,6 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
-  if (actions.inaturalist && objects.length === 0 && flagArgs.includes('--only-inaturalist')) {
-    io.error('--only-inaturalist requires --species.');
-    io.exit(1);
-    return;
-  }
-
   const fileName = basename(sourcePath);
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
   const r2KeyPrefix = `${r2KeyPrefixArg.replace(/\/+$/, '')}/${fileName}`;
@@ -274,6 +268,14 @@ export async function runCli(io: CliIo): Promise<void> {
     // whereas the dialog's fields are prefilled from the same EXIF.
     latitude = latitude ?? photo.latitude ?? undefined;
     longitude = longitude ?? photo.longitude ?? undefined;
+  }
+
+  // Checked after the dialog so a dialog-supplied species satisfies this,
+  // just as answering the old interactive prompt used to.
+  if (actions.inaturalist && objects.length === 0 && flagArgs.includes('--only-inaturalist')) {
+    io.error('--only-inaturalist requires --species.');
+    io.exit(1);
+    return;
   }
 
   let publishToInaturalist: ((args: {
