@@ -218,12 +218,9 @@ export async function runDialog(
     settle(outcome);
   };
 
-  // setTimer/watchInterrupt run before the first await so they are already
-  // armed by the time the caller's synchronous code resumes -- a test can
-  // otherwise fire them before createServer's promise has settled.
+  const server = await io.createServer((request) => handleRequest(io, queue, request, finish));
   const timer = io.setTimer(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, () => finish({ kind: 'timeout' }));
   const interrupt = io.watchInterrupt(() => finish({ kind: 'aborted' }));
-  const server = await io.createServer((request) => handleRequest(io, queue, request, finish));
 
   const url = `http://localhost:${server.port}/`;
   io.log(`Draw bounding boxes at ${url} (${queue.length} photo(s))`);

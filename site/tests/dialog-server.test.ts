@@ -171,6 +171,7 @@ describe('runDialog', () => {
       },
     });
     const session = runDialog(io, queue(), { timeoutMs: 1000 });
+    await vi.waitFor(() => expect(fire).toBeTypeOf('function'));
     fire();
     await expect(session).resolves.toEqual({ kind: 'timeout' });
     expect(server.close).toHaveBeenCalledOnce();
@@ -187,6 +188,7 @@ describe('runDialog', () => {
       },
     });
     const session = runDialog(io, queue());
+    await vi.waitFor(() => expect(interrupt).toBeTypeOf('function'));
     interrupt();
     await expect(session).resolves.toEqual({ kind: 'aborted' });
   });
