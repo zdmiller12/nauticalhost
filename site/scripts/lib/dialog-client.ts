@@ -178,7 +178,12 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
         label.style.background = colour;
         label.textContent = String(index + 1);
         element.append(label);
+        // Per element, because neither pointerenter nor pointerleave bubbles:
+        // leaving a small box for another point inside the overlay never
+        // reaches the overlay. Re-attaching each render leaks nothing --
+        // render() discards the old elements, and their listeners with them.
         element.addEventListener('pointerenter', () => highlight(index));
+        element.addEventListener('pointerleave', () => highlight(null));
         overlay.append(element);
       }
 
@@ -204,6 +209,7 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
         render();
       });
       row.addEventListener('pointerenter', () => highlight(index));
+      row.addEventListener('pointerleave', () => highlight(null));
       rowList.append(row);
     });
 
@@ -311,11 +317,6 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
       { once: true, signal: drag.signal }
     );
   });
-
-  // On the containers rather than on every box and row: one listener each
-  // survives a re-render, and `pointerleave` from a child reaches it.
-  overlay.addEventListener('pointerleave', () => highlight(null));
-  rowList.addEventListener('pointerleave', () => highlight(null));
 
   button('add').addEventListener('click', () => {
     sync();

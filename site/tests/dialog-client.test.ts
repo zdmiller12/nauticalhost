@@ -97,15 +97,31 @@ describe('initDialog', () => {
     expect(rows()[0].dataset.active).toBe('true');
   });
 
-  it('clears the highlight when the pointer leaves the rows or the overlay', () => {
+  it('clears the highlight when the pointer leaves a row or a box', () => {
     mount();
     drag(40, 20, 200, 120);
-    rows()[0].dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
-    rows()[0].dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    // Not bubbling, because a user agent's pointerleave never is: a listener
+    // on the overlay or the row list would not see these.
+    rows()[0].dispatchEvent(new PointerEvent('pointerenter'));
+    rows()[0].dispatchEvent(new PointerEvent('pointerleave'));
     expect(q<HTMLElement>('[data-dialog-box]').dataset.active).not.toBe('true');
-    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
-    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerenter'));
+    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerleave'));
     expect(rows()[0].dataset.active).not.toBe('true');
+  });
+
+  it('keeps the highlight when the pointer moves straight from one box to the next', () => {
+    mount();
+    drag(40, 20, 200, 120);
+    drag(210, 20, 380, 120);
+    const boxes = all<HTMLElement>('[data-dialog-box]');
+    // The real order: leave the first, then enter the second.
+    boxes[0].dispatchEvent(new PointerEvent('pointerenter'));
+    boxes[0].dispatchEvent(new PointerEvent('pointerleave'));
+    boxes[1].dispatchEvent(new PointerEvent('pointerenter'));
+    expect(boxes[1].dataset.active).toBe('true');
+    expect(rows()[1].dataset.active).toBe('true');
+    expect(boxes[0].dataset.active).not.toBe('true');
   });
 
   it('switches a row between organism and landmark fields', () => {
