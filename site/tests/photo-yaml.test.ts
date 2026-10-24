@@ -92,14 +92,19 @@ describe('renderObject', () => {
 
   // Guards sync-inaturalist.ts:28. Its ORGANISM_BLOCK regex matches four
   // consecutive lines INSIDE `details`; if this rendering ever drifts, the
-  // observation backfill silently stops matching anything.
+  // observation backfill silently stops matching anything. Keep this pattern
+  // character-for-character identical to the one in sync-inaturalist.ts --
+  // it is a deliberate duplicate, not an import, because ORGANISM_BLOCK
+  // carries the `g` flag and a shared stateful regex would corrupt
+  // interleaved matchAll/exec calls across modules.
   it('stays matchable by sync-inaturalist ORGANISM_BLOCK', () => {
     const ORGANISM_BLOCK =
-      /commonName: "(?<commonName>[^"]*)"\n\s+description: [^\n]*\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
+      /commonName: "(?<commonName>[^"]*)"\n\s+description: (?<description>[^\n]*)\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
     const matches = [...renderObject(organism).matchAll(ORGANISM_BLOCK)];
     expect(matches).toHaveLength(1);
     expect(matches[0].groups).toMatchObject({
       commonName: 'Osprey',
+      description: 'null',
       id: '12345',
       scientificName: 'Pandion haliaetus',
     });

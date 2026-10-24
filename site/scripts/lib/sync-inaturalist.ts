@@ -26,6 +26,11 @@ interface OrganismMatch {
   scientificName: string;
 }
 
+// Mirrored (not imported -- this regex is `g`-flagged and stateful via
+// `lastIndex`, so sharing one instance across modules would corrupt
+// interleaved matchAll/exec calls) by
+// tests/photo-yaml.test.ts: 'stays matchable by sync-inaturalist ORGANISM_BLOCK'.
+// Keep that copy character-for-character identical to this pattern.
 const ORGANISM_BLOCK =
   /commonName: "(?<commonName>[^"]*)"\n\s+description: (?<description>[^\n]*)\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
 
