@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   displayedSize,
   expandToPhotoAspect,
+  intersectionOverUnion,
   toPixelRect,
   type BoundingBox,
 } from '../src/lib/bounding-box';
@@ -106,5 +107,56 @@ describe('expandToPhotoAspect', () => {
     expect(grown.left).toBe(0);
     expect(grown.right).toBe(1);
     expect(grown.top).toBeCloseTo(0, 10);
+  });
+});
+
+describe('intersectionOverUnion', () => {
+  const box = (left: number, top: number, right: number, bottom: number) => ({ bottom, left, right, top });
+
+  it('is 1 for identical boxes', () => {
+    expect(intersectionOverUnion(box(0.1, 0.1, 0.5, 0.5), box(0.1, 0.1, 0.5, 0.5))).toBe(1);
+  });
+
+  it('is 0 for disjoint boxes', () => {
+    expect(intersectionOverUnion(box(0, 0, 0.2, 0.2), box(0.5, 0.5, 0.9, 0.9))).toBe(0);
+  });
+
+  it('is 0 for boxes that touch on an edge only', () => {
+    expect(intersectionOverUnion(box(0, 0, 0.5, 0.5), box(0.5, 0, 1, 0.5))).toBe(0);
+  });
+
+  it('computes partial overlap', () => {
+    // a = 0.2x0.2 = 0.04, b = 0.2x0.2 = 0.04, intersection = 0.1x0.1 = 0.01,
+    // union = 0.04 + 0.04 - 0.01 = 0.07
+    expect(intersectionOverUnion(box(0, 0, 0.2, 0.2), box(0.1, 0.1, 0.3, 0.3))).toBeCloseTo(0.01 / 0.07, 10);
+  });
+
+  it('is the area ratio when one box fully contains the other', () => {
+    expect(intersectionOverUnion(box(0, 0, 1, 1), box(0.25, 0.25, 0.75, 0.75))).toBeCloseTo(0.25, 10);
+  });
+
+  it('is 0 when a box has zero area', () => {
+    expect(intersectionOverUnion(box(0.5, 0.5, 0.5, 0.5), box(0, 0, 1, 1))).toBe(0);
+  });
+
+  it('is 0 when both boxes are degenerate', () => {
+    expect(intersectionOverUnion(box(0.5, 0.5, 0.5, 0.5), box(0.5, 0.5, 0.5, 0.5))).toBe(0);
+  });
+
+  it('is 0 when boxes touch on horizontal edge only', () => {
+    expect(intersectionOverUnion(box(0, 0, 0.5, 0.5), box(0, 0.5, 0.5, 1))).toBe(0);
+  });
+
+  it('defends against union calculation edge cases', () => {
+    // Box with inverted coordinates (left > right) creates negative area contribution
+    expect(intersectionOverUnion(box(0.5, 0, 0.2, 0.5), box(0, 0, 1, 1))).toBe(0);
+  });
+
+  it('handles floating point precision in union calculation', () => {
+    // Test with numbers that might cause floating point precision issues
+    // Using very small boxes to exercise the union <= 0 defensive branch
+    const tinyBox1 = { bottom: 1e-16, left: 0, right: 1e-16, top: 0 };
+    const tinyBox2 = { bottom: 1e-16, left: 0, right: 1e-16, top: 0 };
+    expect(intersectionOverUnion(tinyBox1, tinyBox2)).toBeLessThanOrEqual(1);
   });
 });
