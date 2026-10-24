@@ -365,6 +365,20 @@ describe('validatePosted', () => {
     expect('photos' in outcome && outcome.photos[0].latitude).toBeNull();
   });
 
+  // Clearing a prefilled EXIF coordinate by select-all-and-retype easily
+  // leaves a space behind, and `Number(' ')` is 0 -- an observation at 0,0.
+  it('treats a whitespace-only coordinate pair as blank', () => {
+    const outcome = validatePosted(payload([organism()], { latitude: ' ', longitude: ' ' }), queue());
+    expect('photos' in outcome && outcome.photos[0].latitude).toBeNull();
+    expect('photos' in outcome && outcome.photos[0].longitude).toBeNull();
+  });
+
+  it('rejects a whitespace-only coordinate paired with a real number', () => {
+    expect(validatePosted(payload([organism()], { latitude: ' ' }), queue())).toEqual({
+      errors: ['DSC_0001: latitude and longitude must both be set or both be blank.'],
+    });
+  });
+
   it('collects every error rather than stopping at the first', () => {
     const outcome = validatePosted(
       payload([organism({ scientificName: '' }), organism({ objectType: 'vehicle' })]),

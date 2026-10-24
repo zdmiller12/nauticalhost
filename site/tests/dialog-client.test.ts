@@ -3,9 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { initDialog } from '../scripts/lib/dialog-client';
 import { renderPage } from '../scripts/lib/dialog-server';
 import { buildQueue, type QueueSource } from '../scripts/lib/dialog-session';
+import type { PhotoExif } from '../scripts/lib/exif';
 
-const exif = (latitude: number | null, longitude: number | null) =>
-  ({ camera: null, date: null, latitude, lens: null, longitude, other: {}, utcOffsetMinutes: null }) as never;
+const exif = (latitude: number | null, longitude: number | null): PhotoExif => ({
+  camera: null,
+  date: null,
+  latitude,
+  lens: null,
+  longitude,
+  other: {},
+  utcOffsetMinutes: null,
+});
 
 const source = (overrides: Partial<QueueSource> = {}): QueueSource => ({
   exif: exif(44.1, -68.2),

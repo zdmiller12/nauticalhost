@@ -14,7 +14,12 @@ const COLOURS = ['#ff6b6b', '#7fd1ff', '#ffd166', '#95e06c', '#c792ea', '#ff9f68
 /** Below this many pixels on either axis, a drag was a click. */
 const MIN_DRAG_PX = 4;
 
-/** What the inline bootstrap script in renderPage() hands to initDialog. */
+/**
+ * What the inline bootstrap script in renderPage() hands to initDialog. That
+ * bootstrap is a template-literal string in dialog-server.ts and nothing
+ * executes it (the client tests pass their own deps), so this pairing is
+ * unguarded by tests: rename or add a member here and in renderPage together.
+ */
 export interface DialogClientDeps {
   /**
    * The element's position and size in client pixels. Injected because
@@ -243,6 +248,7 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
     warnings.append(line);
   };
 
+  // Indexing by `photoIndex` relies on `QueuePhoto.index === array position`, the invariant `buildQueue` establishes.
   const describeDuplicate = (duplicate: PostedDuplicate): string =>
     `${queue[duplicate.photoIndex].slug}: object ${duplicate.candidateIndex + 1} looks like published object ${
       duplicate.existingIndex + 1

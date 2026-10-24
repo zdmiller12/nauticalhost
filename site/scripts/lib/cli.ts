@@ -273,7 +273,7 @@ export async function runCli(io: CliIo): Promise<void> {
   // Checked after the dialog so a dialog-supplied species satisfies this,
   // just as answering the old interactive prompt used to.
   if (actions.inaturalist && objects.length === 0 && flagArgs.includes('--only-inaturalist')) {
-    io.error('--only-inaturalist requires --species.');
+    io.error('--only-inaturalist needs at least one object: pass --species or draw one in the dialog.');
     io.exit(1);
     return;
   }

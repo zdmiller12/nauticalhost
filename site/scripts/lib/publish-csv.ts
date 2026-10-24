@@ -185,7 +185,14 @@ export async function publishCsv(
   // work done for rows 7 and 8.
   // `buildRowArgs` always populates `objects` (empty array when the column is blank),
   // so this never needs the `?? []` fallback that type alone would suggest.
-  const needsInput = useDialog ? pending.filter((entry) => entry.args.objects!.length === 0) : [];
+  // Objects only matter for iNaturalist and the YAML's `objects` entry, so an
+  // r2-only run needs no dialog -- mirroring the same gate in cli.ts. Without
+  // it, `--only-r2` (the box-backfill workflow) would make the operator draw
+  // every row's boxes only for `publishPhoto` to discard them.
+  const needsInput =
+    useDialog && (actions.inaturalist || actions.yaml)
+      ? pending.filter((entry) => entry.args.objects!.length === 0)
+      : [];
   if (needsInput.length > 0) {
     const queue = buildQueue(
       await Promise.all(

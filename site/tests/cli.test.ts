@@ -931,7 +931,7 @@ describe('runCli action flags', () => {
   it('--only-inaturalist without --species exits 1', async () => {
     const io = makeIo({ argv: [...argvBase, '--only-inaturalist'], env: baseEnv });
     await runCli(io);
-    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('requires --species'));
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--only-inaturalist needs at least one object'));
     expect(io.exit).toHaveBeenCalledWith(1);
   });
 
@@ -989,7 +989,7 @@ describe('runCli action flags', () => {
     await runCli(io);
 
     expect(openDialog).toHaveBeenCalledOnce();
-    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('requires --species'));
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('--only-inaturalist needs at least one object'));
     expect(io.exit).toHaveBeenCalledWith(1);
   });
 

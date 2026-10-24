@@ -27,7 +27,15 @@ describe('cross-boundary shared modules', () => {
       const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8');
 
       it('declares no runtime imports', () => {
-        const runtimeImports = [...source.matchAll(/^\s*import\s+(?!type\b)/gm)];
+        // Three forms, all of which reach the browser as a bare specifier:
+        //   1. a static `import … from` that is not `import type`
+        //   2. `export { x } from './y'` -- a re-export is a runtime import
+        //   3. `import('./x')` -- dynamic, and has no whitespace after `import`
+        // Do not "simplify" 2 and 3 away; neither anchors on a leading
+        // `import` followed by whitespace, so the first alternative misses both.
+        const runtimeImports = [
+          ...source.matchAll(/^\s*import\s+(?!type\b)|^\s*export\s+(?!type\b)[^;\n]*\sfrom\b|\bimport\s*\(/gm),
+        ];
         expect(runtimeImports).toHaveLength(0);
       });
 

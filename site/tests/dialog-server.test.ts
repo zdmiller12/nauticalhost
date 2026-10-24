@@ -8,9 +8,17 @@ import {
   type DialogResponse,
 } from '../scripts/lib/dialog-server';
 import { buildQueue, type QueuePhoto } from '../scripts/lib/dialog-session';
+import type { PhotoExif } from '../scripts/lib/exif';
 
-const exif = (latitude: number | null, longitude: number | null) =>
-  ({ camera: null, date: null, latitude, lens: null, longitude, other: {}, utcOffsetMinutes: null }) as never;
+const exif = (latitude: number | null, longitude: number | null): PhotoExif => ({
+  camera: null,
+  date: null,
+  latitude,
+  lens: null,
+  longitude,
+  other: {},
+  utcOffsetMinutes: null,
+});
 
 const queue = (): QueuePhoto[] =>
   buildQueue([{ exif: exif(44.1, -68.2), existingYaml: null, slug: 'DSC_0001', sourcePath: 'photos/a.JPG' }]);
@@ -49,6 +57,17 @@ const request = (overrides: Partial<DialogRequest> = {}): DialogRequest => ({
   method: 'GET',
   url: '/',
   ...overrides,
+});
+
+describe('renderPage', () => {
+  // The client tests strip <head>, and happy-dom computes no styles, so the
+  // only thing worth asserting is that both halves of the row<->box highlight
+  // the client sets `data-active` on have a rule to render.
+  it('styles the active state of both a row and a box', () => {
+    const page = renderPage(queue());
+    expect(page).toContain('[data-dialog-row][data-active="true"]');
+    expect(page).toContain('[data-dialog-box][data-active="true"]');
+  });
 });
 
 describe('handleRequest', () => {
@@ -177,6 +196,38 @@ describe('runDialog', () => {
     expect(server.close).toHaveBeenCalledOnce();
   });
 
+  it('re-arms the inactivity timeout on every handled request', async () => {
+    const server = handle();
+    let route!: (request: DialogRequest) => Promise<DialogResponse>;
+    const arms: { cancel: ReturnType<typeof vi.fn>; fire: () => void }[] = [];
+    const io = makeIo({
+      createServer: async (handler) => {
+        route = handler;
+        return server;
+      },
+      setTimer: (_ms, fn) => {
+        const armed = { cancel: vi.fn(), fire: fn };
+        arms.push(armed);
+        return { cancel: armed.cancel };
+      },
+    });
+
+    const session = runDialog(io, queue(), { timeoutMs: 1000 });
+    await vi.waitFor(() => expect(arms).toHaveLength(1));
+    await route(request());
+    await route(request());
+
+    // One initial arming plus one per handled request, each superseded handle
+    // cancelled as its replacement was armed: a user still drawing is never cut off.
+    expect(arms).toHaveLength(3);
+    expect(arms[0].cancel).toHaveBeenCalledOnce();
+    expect(arms[1].cancel).toHaveBeenCalledOnce();
+    expect(arms[2].cancel).not.toHaveBeenCalled();
+
+    arms[2].fire();
+    await expect(session).resolves.toEqual({ kind: 'timeout' });
+  });
+
   it('resolves as aborted when the CLI is interrupted', async () => {
     const server = handle();
     let interrupt!: () => void;
@@ -211,7 +262,9 @@ describe('runDialog', () => {
     await route(request({ method: 'POST', url: '/cancel' }));
     await session;
 
-    expect(timerCancel).toHaveBeenCalledOnce();
+    // Twice: once when the request re-armed the inactivity timeout, and once
+    // in `finally` for the handle that was live when the session settled.
+    expect(timerCancel).toHaveBeenCalledTimes(2);
     expect(interruptCancel).toHaveBeenCalledOnce();
   });
 

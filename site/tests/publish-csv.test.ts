@@ -530,6 +530,19 @@ describe('publishCsv with the drawing dialog', () => {
     expect(result.failures).toEqual([]);
   });
 
+  // The box-backfill workflow: re-running with --only-r2 to regenerate a
+  // thumbnail must not make the operator draw boxes publishPhoto then discards.
+  it('does not open a dialog for an r2-only run', async () => {
+    const deps = makeDeps();
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n/tmp/b.jpg,prefix/b\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: true, yaml: false }, false, true, 'cmd');
+
+    expect(deps.openDialog).not.toHaveBeenCalled();
+    expect(result.succeeded).toBe(2);
+    expect(result.failures).toEqual([]);
+  });
+
   it('publishes the whole batch after the dialog closes', async () => {
     const deps = makeDeps({
       openDialog: vi.fn().mockResolvedValue({

@@ -159,7 +159,9 @@ function readObject(raw: unknown): { object: ObjectInput } | { error: string } {
 function readCoordinates(
   raw: Record<string, unknown>
 ): { latitude: number | null; longitude: number | null } | { error: string } {
-  const blank = (value: unknown) => value === null || value === undefined || value === '';
+  // Trimmed, because `Number(' ')` is 0, not NaN: a field left holding a stray
+  // space after a select-all-and-retype would otherwise publish at 0,0.
+  const blank = (value: unknown) => value === null || value === undefined || String(value).trim() === '';
   if (blank(raw.latitude) !== blank(raw.longitude)) {
     return { error: 'latitude and longitude must both be set or both be blank.' };
   }

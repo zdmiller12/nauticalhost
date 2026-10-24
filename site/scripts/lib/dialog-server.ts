@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { LIGHTBOX_WIDTH } from './resize';
 import { validatePosted, type AcceptedPhoto, type QueuePhoto } from './dialog-session';
 
-/** How long an abandoned tab may hold the CLI open. */
+/** How long an abandoned tab may hold the CLI open, measured from the last request (inactivity). */
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
 const CLIENT_PATH = 'scripts/lib/dialog-client.ts';
@@ -77,6 +77,7 @@ export function renderPage(queue: QueuePhoto[]): string {
   [data-dialog-stage] img { display: block; max-width: 100%; height: auto; }
   [data-dialog-overlay] { position: absolute; inset: 0; }
   [data-dialog-box] { position: absolute; border: 2px solid; box-sizing: border-box; }
+  [data-dialog-box][data-active="true"] { outline: 3px solid #7fd1ff; background: rgba(127, 209, 255, .2); }
   [data-dialog-box] span { position: absolute; top: -1.5rem; left: 0; font-size: 12px; padding: 0 .25rem; color: #11151a; }
   [data-dialog-rows] { list-style: none; padding: 0; display: grid; gap: .5rem; }
   [data-dialog-row] { display: flex; gap: .5rem; align-items: center; padding: .5rem; border-radius: .25rem; background: #1b222a; }
@@ -121,6 +122,12 @@ export function renderPage(queue: QueuePhoto[]): string {
     <button data-dialog-action="delete" type="button">&times;</button>
   </li>
 </template>
+<!--
+  The deps literal below is a template-literal string, so it must be kept in
+  sync with \`DialogClientDeps\` in dialog-client.ts by hand: no test executes
+  this bootstrap (the client tests supply their own deps), so renaming a member
+  on either side breaks only the real browser. Change both together.
+-->
 <script type="module">
 import { initDialog } from '/client.js';
 initDialog(document.querySelector('[data-dialog]'), {
@@ -218,8 +225,21 @@ export async function runDialog(
     settle(outcome);
   };
 
-  const server = await io.createServer((request) => handleRequest(io, queue, request, finish));
-  const timer = io.setTimer(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, () => finish({ kind: 'timeout' }));
+  // A no-op initial handle means `touch()` needs no null check, and covers the
+  // brief window between listen() and the first arming.
+  let timer: { cancel: () => void } = { cancel: () => {} };
+  const touch = () => {
+    timer.cancel();
+    timer = io.setTimer(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, () => finish({ kind: 'timeout' }));
+  };
+  // The first arming and the interrupt watcher must stay AFTER the await: a
+  // rejected `createServer` propagates before the try/finally below is
+  // entered, which would leak a pending timer and a SIGINT handler.
+  const server = await io.createServer(async (request) => {
+    touch();
+    return handleRequest(io, queue, request, finish);
+  });
+  touch();
   const interrupt = io.watchInterrupt(() => finish({ kind: 'aborted' }));
 
   const url = `http://localhost:${server.port}/`;
