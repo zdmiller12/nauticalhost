@@ -4,6 +4,319 @@ import { publishPhoto, buildMetadataYaml } from '../scripts/lib/publish';
 import type { PhotoExif } from '../scripts/lib/exif';
 import { photoSchema } from '../src/content/schema';
 
+function makeDeps(overrides: Record<string, unknown> = {}) {
+  return {
+    cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
+    extractExif: vi.fn().mockResolvedValue({
+      camera: 'Canon EOS R7',
+      date: new Date(2026, 5, 14, 12, 0, 0),
+      latitude: 38.9784,
+      lens: 'RF100-500mm',
+      longitude: -76.4922,
+      other: {},
+      utcOffsetMinutes: null,
+    } satisfies PhotoExif),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    prompt: vi.fn().mockResolvedValue(''),
+    publishToInaturalist: vi.fn().mockResolvedValue({ commonName: 'Osprey', observationId: 777 }),
+    readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
+    readTextFile: vi.fn().mockResolvedValue(null),
+    resizePhoto: vi.fn().mockResolvedValue({ lightbox: Buffer.from('l'), thumb: Buffer.from('t') }),
+    uploadObject: vi.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+const baseArgs = {
+  bucket: 'photos',
+  contentDir: 'src/content/photos',
+  r2KeyPrefix: 'ospreys/osprey-nest-01',
+  slug: 'osprey-nest',
+  sourcePath: '/tmp/source.jpg',
+};
+
+describe('publishPhoto with bounding boxes', () => {
+  const boundingBox = { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 };
+
+  it('passes the first object box to resizePhoto for the thumbnail', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), boundingBox);
+  });
+
+  it('sends the cropped photo to iNaturalist when the organism has a box', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.cropToBox).toHaveBeenCalledWith(Buffer.from('source-bytes'), boundingBox);
+    expect(deps.publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: Buffer.from('cropped'), species: 'Pandion haliaetus' })
+    );
+  });
+
+  it('falls back to the full-frame lightbox when the organism has no box', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.cropToBox).not.toHaveBeenCalled();
+    expect(deps.publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: Buffer.from('l') })
+    );
+  });
+
+  it('creates one observation per organism and returns every id', async () => {
+    const deps = makeDeps({
+      publishToInaturalist: vi
+        .fn()
+        .mockResolvedValueOnce({ commonName: 'Osprey', observationId: 1 })
+        .mockResolvedValueOnce({ commonName: 'Bald Eagle', observationId: 2 }),
+    });
+
+    const result = await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Haliaeetus leucocephalus' },
+      ],
+    });
+
+    expect(result.observationIds).toEqual([1, 2]);
+  });
+
+  it('crops each organism to its own box, in order (not reusing the first box for every organism)', async () => {
+    const box1 = boundingBox;
+    const box2 = { bottom: 0.95, left: 0.7, right: 0.9, top: 0.8 };
+    const deps = makeDeps({
+      publishToInaturalist: vi
+        .fn()
+        .mockResolvedValueOnce({ commonName: 'Osprey', observationId: 1 })
+        .mockResolvedValueOnce({ commonName: 'Bald Eagle', observationId: 2 }),
+    });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: box1, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+        { boundingBox: box2, description: null, objectType: 'organism', scientificName: 'Haliaeetus leucocephalus' },
+      ],
+    });
+
+    expect(deps.cropToBox).toHaveBeenNthCalledWith(1, Buffer.from('source-bytes'), box1);
+    expect(deps.cropToBox).toHaveBeenNthCalledWith(2, Buffer.from('source-bytes'), box2);
+  });
+
+  it('crops the thumbnail to the FIRST object\'s box even when that object is a landmark (not the first organism)', async () => {
+    const landmarkBox = { bottom: 0.5, left: 0.1, right: 0.4, top: 0.1 };
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: landmarkBox, description: 'Portland Head Light', objectType: 'landmark' },
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), landmarkBox);
+  });
+
+  it('names already-created observation ids in the thrown error when a later organism fails', async () => {
+    const deps = makeDeps({
+      publishToInaturalist: vi
+        .fn()
+        .mockResolvedValueOnce({ commonName: 'Osprey', observationId: 111 })
+        .mockRejectedValueOnce(new Error('network down')),
+    });
+
+    await expect(
+      publishPhoto(deps, {
+        ...baseArgs,
+        objects: [
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Haliaeetus leucocephalus' },
+        ],
+      })
+    ).rejects.toThrow('observations already created: 111');
+  });
+
+  it('writes the box into a new YAML and validates against the schema', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    const parsed = photoSchema.safeParse(load(yaml as string));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.objects[0].boundingBox).toEqual(boundingBox);
+  });
+
+  it('does not create observations for landmarks', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'Portland Head Light', objectType: 'landmark' }],
+    });
+
+    expect(deps.publishToInaturalist).not.toHaveBeenCalled();
+    const [, yaml] = deps.writeFile.mock.calls[0];
+    expect(yaml).toContain('objectType: landmark');
+  });
+
+  it('appends to an existing YAML instead of skipping it', async () => {
+    const existing = `---
+notes: # optional
+objects:
+  - boundingBox: null
+    details:
+      description: "A"
+    objectType: landmark
+other: {}
+slug: osprey-nest
+tier: E
+`;
+    const deps = makeDeps({ readTextFile: vi.fn().mockResolvedValue(existing) });
+
+    const result = await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'Second landmark', objectType: 'landmark' }],
+    });
+
+    const [path, yaml] = deps.writeFile.mock.calls[0];
+    expect(path).toBe('src/content/photos/osprey-nest.yaml');
+    expect(yaml).toContain('description: "Second landmark"');
+    expect(yaml).toContain('notes: # optional');
+    expect(yaml).toContain('tier: E');
+    // Ruling P2: `other:` already existed, so `backfilled` reports that
+    // field's own outcome, while `appendedObjects` separately confirms the
+    // new object really was written — the two must not be conflated.
+    expect(result.backfilled).toBe('skipped');
+    expect(result.appendedObjects).toBe(1);
+  });
+
+  it('thumbs to the EXISTING file\'s first object box on an append run, not the newly-supplied object', async () => {
+    const existingBox = { bottom: 0.5, left: 0.1, right: 0.4, top: 0.1 };
+    const existing = `---
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: ${existingBox.bottom}
+      left: ${existingBox.left}
+      right: ${existingBox.right}
+      top: ${existingBox.top}
+    details:
+      description: "Existing first object"
+    objectType: landmark
+other: {}
+slug: osprey-nest
+tier: E
+`;
+    const deps = makeDeps({ readTextFile: vi.fn().mockResolvedValue(existing) });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'Newly appended', objectType: 'landmark' }],
+    });
+
+    // The append-run's own supplied box must NOT win; the already-published
+    // first object's box still drives the re-uploaded thumbnail.
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), existingBox);
+  });
+
+  it('thumbs to the newly-supplied first object box on a fresh write (no existing YAML)', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.resizePhoto).toHaveBeenCalledWith(Buffer.from('source-bytes'), boundingBox);
+  });
+
+  it('backfills `other` and appends an object in the same write when the YAML has neither', async () => {
+    const existing = `---
+objects:
+  # - boundingBox: null
+  #   details:
+  #     commonName: ""
+  #     description: null
+  #     scientificName: ""
+  #   objectType: organism
+slug: osprey-nest
+tier: E
+`;
+    const deps = makeDeps({ readTextFile: vi.fn().mockResolvedValue(existing) });
+
+    const result = await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'A landmark', objectType: 'landmark' }],
+    });
+
+    expect(result.backfilled).toBe('appended');
+    expect(result.appendedObjects).toBe(1);
+    const [path, yaml] = deps.writeFile.mock.calls[0];
+    expect(path).toBe('src/content/photos/osprey-nest.yaml');
+    expect(yaml).toContain('description: "A landmark"');
+    expect(yaml).toContain('other: {}');
+  });
+
+  it('saves a local copy of the crop when saveCrop is provided', async () => {
+    const saveCrop = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({ saveCrop });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+  });
+
+  it('does not save a crop when the organism has no box', async () => {
+    const saveCrop = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({ saveCrop });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(saveCrop).not.toHaveBeenCalled();
+  });
+});
+
 describe('publishPhoto', () => {
   it('uploads thumb+lightbox to the derived keys and writes a scaffolded metadata file', async () => {
     const exif: PhotoExif = {
@@ -20,6 +333,7 @@ describe('publishPhoto', () => {
     };
 
     const deps = {
+      cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
       prompt: vi.fn().mockResolvedValue(''),
@@ -83,6 +397,7 @@ describe('publishPhoto with --species', () => {
 
   function makeDeps(overrides: Partial<Parameters<typeof publishPhoto>[0]> = {}) {
     return {
+      cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
       prompt: vi.fn().mockResolvedValue(''),
@@ -105,7 +420,9 @@ describe('publishPhoto with --species', () => {
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
     });
 
     expect(publishToInaturalist).toHaveBeenCalledWith({
@@ -135,7 +452,9 @@ describe('publishPhoto with --species', () => {
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
     });
 
     expect(isPrivateGeometry).toHaveBeenCalledWith(38.9784, -76.4922);
@@ -174,7 +493,9 @@ describe('publishPhoto with --species', () => {
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
     });
 
     expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ privateLocation: false }));
@@ -211,9 +532,13 @@ describe('publishPhoto with --species', () => {
         r2KeyPrefix: 'ospreys/osprey-nest-01',
         slug: '2026-06-14-osprey-nest',
         sourcePath: '/tmp/source.jpg',
-        species: 'Pandion haliaetus',
+        objects: [
+          { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+        ],
       })
-    ).rejects.toThrow('iNaturalist publish failed for "Pandion haliaetus": network down');
+    ).rejects.toThrow(
+      'iNaturalist publish failed for "Pandion haliaetus" (observations already created: none): network down'
+    );
 
     expect(deps.writeFile).not.toHaveBeenCalled();
   });
@@ -233,7 +558,9 @@ describe('publishPhoto with --species', () => {
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
     });
 
     expect(prompt).toHaveBeenCalledTimes(1);
@@ -260,7 +587,9 @@ describe('publishPhoto with --species', () => {
       r2KeyPrefix: 'ospreys/osprey-nest-01',
       slug: '2026-06-14-osprey-nest',
       sourcePath: '/tmp/source.jpg',
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
     });
 
     expect(publishToInaturalist).toHaveBeenCalledWith(expect.objectContaining({ latitude: null, longitude: null }));
@@ -505,6 +834,7 @@ describe('publishPhoto action toggles', () => {
   };
   function makeDeps(existingYaml: string | null = null) {
     return {
+      cropToBox: vi.fn().mockResolvedValue(Buffer.from('cropped')),
       extractExif: vi.fn().mockResolvedValue(exif),
       mkdir: vi.fn().mockResolvedValue(undefined),
       prompt: vi.fn().mockResolvedValue(''),
@@ -526,7 +856,13 @@ describe('publishPhoto action toggles', () => {
 
   it('skips iNaturalist when disabled but still records the species', async () => {
     const deps = makeDeps();
-    await publishPhoto(deps, { ...args, species: 'Pandion haliaetus', actions: { inaturalist: false, r2: true, yaml: true } });
+    await publishPhoto(deps, {
+      ...args,
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+      actions: { inaturalist: false, r2: true, yaml: true },
+    });
     expect(deps.publishToInaturalist).not.toHaveBeenCalled();
     const [, yaml] = deps.writeFile.mock.calls[0];
     expect(yaml).toContain('scientificName: "Pandion haliaetus"');
@@ -537,10 +873,12 @@ describe('publishPhoto action toggles', () => {
     const deps = makeDeps();
     const result = await publishPhoto(deps, {
       ...args,
-      species: 'Pandion haliaetus',
+      objects: [
+        { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
       actions: { inaturalist: true, r2: false, yaml: false },
     });
-    expect(result.observationId).toBe(7);
+    expect(result.observationIds).toEqual([7]);
     expect(deps.writeFile).not.toHaveBeenCalled();
     expect(deps.mkdir).not.toHaveBeenCalled();
     expect(deps.readTextFile).not.toHaveBeenCalled();
@@ -569,6 +907,19 @@ describe('publishPhoto action toggles', () => {
     const result = await publishPhoto(deps, { ...args, actions: { inaturalist: false, r2: false, yaml: true } });
     expect(result.backfilled).toBe('skipped');
     expect(deps.readFile).not.toHaveBeenCalled();
+    expect(deps.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite an existing YAML when nothing changed, even once r2 forces past the early skip', async () => {
+    // r2 enabled means the top-level early-return (which only fires when
+    // every action besides an already-complete `other:` is off) cannot
+    // trigger; the no-op must instead be caught by the no-write guard
+    // further down, once there are no new objects to append either.
+    const deps = makeDeps('---\nother:\n  ISO: 100\nslug: osprey\n');
+    const result = await publishPhoto(deps, { ...args, actions: { inaturalist: false, r2: true, yaml: true } });
+    expect(result.backfilled).toBe('skipped');
+    expect(result.appendedObjects).toBe(0);
+    expect(deps.uploadObject).toHaveBeenCalled();
     expect(deps.writeFile).not.toHaveBeenCalled();
   });
 });

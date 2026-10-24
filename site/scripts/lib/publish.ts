@@ -1,6 +1,9 @@
+import { appendObjects, parsePhotoObjects, renderObjectsBlock, type PhotoObjectEntry } from './photo-yaml';
 import type { PhotoExif } from './exif';
+import type { BoundingBox } from '../../src/lib/bounding-box';
 
 export interface PublishDeps {
+  cropToBox: (source: Buffer, box: BoundingBox) => Promise<Buffer>;
   extractExif: (buffer: Buffer) => Promise<PhotoExif>;
   /** Whether a location falls inside the configured private geometry. Omitted when none is configured. */
   isPrivateGeometry?: (latitude: number, longitude: number) => boolean;
@@ -18,7 +21,9 @@ export interface PublishDeps {
   readFile: (path: string) => Promise<Buffer>;
   /** Reads a text file, or returns null if it doesn't exist. */
   readTextFile: (path: string) => Promise<string | null>;
-  resizePhoto: (buffer: Buffer) => Promise<{ thumb: Buffer; lightbox: Buffer }>;
+  resizePhoto: (buffer: Buffer, thumbBox?: BoundingBox | null) => Promise<{ lightbox: Buffer; thumb: Buffer }>;
+  /** Writes a local copy of an iNaturalist crop. Omitted unless --save-crops is passed. */
+  saveCrop?: (slug: string, photo: Buffer) => Promise<void>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -31,9 +36,11 @@ export interface PublishActions {
 }
 
 export interface PublishResult {
+  /** How many objects were appended to an already-existing YAML. */
+  appendedObjects: number;
   /** Set when the YAML already existed, so `other:` was appended (or skipped) instead of rewriting the file. */
   backfilled?: 'appended' | 'skipped';
-  observationId?: number | null;
+  observationIds: number[];
 }
 
 export interface PublishArgs {
@@ -44,17 +51,21 @@ export interface PublishArgs {
   latitude?: number;
   /** Overrides the photo's EXIF longitude. */
   longitude?: number;
+  objects?: ObjectInput[];
   r2KeyPrefix: string;
   slug: string;
   sourcePath: string;
-  species?: string;
 }
 
-export interface OrganismEntry {
-  commonName: string;
-  inaturalistObservationId: number | null;
-  scientificName: string;
-}
+/** What the CLI (and, in cycle 2, the dialog) supplies for one photo object. */
+export type ObjectInput =
+  | { boundingBox: BoundingBox | null; description: string; objectType: 'landmark' }
+  | {
+      boundingBox: BoundingBox | null;
+      description: string | null;
+      objectType: 'organism';
+      scientificName: string;
+    };
 
 function formatDatetime(date: Date, utcOffsetMinutes: number | null): string {
   if (typeof utcOffsetMinutes === 'number') {
@@ -91,30 +102,11 @@ export function formatOtherYaml(other: Record<string, string | number | boolean>
   return `other:\n${lines.join('\n')}`;
 }
 
-/** Renders the `objects:` block — a real organism entry when one was resolved, a commented placeholder otherwise. */
-function formatObjectsYaml(organism: OrganismEntry | null): string {
-  if (!organism) {
-    return `objects:
-  # - details:
-  #     commonName: ""
-  #     description: null
-  #     scientificName: ""
-  #   objectType: organism`;
-  }
-  return `objects:
-  - details:
-      commonName: ${JSON.stringify(organism.commonName)}
-      description: null
-      inaturalistObservationId: ${organism.inaturalistObservationId ?? 'null'}
-      scientificName: ${JSON.stringify(organism.scientificName)}
-    objectType: organism`;
-}
-
 export function buildMetadataYaml(
   slug: string,
   file: string,
   exif: PhotoExif,
-  organism: OrganismEntry | null = null
+  entries: PhotoObjectEntry[] = []
 ): string {
   const datetimeStr = exif.date ? formatDatetime(exif.date, exif.utcOffsetMinutes) : '';
   return `---
@@ -125,7 +117,7 @@ latitude: ${exif.latitude ?? 'null'}
 lens: ${JSON.stringify(exif.lens ?? '')}
 longitude: ${exif.longitude ?? 'null'}
 notes: # optional
-${formatObjectsYaml(organism)}
+${renderObjectsBlock(entries)}
 ${formatOtherYaml(exif.other)}
 slug: ${slug}
 tier: E
@@ -134,22 +126,26 @@ tier: E
 
 export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promise<PublishResult> {
   const actions = args.actions ?? { inaturalist: true, r2: true, yaml: true };
-  const runInaturalist = actions.inaturalist && !!args.species && !!deps.publishToInaturalist;
+  const inputs = args.objects ?? [];
+  const organisms = inputs.filter((input) => input.objectType === 'organism');
+  const runInaturalist = actions.inaturalist && organisms.length > 0 && !!deps.publishToInaturalist;
   const yamlPath = `${args.contentDir}/${args.slug}.yaml`;
-  const result: PublishResult = {};
+  const result: PublishResult = { appendedObjects: 0, observationIds: [] };
 
-  // An existing YAML is hand-edited (tier, notes, ...), so never regenerate it; only backfill `other`.
+  // An existing YAML is hand-edited (tier, notes, ...), so never regenerate it; only backfill `other`
+  // and append any newly-supplied objects.
   const existingYaml = actions.yaml ? await deps.readTextFile(yamlPath) : null;
   const alreadyHasOther = existingYaml !== null && /^other:/m.test(existingYaml);
-  if (alreadyHasOther && !actions.r2 && !runInaturalist) {
-    return { backfilled: 'skipped' };
+  if (alreadyHasOther && inputs.length === 0 && !actions.r2 && !runInaturalist) {
+    return { ...result, backfilled: 'skipped' };
   }
 
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
 
-  // Many older photos predate GPS tagging; iNaturalist observations need coordinates, so ask rather than fail.
-  // --lat/--lon (args) take precedence over EXIF, e.g. to supply or correct what the camera recorded.
+  // Many older photos predate GPS tagging; iNaturalist observations need
+  // coordinates, so ask rather than fail. --lat/--lon (args) take precedence
+  // over EXIF, e.g. to supply or correct what the camera recorded.
   let latitude = args.latitude ?? exif.latitude;
   let longitude = args.longitude ?? exif.longitude;
   if (runInaturalist && (latitude === null || longitude === null)) {
@@ -167,57 +163,105 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   const isPrivateGeometry =
     latitude !== null && longitude !== null && (deps.isPrivateGeometry?.(latitude, longitude) ?? false);
 
-  // R2 and iNaturalist consume the resized images; the YAML action alone does not.
-  const { thumb, lightbox } =
+  // The thumbnail crops to the FIRST object's box, per the design. On an
+  // append run that "first object" is already-published (this invocation's
+  // inputs land AFTER it), so resolve it from the existing YAML rather than
+  // from `inputs` — otherwise a re-uploaded thumbnail silently re-crops to
+  // whatever was just appended instead of the photo's established subject.
+  const thumbBox =
+    existingYaml !== null ? parsePhotoObjects(existingYaml)[0]?.boundingBox ?? null : inputs[0]?.boundingBox ?? null;
+  const { lightbox, thumb } =
     actions.r2 || runInaturalist
-      ? await deps.resizePhoto(source)
-      : { thumb: Buffer.alloc(0), lightbox: Buffer.alloc(0) };
+      ? await deps.resizePhoto(source, thumbBox)
+      : { lightbox: Buffer.alloc(0), thumb: Buffer.alloc(0) };
 
   if (actions.r2) {
     await deps.uploadObject(args.bucket, `${args.r2KeyPrefix}-thumb.jpg`, thumb, 'image/jpeg');
     await deps.uploadObject(args.bucket, `${args.r2KeyPrefix}-lg.jpg`, lightbox, 'image/jpeg');
   }
 
-  let organism: OrganismEntry | null = null;
-  if (args.species && !actions.inaturalist) {
-    // Species known but iNaturalist skipped: keep the name, leave the observation unlinked.
-    organism = { commonName: '', inaturalistObservationId: null, scientificName: args.species };
-  } else if (runInaturalist) {
+  const entries: PhotoObjectEntry[] = [];
+  for (const input of inputs) {
+    if (input.objectType === 'landmark') {
+      entries.push({
+        boundingBox: input.boundingBox,
+        details: { description: input.description },
+        objectType: 'landmark',
+      });
+      continue;
+    }
+    if (!runInaturalist) {
+      // Species known but iNaturalist skipped: keep the name, leave it unlinked.
+      entries.push({
+        boundingBox: input.boundingBox,
+        details: {
+          commonName: '',
+          description: input.description,
+          inaturalistObservationId: null,
+          scientificName: input.scientificName,
+        },
+        objectType: 'organism',
+      });
+      continue;
+    }
+    // Only the box is sent, so the observation photo shows the subject.
+    const photo = input.boundingBox ? await deps.cropToBox(source, input.boundingBox) : lightbox;
+    if (input.boundingBox) await deps.saveCrop?.(args.slug, photo);
     let inat;
     try {
       inat = await deps.publishToInaturalist!({
         latitude,
         longitude,
         observedOn: exif.date,
-        photo: lightbox,
+        photo,
         privateLocation: isPrivateGeometry,
-        species: args.species!,
+        species: input.scientificName,
       });
     } catch (err) {
-      // Stop here rather than writing R2/YAML output that silently omits the
-      // observation: a half-published photo is easy to miss and hard to find later.
-      throw new Error(`iNaturalist publish failed for "${args.species}": ${(err as Error).message}`, { cause: err });
+      // R2 (if enabled) already uploaded above, and any earlier organisms in
+      // this loop already have real iNaturalist observations — this throw
+      // only prevents the YAML write, so it must not let those surviving ids
+      // get lost; name them in the message, since nothing else records them.
+      const created = result.observationIds.length > 0 ? result.observationIds.join(', ') : 'none';
+      throw new Error(
+        `iNaturalist publish failed for "${input.scientificName}" (observations already created: ${created}): ${(err as Error).message}`,
+        { cause: err }
+      );
     }
-    organism = {
-      commonName: inat.commonName,
-      inaturalistObservationId: inat.observationId,
-      scientificName: args.species!,
-    };
-    result.observationId = organism.inaturalistObservationId;
+    result.observationIds.push(inat.observationId);
+    entries.push({
+      boundingBox: input.boundingBox,
+      details: {
+        commonName: inat.commonName,
+        description: input.description,
+        inaturalistObservationId: inat.observationId,
+        scientificName: input.scientificName,
+      },
+      objectType: 'organism',
+    });
   }
 
   if (!actions.yaml) return result;
 
   if (existingYaml !== null) {
-    if (alreadyHasOther) return { ...result, backfilled: 'skipped' };
-    await deps.writeFile(yamlPath, `${existingYaml.replace(/\n+$/, '')}\n${formatOtherYaml(exif.other)}\n`);
-    return { ...result, backfilled: 'appended' };
+    // Hand-edited file: never regenerate it. Append any new objects, and
+    // backfill `other` only if it is still missing.
+    let updated = entries.length > 0 ? appendObjects(existingYaml, entries) : existingYaml;
+    const backfilled: PublishResult['backfilled'] = alreadyHasOther ? 'skipped' : 'appended';
+    if (!alreadyHasOther) {
+      updated = `${updated.replace(/\n+$/, '')}\n${formatOtherYaml(exif.other)}\n`;
+    }
+    result.appendedObjects = entries.length;
+    // No write when nothing changed, so a re-run is a genuine no-op.
+    if (updated !== existingYaml) await deps.writeFile(yamlPath, updated);
+    return { ...result, backfilled };
   }
 
-  // iNaturalist above still got the real coordinates (hidden via geoprivacy); the site YAML must not.
+  // iNaturalist above still got the real coordinates (hidden via geoprivacy);
+  // the site YAML must not.
   const resolvedExif = { ...exif, latitude, longitude };
   const yamlExif = isPrivateGeometry ? { ...resolvedExif, latitude: null, longitude: null } : resolvedExif;
   await deps.mkdir(args.contentDir);
-  await deps.writeFile(yamlPath, buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, organism));
+  await deps.writeFile(yamlPath, buildMetadataYaml(args.slug, args.r2KeyPrefix, yamlExif, entries));
   return result;
 }

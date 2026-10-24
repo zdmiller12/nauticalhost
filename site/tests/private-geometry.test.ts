@@ -48,6 +48,7 @@ describe('parseWktPolygons errors', () => {
     ['a non-polygon type', 'POINT (1 2)'],
     ['an empty string', ''],
     ['unbalanced parentheses', 'POLYGON ((0 0, 1 0, 1 1, 0 0)'],
+    ['an extra closing parenthesis', 'POLYGON ((0 0, 1 0, 1 1, 0 0)))'],
     ['a non-numeric coordinate', 'POLYGON ((0 0, a 0, 1 1, 0 0))'],
     ['a 3D coordinate', 'POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 0 0))'],
     ['a ring with too few points', 'POLYGON ((0 0, 1 0, 0 0))'],

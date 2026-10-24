@@ -65,11 +65,12 @@ consistency between local and cloud builds.
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
 3. Run (standard case — publishes to iNaturalist, R2, and writes the YAML):
 
-       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>"
+       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>" [--box <left>,<top>,<right>,<bottom>] [--save-crops]
 
    e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys --species "Pandion haliaetus"`
 
-   Slug, R2 key, and the per-action flags are described in
+   Slug, R2 key, and the per-action flags (including what `--box` and
+   `--save-crops` do) are described in
    [USER_GUIDE.md](USER_GUIDE.md#publishing-a-photo). Extra detail: trailing
    slashes on `<r2-key-prefix>` are stripped; combine several `--only-*` flags
    to run exactly those actions; R2/iNaturalist env vars are only required for
