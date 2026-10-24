@@ -97,6 +97,17 @@ describe('initDialog', () => {
     expect(rows()[0].dataset.active).toBe('true');
   });
 
+  it('clears the highlight when the pointer leaves the rows or the overlay', () => {
+    mount();
+    drag(40, 20, 200, 120);
+    rows()[0].dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+    rows()[0].dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    expect(q<HTMLElement>('[data-dialog-box]').dataset.active).not.toBe('true');
+    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+    q<HTMLElement>('[data-dialog-box]').dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    expect(rows()[0].dataset.active).not.toBe('true');
+  });
+
   it('switches a row between organism and landmark fields', () => {
     mount();
     drag(40, 20, 200, 120);

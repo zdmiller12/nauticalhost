@@ -119,8 +119,12 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
     element.style.width = `${(box.right - box.left) * area.width}px`;
   };
 
-  /** Lights up the row and the box that share an index, in either direction. */
-  const highlight = (index: number) => {
+  /**
+   * Lights up the row and the box that share an index, in either direction.
+   * `null` clears: a highlight that outlived the pointer would point at the
+   * wrong object while the user drew somewhere else.
+   */
+  const highlight = (index: number | null) => {
     root.querySelectorAll<HTMLElement>('[data-dialog-row], [data-dialog-box]').forEach((element) => {
       element.dataset.active = String(element.dataset.index === String(index));
     });
@@ -307,6 +311,11 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
       { once: true, signal: drag.signal }
     );
   });
+
+  // On the containers rather than on every box and row: one listener each
+  // survives a re-render, and `pointerleave` from a child reaches it.
+  overlay.addEventListener('pointerleave', () => highlight(null));
+  rowList.addEventListener('pointerleave', () => highlight(null));
 
   button('add').addEventListener('click', () => {
     sync();
