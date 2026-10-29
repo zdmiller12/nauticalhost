@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-10-02T21:36:10Z
+file: compendium/gamma/5G7A0217.JPG
+latitude: 36.160215
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.094936
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.9654194995707346
+      left: 0.01752857701010345
+      right: 0.7987052507408638
+      top: 0.15526688808324335
+    details:
+      commonName: "Blue Ridge gentian"
+      description: null
+      inaturalistObservationId: 411505316
+      scientificName: "Gentiana austromontana"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2025-10-02T21:36:10.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.004
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 135
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 2500
+  MeteringMode: "Pattern"
+  ModifyDate: "2025-10-02T21:36:10.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Rotate 270 CW"
+  RecommendedExposureIndex: 2500
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 8
+  SubSecTime: "40"
+  SubSecTimeDigitized: "40"
+  SubSecTimeOriginal: "40"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0217
+tier: E

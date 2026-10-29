@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-10-02T21:47:49Z
+file: compendium/gamma/5G7A0221.JPG
+latitude: 36.160215
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.094936
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.7207361684719016
+      left: 0.24944377529724057
+      right: 0.635318524730949
+      top: 0.07724740036857192
+    details:
+      commonName: "Banded Tussock Moth"
+      description: null
+      inaturalistObservationId: 411505321
+      scientificName: "Halysidota tessellaris"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2025-10-02T21:47:49.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.003125
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 5000
+  MeteringMode: "Pattern"
+  ModifyDate: "2025-10-02T21:47:49.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 5000
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 8.375
+  SubSecTime: "02"
+  SubSecTimeDigitized: "02"
+  SubSecTimeOriginal: "02"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0221
+tier: E

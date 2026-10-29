@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-10-06T14:35:12Z
+file: compendium/gamma/5G7A0276.JPG
+latitude: 37.280614
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.468925
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.4890263345912019
+      left: 0.4588317528728863
+      right: 0.5524966475284565
+      top: 0.31074615996241906
+    details:
+      commonName: "Pileated Woodpecker"
+      description: null
+      inaturalistObservationId: 411505365
+      scientificName: "Dryocopus pileatus"
+    objectType: organism
+other:
+  ApertureValue: 4.375
+  ColorSpace: 1
+  CreateDate: "2025-10-06T14:35:12.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 4.5
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 100
+  MeteringMode: "Pattern"
+  ModifyDate: "2025-10-06T14:35:12.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 100
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "84"
+  SubSecTimeDigitized: "84"
+  SubSecTimeOriginal: "84"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0276
+tier: E

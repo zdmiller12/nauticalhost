@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2025-10-01T17:12:39Z
+file: compendium/gamma/5G7A0153.JPG
+latitude: 36.107952
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.107793
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.5601606117452919
+      left: 0.314872866947245
+      right: 0.5878713446166071
+      top: 0.23874048800797112
+    details:
+      commonName: "Buttercup Oil Beetle"
+      description: null
+      inaturalistObservationId: 411505255
+      scientificName: "Meloe americanus"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2025-10-01T17:12:39.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.00625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 70
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 2500
+  MeteringMode: "Pattern"
+  ModifyDate: "2025-10-01T17:12:39.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 2500
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 7.375
+  SubSecTime: "87"
+  SubSecTimeDigitized: "87"
+  SubSecTimeOriginal: "87"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0153
+tier: E
