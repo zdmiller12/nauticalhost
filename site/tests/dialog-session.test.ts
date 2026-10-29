@@ -36,10 +36,31 @@ describe('buildQueue', () => {
         index: 0,
         latitude: 44.1,
         longitude: -68.2,
+        objects: [],
         slug: 'DSC_0001',
         sourcePath: 'photos/DSC_0001.JPG',
       },
     ]);
+  });
+
+  it('prefers an explicit coordinate over EXIF GPS', () => {
+    const [photo] = buildQueue([source({ latitude: 1.5, longitude: 2.5 })]);
+    expect(photo.latitude).toBe(1.5);
+    expect(photo.longitude).toBe(2.5);
+  });
+
+  it('falls back to EXIF GPS when no explicit coordinate is given', () => {
+    const [photo] = buildQueue([source()]);
+    expect(photo.latitude).toBe(44.1);
+    expect(photo.longitude).toBe(-68.2);
+  });
+
+  it('carries pre-known objects through for the dialog to seed as drafts', () => {
+    const objects: QueueSource['objects'] = [
+      { boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+    ];
+    const [photo] = buildQueue([source({ objects })]);
+    expect(photo.objects).toEqual(objects);
   });
 
   it('reports missing coordinates as null rather than omitting them', () => {

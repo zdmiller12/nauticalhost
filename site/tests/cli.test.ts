@@ -596,7 +596,7 @@ describe('runCli with --species', () => {
     );
   });
 
-  it("still prefers --lat/--lon over the dialog", async () => {
+  it('prefills the dialog with --lat/--lon, but the dialog answer wins', async () => {
     const openDialog = vi.fn().mockResolvedValue({
       kind: 'completed',
       photos: [{ index: 0, latitude: 10, longitude: 20, objects: [], slug: 'osprey', sourcePath: '/tmp/osprey.jpg' }],
@@ -618,13 +618,17 @@ describe('runCli with --species', () => {
 
     await runCli(io);
 
+    const queue = openDialog.mock.calls[0][0] as { latitude: number; longitude: number }[];
+    expect(queue[0].latitude).toBe(1.5);
+    expect(queue[0].longitude).toBe(2.5);
+    // The dialog's own answer (possibly the operator's edit) is authoritative over the flag it started from.
     expect(io.writeFile).toHaveBeenCalledWith(
       'src/content/photos/osprey.yaml',
-      expect.stringContaining('latitude: 1.5')
+      expect.stringContaining('latitude: 10')
     );
     expect(io.writeFile).toHaveBeenCalledWith(
       'src/content/photos/osprey.yaml',
-      expect.stringContaining('longitude: 2.5')
+      expect.stringContaining('longitude: 20')
     );
   });
 

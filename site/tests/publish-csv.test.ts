@@ -625,9 +625,22 @@ describe('publishCsv with the drawing dialog', () => {
     expect(fetchBody(fetchMock, 8).observation).toMatchObject({ latitude: 30, longitude: 40 });
   });
 
-  it("prefers the CSV's lat/lon over the dialog's", async () => {
+  it("prefills the dialog with the CSV's lat/lon, but the dialog's answer wins", async () => {
     const fetchMock = vi.fn();
     for (const response of inaturalistResponses(999)) fetchMock.mockResolvedValueOnce(response);
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [
+        {
+          index: 0,
+          latitude: 99,
+          longitude: 99,
+          objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species A' }],
+          slug: 'a',
+          sourcePath: '/tmp/a.jpg',
+        },
+      ],
+    });
     const deps = makeDeps({
       env: {
         INATURALIST_APP_ID: 'app-id',
@@ -636,26 +649,18 @@ describe('publishCsv with the drawing dialog', () => {
         INATURALIST_USERNAME: 'user',
       },
       fetch: fetchMock,
-      openDialog: vi.fn().mockResolvedValue({
-        kind: 'completed',
-        photos: [
-          {
-            index: 0,
-            latitude: 99,
-            longitude: 99,
-            objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Species A' }],
-            slug: 'a',
-            sourcePath: '/tmp/a.jpg',
-          },
-        ],
-      }),
+      openDialog,
     });
     const csv = 'sourcePath,r2KeyPrefix,lat,lon\n/tmp/a.jpg,prefix/a,1.5,2.5\n';
 
     const result = await publishCsv(deps, csv, { inaturalist: true, r2: false, yaml: true }, false, true, 'cmd');
 
     expect(result.failures).toEqual([]);
-    expect(fetchBody(fetchMock, 3).observation).toMatchObject({ latitude: 1.5, longitude: 2.5 });
+    const queue = openDialog.mock.calls[0][0] as { latitude: number; longitude: number }[];
+    expect(queue[0].latitude).toBe(1.5);
+    expect(queue[0].longitude).toBe(2.5);
+    // The dialog's own answer (possibly the operator's edit) is authoritative over the CSV value it started from.
+    expect(fetchBody(fetchMock, 3).observation).toMatchObject({ latitude: 99, longitude: 99 });
   });
 
   it('publishes nothing when the dialog is cancelled', async () => {

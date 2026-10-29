@@ -14,6 +14,17 @@ const COLOURS = ['#ff6b6b', '#7fd1ff', '#ffd166', '#95e06c', '#c792ea', '#ff9f68
 /** Below this many pixels on either axis, a drag was a click. */
 const MIN_DRAG_PX = 4;
 
+/** Where a prefilled object with no box yet lands, so it is visible and adjustable instead of invisible until drawn from scratch. */
+const DEFAULT_BOX: BoundingBox = { bottom: 0.75, left: 0.25, right: 0.75, top: 0.25 };
+
+/** The four corners a box's drag handles sit on, paired with the edges a drag on that corner moves. */
+const HANDLES = [
+  { edges: ['left', 'top'], name: 'nw' },
+  { edges: ['right', 'top'], name: 'ne' },
+  { edges: ['left', 'bottom'], name: 'sw' },
+  { edges: ['right', 'bottom'], name: 'se' },
+] as const;
+
 /**
  * What the inline bootstrap script in renderPage() hands to initDialog. That
  * bootstrap is a template-literal string in dialog-server.ts and nothing
@@ -83,8 +94,19 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
     find<HTMLTemplateElement>('[data-dialog-row-template]').content
   );
 
+  /** A prefilled object becomes an editable draft; a box-less one gets DEFAULT_BOX instead of staying invisible. */
+  const toDraft = (object: QueuePhoto['objects'][number]): Draft =>
+    object.objectType === 'landmark'
+      ? { box: object.boundingBox ?? DEFAULT_BOX, description: object.description, objectType: 'landmark', scientificName: '' }
+      : {
+          box: object.boundingBox ?? DEFAULT_BOX,
+          description: object.description ?? '',
+          objectType: 'organism',
+          scientificName: object.scientificName,
+        };
+
   const photos: PhotoDraft[] = queue.map((photo) => ({
-    drafts: [],
+    drafts: photo.objects.map(toDraft),
     latitude: String(photo.latitude ?? ''),
     longitude: String(photo.longitude ?? ''),
   }));
@@ -133,6 +155,76 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
     root.querySelectorAll<HTMLElement>('[data-dialog-row], [data-dialog-box]').forEach((element) => {
       element.dataset.active = String(element.dataset.index === String(index));
     });
+  };
+
+  /** The client-pixel point of one corner of a normalized box, the inverse of `edges`. */
+  const corner = (box: BoundingBox, edge: readonly ['left' | 'right', 'top' | 'bottom']): Point => {
+    const area = deps.rect(stage);
+    return { x: area.left + box[edge[0]] * area.width, y: area.top + box[edge[1]] * area.height };
+  };
+
+  /**
+   * Drags one corner of an existing box, the opposite corner held fixed in
+   * client pixels so the box tracks the pointer exactly as a fresh drag
+   * would. Mutates `draft.box` directly during the drag for a live preview;
+   * `sync`/`render` only run once, on release.
+   */
+  const beginResize = (draft: Draft, handle: (typeof HANDLES)[number], event: PointerEvent, element: HTMLElement) => {
+    event.stopPropagation();
+    const opposite: ['left' | 'right', 'top' | 'bottom'] = [
+      handle.edges[0] === 'left' ? 'right' : 'left',
+      handle.edges[1] === 'top' ? 'bottom' : 'top',
+    ];
+    const fixed = corner(draft.box!, opposite);
+    const drag = new AbortController();
+    overlay.addEventListener(
+      'pointermove',
+      (moved) => {
+        draft.box = edges(fixed, point(moved));
+        place(element, draft.box);
+      },
+      { signal: drag.signal }
+    );
+    overlay.addEventListener(
+      'pointerup',
+      () => {
+        drag.abort();
+        sync();
+        render();
+      },
+      { once: true, signal: drag.signal }
+    );
+  };
+
+  /** Drags a box as a whole, translating it while keeping its size, clamped so it never leaves the stage. */
+  const beginMove = (draft: Draft, event: PointerEvent, element: HTMLElement) => {
+    event.stopPropagation();
+    const box = draft.box!;
+    const width = box.right - box.left;
+    const height = box.bottom - box.top;
+    const start = point(event);
+    const area = deps.rect(stage);
+    const drag = new AbortController();
+    overlay.addEventListener(
+      'pointermove',
+      (moved) => {
+        const now = point(moved);
+        const left = Math.min(1 - width, Math.max(0, box.left + (now.x - start.x) / area.width));
+        const top = Math.min(1 - height, Math.max(0, box.top + (now.y - start.y) / area.height));
+        draft.box = { bottom: top + height, left, right: left + width, top };
+        place(element, draft.box);
+      },
+      { signal: drag.signal }
+    );
+    overlay.addEventListener(
+      'pointerup',
+      () => {
+        drag.abort();
+        sync();
+        render();
+      },
+      { once: true, signal: drag.signal }
+    );
   };
 
   /** Reads the live inputs back into state, so a re-render never loses typing. */
@@ -189,6 +281,16 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
         // render() discards the old elements, and their listeners with them.
         element.addEventListener('pointerenter', () => highlight(index));
         element.addEventListener('pointerleave', () => highlight(null));
+        element.addEventListener('pointerdown', (event) => beginMove(draft, event, element));
+        HANDLES.forEach((handle) => {
+          const handleElement = document.createElement('div');
+          handleElement.dataset.dialogHandle = handle.name;
+          handleElement.style.cursor = handle.name === 'nw' || handle.name === 'se' ? 'nwse-resize' : 'nesw-resize';
+          handleElement.style.left = handle.edges.includes('left') ? '-5px' : 'calc(100% - 5px)';
+          handleElement.style.top = handle.edges.includes('top') ? '-5px' : 'calc(100% - 5px)';
+          handleElement.addEventListener('pointerdown', (event) => beginResize(draft, handle, event, element));
+          element.append(handleElement);
+        });
         overlay.append(element);
       }
 

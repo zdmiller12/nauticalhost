@@ -256,7 +256,7 @@ export async function runCli(io: CliIo): Promise<void> {
     const existingYaml = await io.readTextFile(`src/content/photos/${slug}.yaml`);
     const source = await io.readFile(sourcePath);
     const outcome = await io.openDialog(
-      buildQueue([{ exif: await io.extractExif(source), existingYaml, slug, sourcePath }])
+      buildQueue([{ exif: await io.extractExif(source), existingYaml, latitude, longitude, slug, sourcePath }])
     );
     if (outcome.kind !== 'completed') {
       io.error(
@@ -269,10 +269,11 @@ export async function runCli(io: CliIo): Promise<void> {
     }
     const [photo] = outcome.photos;
     objects = photo.objects;
-    // An explicit --lat/--lon still wins: a flag is a deliberate override,
-    // whereas the dialog's fields are prefilled from the same EXIF.
-    latitude = latitude ?? photo.latitude ?? undefined;
-    longitude = longitude ?? photo.longitude ?? undefined;
+    // The dialog wins outright now (not merged with the flag): an explicit
+    // --lat/--lon was the dialog field's starting value, so this is either
+    // that same value or the operator's deliberate edit to it.
+    latitude = photo.latitude ?? undefined;
+    longitude = photo.longitude ?? undefined;
   }
 
   // Checked after the dialog so a dialog-supplied species satisfies this,

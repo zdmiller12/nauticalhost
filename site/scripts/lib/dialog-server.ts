@@ -100,10 +100,12 @@ export function renderPage(queue: QueuePhoto[]): string {
   /* 74 + 24 + the padding and gap: a hair under one window, whatever the controls do. */
   [data-dialog-stage] img { display: block; width: auto; height: auto; max-width: 100%; max-height: 74dvh; }
   [data-dialog-overlay] { position: absolute; inset: 0; }
-  [data-dialog-box] { position: absolute; border: 2px solid; box-sizing: border-box; }
+  [data-dialog-box] { position: absolute; border: 2px solid; box-sizing: border-box; cursor: move; }
   [data-dialog-box][data-active="true"] { outline: 3px solid #7fd1ff; background: rgba(127, 209, 255, .2); }
   /* Inside the box, not above it: the photo now sits at the window's bottom, so a label hung above a top-edge box would be clipped. */
   [data-dialog-box] span { position: absolute; top: 0; left: 0; font-size: 12px; padding: 0 .25rem; color: #11151a; }
+  /* Centred on its corner (-5px is half its own size), so dragging it tracks the pointer under the cursor rather than under its top-left. */
+  [data-dialog-handle] { position: absolute; width: 10px; height: 10px; background: #fff; border: 1px solid #11151a; border-radius: 50%; }
   [data-dialog-rows] { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
   [data-dialog-row] { display: flex; gap: .4rem; align-items: center; padding: .25rem .4rem; border-radius: .25rem; background: #1b222a; }
   [data-dialog-row][data-active="true"] { outline: 2px solid #7fd1ff; }

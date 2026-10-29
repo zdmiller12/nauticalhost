@@ -8,6 +8,11 @@ export interface QueueSource {
   exif: PhotoExif;
   /** The photo's current YAML, or null when it has not been published yet. */
   existingYaml: string | null;
+  /** An explicit coordinate (e.g. a CSV `lat`/`lon` column or a `--lat`/`--lon` flag) that prefills the dialog ahead of EXIF GPS. Omitted (not null) when the caller has none to offer. */
+  latitude?: number | null;
+  longitude?: number | null;
+  /** Objects already known for this photo (e.g. a CSV `species` column) before any box is drawn, seeded as editable drafts. */
+  objects?: ObjectInput[];
   slug: string;
   sourcePath: string;
 }
@@ -20,6 +25,8 @@ export interface QueuePhoto {
   index: number;
   latitude: number | null;
   longitude: number | null;
+  /** Objects already known before the dialog opened; seeded as editable drafts (a null box gets a default one to adjust). */
+  objects: ObjectInput[];
   slug: string;
   sourcePath: string;
 }
@@ -28,8 +35,9 @@ export function buildQueue(sources: QueueSource[]): QueuePhoto[] {
   return sources.map((source, index) => ({
     existingObjects: source.existingYaml === null ? [] : parsePhotoObjects(source.existingYaml),
     index,
-    latitude: source.exif.latitude,
-    longitude: source.exif.longitude,
+    latitude: source.latitude ?? source.exif.latitude,
+    longitude: source.longitude ?? source.exif.longitude,
+    objects: source.objects ?? [],
     slug: source.slug,
     sourcePath: source.sourcePath,
   }));

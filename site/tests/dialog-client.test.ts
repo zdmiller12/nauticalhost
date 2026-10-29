@@ -52,6 +52,14 @@ const drag = (fromX: number, fromY: number, toX: number, toY: number) => {
   target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: toX, clientY: toY, pointerId: 1 }));
 };
 
+/** Drags from a pointerdown on `downTarget` (a box or one of its handles) through pointermove/pointerup on the overlay, matching how `beginMove`/`beginResize` listen. */
+const dragFrom = (downTarget: Element, fromX: number, fromY: number, toX: number, toY: number) => {
+  const overlayEl = q<HTMLElement>('[data-dialog-overlay]');
+  downTarget.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: fromX, clientY: fromY, pointerId: 1 }));
+  overlayEl.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: toX, clientY: toY, pointerId: 1 }));
+  overlayEl.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: toX, clientY: toY, pointerId: 1 }));
+};
+
 describe('initDialog', () => {
   it('shows the first photo and prefills its EXIF coordinates', () => {
     mount();
@@ -294,5 +302,44 @@ describe('initDialog', () => {
     await vi.waitFor(() => expect(q('[data-dialog-warnings]').textContent).toContain('scientific name'));
     expect(stage()).toBeTruthy();
     expect(rows()).toHaveLength(1);
+  });
+
+  it('seeds a draft with a default box and the species name for a prefilled, unboxed object', () => {
+    mount([
+      source({
+        objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' }],
+      }),
+    ]);
+    expect(rows()).toHaveLength(1);
+    expect(q<HTMLInputElement>('[data-dialog-field="scientificName"]').value).toBe('Pandion haliaetus');
+    const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
+    expect(box).toEqual({ bottom: 0.75, left: 0.25, right: 0.75, top: 0.25 });
+  });
+
+  it('resizes a box by dragging one of its corner handles', () => {
+    mount([
+      source({
+        objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' }],
+      }),
+    ]);
+    // DEFAULT_BOX (0.25..0.75 both axes) on the 400x200 stage spans pixels (100,50)-(300,150).
+    // Dragging the "se" handle to (350,180) keeps the opposite ("nw") corner fixed.
+    dragFrom(q('[data-dialog-handle="se"]'), 300, 150, 350, 180);
+    const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
+    expect(box).toEqual({ bottom: 0.9, left: 0.25, right: 0.875, top: 0.25 });
+    // The species name survives the resize -- it is only the box that changed.
+    expect(q<HTMLInputElement>('[data-dialog-field="scientificName"]').value).toBe('Pandion haliaetus');
+  });
+
+  it('moves a box as a whole by dragging its body', () => {
+    mount([
+      source({
+        objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' }],
+      }),
+    ]);
+    // Drag from a point inside DEFAULT_BOX, e.g. (150,75), by (+20,+25)px -> (+0.05,+0.125) normalized.
+    dragFrom(q('[data-dialog-box]'), 150, 75, 170, 100);
+    const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
+    expect(box).toEqual({ bottom: 0.875, left: 0.3, right: 0.8, top: 0.375 });
   });
 });

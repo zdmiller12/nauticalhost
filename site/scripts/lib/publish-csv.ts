@@ -208,6 +208,9 @@ export async function publishCsv(
         needsInput.map(async (entry) => ({
           exif: await deps.extractExif(await deps.readFile(entry.args.sourcePath)),
           existingYaml: await deps.readTextFile(`${contentDir}/${entry.args.slug}.yaml`),
+          latitude: entry.args.latitude,
+          longitude: entry.args.longitude,
+          objects: entry.args.objects,
           slug: entry.args.slug,
           sourcePath: entry.args.sourcePath,
         }))
@@ -226,11 +229,14 @@ export async function publishCsv(
       return { failures, logPath: await writeLog(), succeeded: 0, total: rows.length };
     }
     // `buildQueue` indexes by position in `needsInput`, so the two line up.
+    // The dialog's coordinates win outright here (not merged with the CSV's):
+    // the CSV's own lat/lon was the dialog field's starting value, so this is
+    // either that same value or the operator's deliberate edit to it.
     for (const photo of outcome.photos) {
       const entry = needsInput[photo.index];
       entry.args.objects = photo.objects;
-      entry.args.latitude = entry.args.latitude ?? photo.latitude ?? undefined;
-      entry.args.longitude = entry.args.longitude ?? photo.longitude ?? undefined;
+      entry.args.latitude = photo.latitude ?? undefined;
+      entry.args.longitude = photo.longitude ?? undefined;
     }
   }
 
