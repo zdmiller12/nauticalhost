@@ -313,7 +313,7 @@ describe('initDialog', () => {
     expect(rows()).toHaveLength(1);
     expect(q<HTMLInputElement>('[data-dialog-field="scientificName"]').value).toBe('Pandion haliaetus');
     const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
-    expect(box).toEqual({ bottom: 0.75, left: 0.25, right: 0.75, top: 0.25 });
+    expect(box).toEqual({ bottom: 0.6, left: 0.4, right: 0.6, top: 0.4 });
   });
 
   it('resizes a box by dragging one of its corner handles', () => {
@@ -322,11 +322,11 @@ describe('initDialog', () => {
         objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' }],
       }),
     ]);
-    // DEFAULT_BOX (0.25..0.75 both axes) on the 400x200 stage spans pixels (100,50)-(300,150).
+    // DEFAULT_BOX (0.4..0.6 both axes) on the 400x200 stage spans pixels (160,80)-(240,120).
     // Dragging the "se" handle to (350,180) keeps the opposite ("nw") corner fixed.
     dragFrom(q('[data-dialog-handle="se"]'), 300, 150, 350, 180);
     const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
-    expect(box).toEqual({ bottom: 0.9, left: 0.25, right: 0.875, top: 0.25 });
+    expect(box).toEqual({ bottom: 0.9, left: 0.4, right: 0.875, top: 0.4 });
     // The species name survives the resize -- it is only the box that changed.
     expect(q<HTMLInputElement>('[data-dialog-field="scientificName"]').value).toBe('Pandion haliaetus');
   });
@@ -340,6 +340,6 @@ describe('initDialog', () => {
     // Drag from a point inside DEFAULT_BOX, e.g. (150,75), by (+20,+25)px -> (+0.05,+0.125) normalized.
     dragFrom(q('[data-dialog-box]'), 150, 75, 170, 100);
     const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
-    expect(box).toEqual({ bottom: 0.875, left: 0.3, right: 0.8, top: 0.375 });
+    expect(box).toEqual({ bottom: 0.725, left: 0.45, right: 0.6499999999999999, top: 0.525 });
   });
 });

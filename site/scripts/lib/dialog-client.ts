@@ -15,7 +15,7 @@ const COLOURS = ['#ff6b6b', '#7fd1ff', '#ffd166', '#95e06c', '#c792ea', '#ff9f68
 const MIN_DRAG_PX = 4;
 
 /** Where a prefilled object with no box yet lands, so it is visible and adjustable instead of invisible until drawn from scratch. */
-const DEFAULT_BOX: BoundingBox = { bottom: 0.75, left: 0.25, right: 0.75, top: 0.25 };
+const DEFAULT_BOX: BoundingBox = { bottom: 0.6, left: 0.4, right: 0.6, top: 0.4 };
 
 /** The four corners a box's drag handles sit on, paired with the edges a drag on that corner moves. */
 const HANDLES = [
