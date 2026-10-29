@@ -6,7 +6,11 @@ import { readFileSync } from 'node:fs';
 // test cannot catch a Vite-only construct that would break the CLI at
 // runtime with "Cannot read properties of undefined". This guards it by
 // reading the source instead.
-const SHARED_MODULES = ['src/lib/bounding-box.ts'];
+//
+// dialog-client.ts is here for a second reason: dialog-server.ts ships it
+// through `esbuild.transform()`, which does NOT bundle, so a runtime import
+// would reach the browser as an unresolvable bare specifier.
+const SHARED_MODULES = ['scripts/lib/dialog-client.ts', 'src/lib/bounding-box.ts'];
 
 /** Strip line and block comments from source code. */
 function stripComments(source: string): string {
@@ -23,7 +27,15 @@ describe('cross-boundary shared modules', () => {
       const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8');
 
       it('declares no runtime imports', () => {
-        const runtimeImports = [...source.matchAll(/^\s*import\s+(?!type\b)/gm)];
+        // Three forms, all of which reach the browser as a bare specifier:
+        //   1. a static `import … from` that is not `import type`
+        //   2. `export { x } from './y'` -- a re-export is a runtime import
+        //   3. `import('./x')` -- dynamic, and has no whitespace after `import`
+        // Do not "simplify" 2 and 3 away; neither anchors on a leading
+        // `import` followed by whitespace, so the first alternative misses both.
+        const runtimeImports = [
+          ...source.matchAll(/^\s*import\s+(?!type\b)|^\s*export\s+(?!type\b)[^;\n]*\sfrom\b|\bimport\s*\(/gm),
+        ];
         expect(runtimeImports).toHaveLength(0);
       });
 

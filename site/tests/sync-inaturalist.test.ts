@@ -47,6 +47,46 @@ slug: 2026-06-14-osprey-nest
 tier: E
 `;
 
+const BACKFILL_WITH_DESCRIPTION_YAML = `---
+camera: "Sony A7 IV"
+datetime: 2026-06-14T12:00:00
+file: gulls/gull-dock-01
+latitude: 38.9784
+lens: "100-400mm GM"
+longitude: -76.4922
+notes: # optional
+objects:
+  - details:
+      commonName: ""
+      description: "seen from the north jetty"
+      inaturalistObservationId: null
+      scientificName: "Larus argentatus"
+    objectType: organism
+other: {}
+slug: 2026-06-14-gull-dock
+tier: E
+`;
+
+const CURRENT_WITH_DESCRIPTION_YAML = `---
+camera: "Sony A7 IV"
+datetime: 2026-06-14T12:00:00
+file: gulls/gull-dock-01
+latitude: 38.9784
+lens: "100-400mm GM"
+longitude: -76.4922
+notes: # optional
+objects:
+  - details:
+      commonName: "Herring Gull"
+      description: "seen from the north jetty"
+      inaturalistObservationId: 99
+      scientificName: "Larus argentatus"
+    objectType: organism
+other: {}
+slug: 2026-06-14-gull-dock
+tier: E
+`;
+
 const LANDMARK_YAML = `---
 camera: null
 datetime: 2026-05-20T10:00:00
@@ -156,5 +196,71 @@ describe('syncInaturalist', () => {
     await syncInaturalist(deps, credentials, 'photos/*.yaml');
 
     expect(deps.sleep).toHaveBeenCalled();
+  });
+
+  it('backfills an observation id without touching a non-null description', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Herring Gull' }] })) // resolveTaxon
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' })) // fetchAccessToken
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' })) // fetchJwt
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 4242, uuid: 'obs-uuid' }] })); // createObservation
+
+    const { deps, writeFile } = makeDeps({ 'photos/gull.yaml': BACKFILL_WITH_DESCRIPTION_YAML }, fetchMock);
+
+    const result = await syncInaturalist(deps, credentials, 'photos/*.yaml');
+
+    expect(result.changedFiles).toEqual(['photos/gull.yaml']);
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/gull.yaml',
+      expect.stringContaining('      description: "seen from the north jetty"')
+    );
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/gull.yaml',
+      expect.stringContaining('inaturalistObservationId: 4242')
+    );
+    expect(writeFile).toHaveBeenCalledWith('photos/gull.yaml', expect.stringContaining('commonName: "Herring Gull"'));
+  });
+
+  it('refreshes a taxon without touching a non-null description', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        results: [{ taxon: { name: 'Larus smithsonianus', preferred_common_name: 'American Herring Gull' } }],
+      })
+    );
+    const { deps, writeFile } = makeDeps({ 'photos/gull.yaml': CURRENT_WITH_DESCRIPTION_YAML }, fetchMock);
+
+    const result = await syncInaturalist(deps, credentials, 'photos/*.yaml');
+
+    expect(result.changedFiles).toEqual(['photos/gull.yaml']);
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/gull.yaml',
+      expect.stringContaining('      description: "seen from the north jetty"')
+    );
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/gull.yaml',
+      expect.stringContaining('scientificName: "Larus smithsonianus"')
+    );
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/gull.yaml',
+      expect.stringContaining('commonName: "American Herring Gull"')
+    );
+  });
+
+  it('leaves a null description as the bare literal null, not "null"', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] })) // resolveTaxon
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' })) // fetchAccessToken
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' })) // fetchJwt
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] })); // createObservation
+
+    const { deps, writeFile } = makeDeps({ 'photos/osprey.yaml': BACKFILL_YAML }, fetchMock);
+
+    await syncInaturalist(deps, credentials, 'photos/*.yaml');
+
+    const written = writeFile.mock.calls[0][1] as string;
+    expect(written).toContain('      description: null');
+    expect(written).not.toContain('      description: "null"');
   });
 });

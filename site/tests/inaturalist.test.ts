@@ -26,8 +26,19 @@ describe('resolveTaxon', () => {
     const result = await resolveTaxon({ fetch: fetchMock }, 'Pandion haliaetus');
     expect(result).toEqual({ commonName: 'Osprey', taxonId: 5 });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v2/taxa?q=Pandion%20haliaetus&fields=(id%3A!t%2Cpreferred_common_name%3A!t)'
+      'https://api.inaturalist.org/v2/taxa?q=Pandion%20haliaetus&fields=(id%3A!t%2Cpreferred_common_name%3A!t)',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+  });
+
+  it('identifies itself with a nauticalhost User-Agent and a request timeout', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 5 }] }));
+    await resolveTaxon({ fetch: fetchMock }, 'Pandion haliaetus');
+    const [, init] = fetchMock.mock.calls[0];
+    expect((init as RequestInit).headers).toEqual(
+      expect.objectContaining({ 'User-Agent': expect.stringMatching(/^nauticalhost-/) })
+    );
+    expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 
   it('falls back to an empty common name when iNaturalist has none on file', async () => {
@@ -99,7 +110,7 @@ describe('fetchJwt', () => {
     expect(jwt).toBe('jwt-abc');
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.inaturalist.org/users/api_token',
-      expect.objectContaining({ headers: { Authorization: 'Bearer token-123' } })
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token-123' }) })
     );
   });
 
@@ -201,7 +212,7 @@ describe('attachPhoto', () => {
       'https://api.inaturalist.org/v2/observation_photos',
       expect.objectContaining({
         method: 'POST',
-        headers: { Authorization: 'Bearer jwt-abc' },
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt-abc' }),
       })
     );
     const [, init] = fetchMock.mock.calls[0];
@@ -274,7 +285,8 @@ describe('getObservationTaxon', () => {
     const result = await getObservationTaxon({ fetch: fetchMock }, 999);
     expect(result).toEqual({ commonName: 'Osprey', scientificName: 'Pandion haliaetus' });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.inaturalist.org/v2/observations?id=999&fields=(taxon%3A(name%3A!t%2Cpreferred_common_name%3A!t))'
+      'https://api.inaturalist.org/v2/observations?id=999&fields=(taxon%3A(name%3A!t%2Cpreferred_common_name%3A!t))',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 

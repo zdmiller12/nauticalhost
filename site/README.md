@@ -65,18 +65,23 @@ consistency between local and cloud builds.
    plus `R2_BUCKET_NAME`. `site/.env` is already covered by `.gitignore`.
 3. Run (standard case — publishes to iNaturalist, R2, and writes the YAML):
 
-       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>" [--box <left>,<top>,<right>,<bottom>] [--save-crops]
+       npm run publish-photo -- <path-to-source-image> <r2-key-prefix> --species "<scientific name>" [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops]
 
    e.g. `npm run publish-photo -- ~/photos/2026-06-14-osprey-nest.jpg ospreys --species "Pandion haliaetus"`
 
-   Slug, R2 key, and the per-action flags (including what `--box` and
-   `--save-crops` do) are described in
+   Slug, R2 key, and the per-action flags (including what `--box`,
+   `--lat`/`--lon`, and `--save-crops` do) are described in
    [USER_GUIDE.md](USER_GUIDE.md#publishing-a-photo). Extra detail: trailing
    slashes on `<r2-key-prefix>` are stripped; combine several `--only-*` flags
    to run exactly those actions; R2/iNaturalist env vars are only required for
    actions that run; the `other:` EXIF append replaces the old
    `backfill-exif-other` script, e.g.
    `npm run publish-photo -- <image> <prefix> --only-yaml`.
+
+   If you omit `--species`/`--box` (and `inaturalist` or `yaml` is running),
+   a drawing dialog opens in your default browser to identify species and
+   draw boxes interactively; pass `--no-dialog` to skip it and fill in
+   `objects` by hand afterward instead.
 
 4. This uploads two resized JPEGs to R2 and scaffolds
    `src/content/photos/<slug>.yaml` with the EXIF-derived fields filled in,
@@ -87,11 +92,46 @@ consistency between local and cloud builds.
    `latitude`/`longitude` may be left as `null` for cameras without GPS
    (most non-phone cameras).
 
-   `camera`/`lens` are **not** part of `photoSchema` — they're written into
-   the scaffold as informational text only and aren't validated, typed, or
-   shown anywhere on the site yet. Leave them as-is, edit them, or delete
-   the lines entirely; none of it affects the build. They're deliberately
-   deferred: reintroducing them as a real, displayed feature (with a
-   nullable schema field, since EXIF doesn't always have them) is future
-   work, not a bug.
+   `camera`/`lens` are nullable string fields on `photoSchema`, scaffolded
+   automatically from EXIF and shown on the photo's detail page. Edit or
+   clear them if EXIF got them wrong; they're optional, so leaving either
+   `null` is fine for cameras that don't record it.
 6. Commit and push — Cloudflare deploys automatically (see the guide).
+
+## Publishing multiple photos (CSV batch)
+
+1. Build a CSV with one row per photo. Recognized columns:
+
+   | column | required | format | empty/null value |
+   |---|---|---|---|
+   | `sourcePath` | yes | file path | — |
+   | `r2KeyPrefix` | yes | string (trailing `/` stripped) | — |
+   | `species` | no | scientific name | empty cell |
+   | `box` | no | `<left>,<top>,<right>,<bottom>` fractions 0–1; requires `species` in the same row | empty cell |
+   | `lat` | no | decimal degrees; must be paired with `lon` (both set or both empty) | empty cell |
+   | `lon` | no | decimal degrees; must be paired with `lat` | empty cell |
+
+   There is no `null` literal in CSV — represent "no value" as an empty
+   cell (`,,`), not the string `"null"` or a space. `tier`/`notes` aren't
+   CSV columns; they're still filled in by hand on each row's YAML
+   afterward, same as the single-photo flow.
+
+2. Run:
+
+       npm run publish-photo-csv -- <path-to-csv> [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
+
+   e.g. `npm run publish-photo-csv -- ~/photos/batch.csv --save-crops`
+
+3. This runs in two phases: first, any rows missing `species` are queued
+   into one combined drawing-dialog session in your default browser (skip
+   with `--no-dialog`, same as `publish-photo`); then every row is
+   published unattended. A row failing doesn't stop the batch — failures
+   (with the original row and error) are logged to
+   `scripts/usage/publish-photo-csv-<timestamp>.log`.
+
+   Column semantics, flags, and a full example CSV are in
+   [USER_GUIDE.md](USER_GUIDE.md#publishing-a-photo-batch-csv).
+
+4. Each row scaffolds its own `src/content/photos/<slug>.yaml` — edit
+   `tier`/`objects`/`notes` on each, same as step 5 above, then commit and
+   push.

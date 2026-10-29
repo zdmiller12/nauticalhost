@@ -1,5 +1,6 @@
 import { basename, extname } from 'node:path';
 import { parse } from 'csv-parse/sync';
+import { buildQueue } from './dialog-session';
 import { createIsWithin } from './private-geometry';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 import { publishPhoto, type ObjectInput, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
@@ -30,9 +31,11 @@ export interface PublishCsvResult {
   total: number;
 }
 
-/** Everything publishCsv needs besides argv/exit/log/prompt-style CLI concerns. */
-export type PublishCsvDeps = Omit<CliIo, 'argv' | 'error' | 'exit' | 'log' | 'prompt'> & {
+/** Everything publishCsv needs besides argv/exit/prompt-style CLI concerns. `log` is kept so phase 1 can print the dialog URL. */
+export type PublishCsvDeps = Omit<CliIo, 'argv' | 'error' | 'exit' | 'prompt'> & {
   now: () => Date;
+  /** Resolves after `ms` milliseconds; paces phase 2 against iNaturalist's rate limit. */
+  sleep: (ms: number) => Promise<void>;
 };
 
 export function parseCsvRows(csvContents: string): CsvRowInput[] {
@@ -109,6 +112,7 @@ export async function publishCsv(
   csvContents: string,
   actions: PublishActions,
   saveCrops: boolean,
+  useDialog: boolean,
   invocationCommand: string
 ): Promise<PublishCsvResult> {
   const rows = parseCsvRows(csvContents);
@@ -144,8 +148,6 @@ export async function publishCsv(
     extractExif: deps.extractExif,
     isPrivateGeometry,
     mkdir: deps.mkdir,
-    // Batch runs are unattended: never block on stdin, just skip whatever a prompt would have supplied.
-    prompt: async () => '',
     publishToInaturalist,
     readFile: deps.readFile,
     readTextFile: deps.readTextFile,
@@ -158,6 +160,18 @@ export async function publishCsv(
   const failures: PublishCsvRowFailure[] = [];
   let succeeded = 0;
 
+  const writeLog = async (): Promise<string | undefined> => {
+    if (failures.length === 0) return undefined;
+    const logPath = `scripts/usage/publish-photo-csv-${deps.now().toISOString().replace(/[:.]/g, '-')}.log`;
+    await deps.mkdir('scripts/usage');
+    await deps.writeFile(logPath, formatLog(invocationCommand, failures));
+    return logPath;
+  };
+
+  // Phase 0: validate and build every row's args up front, so a malformed row
+  // is reported before the user is asked to draw anything.
+  type Pending = { args: PublishArgs; row: CsvRowInput; rowNumber: number };
+  const pending: Pending[] = [];
   for (const [index, row] of rows.entries()) {
     const rowNumber = index + 1;
     const built = buildRowArgs(row, actions, bucket, contentDir);
@@ -165,35 +179,103 @@ export async function publishCsv(
       failures.push({ error: new Error(built.error), input: row, rowNumber });
       continue;
     }
-    try {
-      await publishPhoto(publishDeps, built.args);
-      succeeded++;
-    } catch (err) {
-      failures.push({ error: err as Error, input: row, rowNumber });
+    pending.push({ args: built.args, row, rowNumber });
+  }
+
+  // Phase 1: one dialog for every row that isn't already fully boxed.
+  // Collecting all the drawing up front means a phase-2 failure at row 6 does
+  // not throw away the work done for rows 7 and 8.
+  // "Fully boxed" means at least one object, and every one of them already
+  // has a boundingBox. A blank `species` column produces zero objects (needs
+  // the dialog to supply one from scratch); a `species` column with no `box`
+  // produces one object with `boundingBox: null` (needs the dialog to draw
+  // it). Checking only `objects.length === 0` would wrongly skip the dialog
+  // for that second, far more common case.
+  // Objects only matter for iNaturalist and the YAML's `objects` entry, so an
+  // r2-only run needs no dialog -- mirroring the same gate in cli.ts. Without
+  // it, `--only-r2` (the box-backfill workflow) would make the operator draw
+  // every row's boxes only for `publishPhoto` to discard them.
+  const isFullyBoxed = (objects: ObjectInput[]) =>
+    objects.length > 0 && objects.every((object) => object.boundingBox !== null);
+  const needsInput =
+    useDialog && (actions.inaturalist || actions.yaml)
+      ? pending.filter((entry) => !isFullyBoxed(entry.args.objects!))
+      : [];
+  if (needsInput.length > 0) {
+    deps.log(`Reading ${needsInput.length} photo(s) for the drawing dialog...`);
+    const queue = buildQueue(
+      await Promise.all(
+        needsInput.map(async (entry) => ({
+          exif: await deps.extractExif(await deps.readFile(entry.args.sourcePath)),
+          existingYaml: await deps.readTextFile(`${contentDir}/${entry.args.slug}.yaml`),
+          latitude: entry.args.latitude,
+          longitude: entry.args.longitude,
+          objects: entry.args.objects,
+          slug: entry.args.slug,
+          sourcePath: entry.args.sourcePath,
+        }))
+      )
+    );
+    const outcome = await deps.openDialog(queue);
+    if (outcome.kind !== 'completed') {
+      const reason = outcome.kind === 'aborted' ? 'Dialog cancelled' : 'Dialog timed out';
+      for (const entry of needsInput) {
+        failures.push({
+          error: new Error(`${reason}; nothing was published.`),
+          input: entry.row,
+          rowNumber: entry.rowNumber,
+        });
+      }
+      return { failures, logPath: await writeLog(), succeeded: 0, total: rows.length };
+    }
+    // `buildQueue` indexes by position in `needsInput`, so the two line up.
+    // The dialog's coordinates win outright here (not merged with the CSV's):
+    // the CSV's own lat/lon was the dialog field's starting value, so this is
+    // either that same value or the operator's deliberate edit to it.
+    for (const photo of outcome.photos) {
+      const entry = needsInput[photo.index];
+      entry.args.objects = photo.objects;
+      entry.args.latitude = photo.latitude ?? undefined;
+      entry.args.longitude = photo.longitude ?? undefined;
     }
   }
 
-  let logPath: string | undefined;
-  if (failures.length > 0) {
-    logPath = `scripts/usage/publish-photo-csv-${deps.now().toISOString().replace(/[:.]/g, '-')}.log`;
-    await deps.mkdir('scripts/usage');
-    await deps.writeFile(logPath, formatLog(invocationCommand, failures));
+  // Phase 2: unattended. Failures are logged per row exactly as before.
+  // Paced to at most 1 row/second -- phase 1 can hand phase 2 a whole batch of
+  // freshly-boxed organisms, and running those back-to-back would hammer
+  // iNaturalist's rate limit instead of a human's natural drawing pace.
+  for (const [index, entry] of pending.entries()) {
+    deps.log(`[${index + 1}/${pending.length}] Publishing ${entry.args.slug}...`);
+    const rowStarted = deps.now().getTime();
+    try {
+      await publishPhoto(publishDeps, entry.args);
+      succeeded++;
+    } catch (err) {
+      deps.log(`[${index + 1}/${pending.length}] Failed: ${(err as Error).message}`);
+      failures.push({ error: err as Error, input: entry.row, rowNumber: entry.rowNumber });
+    }
+    const elapsedMs = deps.now().getTime() - rowStarted;
+    if (elapsedMs < 1000) await deps.sleep(1000 - elapsedMs);
   }
 
-  return { failures, logPath, succeeded, total: rows.length };
+  return { failures, logPath: await writeLog(), succeeded, total: rows.length };
 }
 
-export type CsvIo = CliIo & { now: () => Date };
+export type CsvIo = CliIo & { now: () => Date; sleep: (ms: number) => Promise<void> };
 
 export function createRealCsvIo(): CsvIo {
-  return { ...createRealCliIo(), now: () => new Date() };
+  return {
+    ...createRealCliIo(),
+    now: () => new Date(),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  };
 }
 
 export async function runPublishCsv(io: CsvIo): Promise<void> {
   const [csvPath, ...flagArgs] = io.argv.slice(2);
   if (!csvPath) {
     io.error(
-      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
+      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
     );
     io.exit(1);
     return;
@@ -238,7 +320,14 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
 
   const saveCrops = flagArgs.includes('--save-crops');
   const invocationCommand = `npm run publish-photo-csv -- ${[csvPath, ...flagArgs].join(' ')}`;
-  const result = await publishCsv(io, csvContents, actions, saveCrops, invocationCommand);
+  const result = await publishCsv(
+    io,
+    csvContents,
+    actions,
+    saveCrops,
+    !flagArgs.includes('--no-dialog'),
+    invocationCommand
+  );
 
   io.log(`Published ${result.succeeded}/${result.total}.`);
   if (result.failures.length > 0) {

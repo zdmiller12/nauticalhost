@@ -8,8 +8,6 @@ export interface PublishDeps {
   /** Whether a location falls inside the configured private geometry. Omitted when none is configured. */
   isPrivateGeometry?: (latitude: number, longitude: number) => boolean;
   mkdir: (path: string) => Promise<unknown>;
-  /** Asks the user a question on stdin/stdout and resolves with their (trimmed) answer. */
-  prompt: (question: string) => Promise<string>;
   publishToInaturalist?: (args: {
     latitude: number | null;
     longitude: number | null;
@@ -22,7 +20,7 @@ export interface PublishDeps {
   /** Reads a text file, or returns null if it doesn't exist. */
   readTextFile: (path: string) => Promise<string | null>;
   resizePhoto: (buffer: Buffer, thumbBox?: BoundingBox | null) => Promise<{ lightbox: Buffer; thumb: Buffer }>;
-  /** Writes a local copy of an iNaturalist crop. Omitted unless --save-crops is passed. */
+  /** Writes a local copy of a drawn box's crop. Omitted unless --save-crops is passed. */
   saveCrop?: (slug: string, photo: Buffer) => Promise<void>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
   writeFile: (path: string, contents: string) => Promise<void>;
@@ -143,22 +141,12 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
   const source = await deps.readFile(args.sourcePath);
   const exif = await deps.extractExif(source);
 
-  // Many older photos predate GPS tagging; iNaturalist observations need
-  // coordinates, so ask rather than fail. --lat/--lon (args) take precedence
-  // over EXIF, e.g. to supply or correct what the camera recorded.
-  let latitude = args.latitude ?? exif.latitude;
-  let longitude = args.longitude ?? exif.longitude;
-  if (runInaturalist && (latitude === null || longitude === null)) {
-    const input = (await deps.prompt('Photo has no GPS coordinates. Latitude, Longitude (blank to skip): ')).trim();
-    if (input) {
-      const [latInput, lonInput] = input.split(',').map((part) => part.trim());
-      latitude = Number(latInput);
-      longitude = Number(lonInput);
-    } else {
-      latitude = null;
-      longitude = null;
-    }
-  }
+  // --lat/--lon or the dialog (args) take precedence over EXIF, e.g. to supply
+  // coordinates a camera never recorded or to correct what it did. Nothing is
+  // asked here: every caller resolves coordinates before publishing, so an
+  // upload can never block on stdin halfway through.
+  const latitude = args.latitude ?? exif.latitude;
+  const longitude = args.longitude ?? exif.longitude;
 
   const isPrivateGeometry =
     latitude !== null && longitude !== null && (deps.isPrivateGeometry?.(latitude, longitude) ?? false);
@@ -182,6 +170,15 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
 
   const entries: PhotoObjectEntry[] = [];
   for (const input of inputs) {
+    // --save-crops is how the user checks what they drew, so it must not ride
+    // along with iNaturalist: crop every boxed object, landmarks included, and
+    // reuse that buffer below when there is an observation to upload.
+    const crop =
+      input.boundingBox && (deps.saveCrop || (input.objectType === 'organism' && runInaturalist))
+        ? await deps.cropToBox(source, input.boundingBox)
+        : null;
+    if (crop) await deps.saveCrop?.(args.slug, crop);
+
     if (input.objectType === 'landmark') {
       entries.push({
         boundingBox: input.boundingBox,
@@ -205,8 +202,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
       continue;
     }
     // Only the box is sent, so the observation photo shows the subject.
-    const photo = input.boundingBox ? await deps.cropToBox(source, input.boundingBox) : lightbox;
-    if (input.boundingBox) await deps.saveCrop?.(args.slug, photo);
+    const photo = crop ?? lightbox;
     let inat;
     try {
       inat = await deps.publishToInaturalist!({
