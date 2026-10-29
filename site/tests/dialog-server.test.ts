@@ -68,6 +68,29 @@ describe('renderPage', () => {
     expect(page).toContain('[data-dialog-row][data-active="true"]');
     expect(page).toContain('[data-dialog-box][data-active="true"]');
   });
+
+  // The photo is the bottom-most element and every control sits above it, so
+  // the eye (and the mouse) travels one way: configure, then draw.
+  it('puts every control above the photo', () => {
+    const page = renderPage(queue());
+    const controls = page.indexOf('<div data-dialog-controls>');
+    const canvas = page.indexOf('<div data-dialog-canvas>');
+    expect(controls).toBeGreaterThan(-1);
+    expect(controls).toBeLessThan(canvas);
+    for (const action of ['prev', 'next', 'add', 'submit', 'cancel']) {
+      expect(page.indexOf(`data-dialog-action="${action}"`)).toBeLessThan(canvas);
+    }
+    expect(page.indexOf('data-dialog-field="latitude"')).toBeLessThan(canvas);
+  });
+
+  // One screenful, no scrollbar: the window is the budget, and the photo and
+  // the controls each get a hard share of it.
+  it('caps the page to the window height', () => {
+    const page = renderPage(queue());
+    expect(page).toContain('height: 100dvh');
+    expect(page).toContain('overflow: hidden');
+    expect(page).toMatch(/max-height: \d+dvh/);
+  });
 });
 
 describe('handleRequest', () => {

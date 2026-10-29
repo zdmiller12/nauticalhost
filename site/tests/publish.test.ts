@@ -314,6 +314,65 @@ tier: E
 
     expect(saveCrop).not.toHaveBeenCalled();
   });
+
+  it('still saves the crop when iNaturalist is skipped, since --save-crops is its own request', async () => {
+    const saveCrop = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({ saveCrop });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      actions: { inaturalist: false, r2: false, yaml: true },
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+    expect(deps.publishToInaturalist).not.toHaveBeenCalled();
+  });
+
+  it('saves the crop of a landmark box too', async () => {
+    const saveCrop = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({ saveCrop });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [{ boundingBox, description: 'Thomas Point Light', objectType: 'landmark' }],
+    });
+
+    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+  });
+
+  it('crops once per boxed organism, reusing that buffer for the observation', async () => {
+    const saveCrop = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({ saveCrop });
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.cropToBox).toHaveBeenCalledTimes(1);
+    expect(deps.publishToInaturalist).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: Buffer.from('cropped') })
+    );
+  });
+
+  it('does not crop at all when nothing asked for one', async () => {
+    const deps = makeDeps();
+
+    await publishPhoto(deps, {
+      ...baseArgs,
+      actions: { inaturalist: false, r2: false, yaml: true },
+      objects: [
+        { boundingBox, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' },
+      ],
+    });
+
+    expect(deps.cropToBox).not.toHaveBeenCalled();
+  });
 });
 
 describe('publishPhoto', () => {

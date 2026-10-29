@@ -153,7 +153,11 @@ describe('parseObjectFlags', () => {
 
 describe('createSaveCrop', () => {
   it('mkdirs the crop directory then writes the un-suffixed filename on the first call for a slug', async () => {
-    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const io = {
+      log: vi.fn(),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      writeBinaryFile: vi.fn().mockResolvedValue(undefined),
+    };
     const saveCrop = createSaveCrop(io);
 
     await saveCrop('osprey-nest', Buffer.from('a'));
@@ -163,13 +167,20 @@ describe('createSaveCrop', () => {
       'scripts/usage/cropped-photos/osprey-nest-cropped.JPG',
       Buffer.from('a')
     );
+    // The path is relative to site/, so the message says so: a crop the user
+    // cannot locate is the same as no crop at all.
+    expect(io.log).toHaveBeenCalledWith('Saved crop to site/scripts/usage/cropped-photos/osprey-nest-cropped.JPG');
     const mkdirOrder = io.mkdir.mock.invocationCallOrder[0];
     const writeOrder = io.writeBinaryFile.mock.invocationCallOrder[0];
     expect(mkdirOrder).toBeLessThan(writeOrder);
   });
 
   it('suffixes the second and third crop for the same slug, keeping the first unsuffixed', async () => {
-    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const io = {
+      log: vi.fn(),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      writeBinaryFile: vi.fn().mockResolvedValue(undefined),
+    };
     const saveCrop = createSaveCrop(io);
 
     await saveCrop('multi', Buffer.from('a'));
@@ -194,7 +205,11 @@ describe('createSaveCrop', () => {
   });
 
   it('keeps per-slug counters independent, so two different slugs each get an unsuffixed first file', async () => {
-    const io = { mkdir: vi.fn().mockResolvedValue(undefined), writeBinaryFile: vi.fn().mockResolvedValue(undefined) };
+    const io = {
+      log: vi.fn(),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      writeBinaryFile: vi.fn().mockResolvedValue(undefined),
+    };
     const saveCrop = createSaveCrop(io);
 
     await saveCrop('alpha', Buffer.from('a'));

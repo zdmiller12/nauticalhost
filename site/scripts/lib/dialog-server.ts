@@ -71,43 +71,68 @@ export function renderPage(queue: QueuePhoto[]): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Draw bounding boxes</title>
 <style>
+  /*
+    One screenful, never a scrollbar: the controls and the photo split a
+    100dvh flex column, each with a hard dvh cap so a photo-plus-ten-objects
+    page cannot push the other half out of the window. The caps are plain
+    lengths on purpose -- a percentage max-height inside the shrink-wrapped
+    stage would resolve against an auto height and be ignored.
+  */
   :root { color-scheme: dark; }
-  body { background: #11151a; color: #e8edf2; font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 1rem; }
+  * { box-sizing: border-box; }
+  body {
+    background: #11151a; color: #e8edf2; font: 14px/1.4 system-ui, sans-serif;
+    margin: 0; padding: .5rem; display: flex; flex-direction: column; gap: .5rem;
+    height: 100dvh; overflow: hidden;
+  }
+  [data-dialog-controls] { flex: 0 0 auto; max-height: 24dvh; overflow-y: auto; display: flex; flex-direction: column; gap: .4rem; }
+  [data-dialog-bar] { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+  [data-dialog-bar] input { width: 7rem; }
+  [data-dialog-bar] [data-dialog-position] { opacity: .8; }
+  /*
+    The stage must shrink-wrap the photo exactly: the client normalizes every
+    drawn box against the stage's rect, so any letterboxing inside it would
+    offset the boxes. Hence a lone max-height on the replaced <img>, which
+    keeps its aspect ratio, with the stage sized by it.
+  */
+  [data-dialog-canvas] { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
   [data-dialog-stage] { position: relative; display: inline-block; max-width: 100%; cursor: crosshair; touch-action: none; }
-  [data-dialog-stage] img { display: block; max-width: 100%; height: auto; }
+  /* 74 + 24 + the padding and gap: a hair under one window, whatever the controls do. */
+  [data-dialog-stage] img { display: block; width: auto; height: auto; max-width: 100%; max-height: 74dvh; }
   [data-dialog-overlay] { position: absolute; inset: 0; }
   [data-dialog-box] { position: absolute; border: 2px solid; box-sizing: border-box; }
   [data-dialog-box][data-active="true"] { outline: 3px solid #7fd1ff; background: rgba(127, 209, 255, .2); }
-  [data-dialog-box] span { position: absolute; top: -1.5rem; left: 0; font-size: 12px; padding: 0 .25rem; color: #11151a; }
-  [data-dialog-rows] { list-style: none; padding: 0; display: grid; gap: .5rem; }
-  [data-dialog-row] { display: flex; gap: .5rem; align-items: center; padding: .5rem; border-radius: .25rem; background: #1b222a; }
+  /* Inside the box, not above it: the photo now sits at the window's bottom, so a label hung above a top-edge box would be clipped. */
+  [data-dialog-box] span { position: absolute; top: 0; left: 0; font-size: 12px; padding: 0 .25rem; color: #11151a; }
+  [data-dialog-rows] { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+  [data-dialog-row] { display: flex; gap: .4rem; align-items: center; padding: .25rem .4rem; border-radius: .25rem; background: #1b222a; }
   [data-dialog-row][data-active="true"] { outline: 2px solid #7fd1ff; }
   [data-dialog-swatch] { width: 1rem; height: 1rem; border-radius: 2px; flex: none; }
-  [data-dialog-existing] { list-style: none; padding: 0; opacity: .6; }
+  [data-dialog-existing] { list-style: none; margin: 0; padding: 0; opacity: .6; font-size: 12px; }
   [data-dialog-warnings]:empty { display: none; }
-  [data-dialog-warnings] { background: #3a2c12; border-left: 3px solid #e0a63a; padding: .5rem .75rem; margin: .75rem 0; }
+  [data-dialog-warnings] { background: #3a2c12; border-left: 3px solid #e0a63a; padding: .4rem .6rem; }
 </style>
 </head>
 <body data-dialog>
 <script type="application/json" data-dialog-queue>${data}</script>
-<nav>
-  <button data-dialog-action="prev" type="button">&larr; Previous</button>
-  <span data-dialog-position></span>
-  <button data-dialog-action="next" type="button">Next &rarr;</button>
-</nav>
-<div data-dialog-stage><img data-dialog-image alt="" /><div data-dialog-overlay></div></div>
-<p>
-  <label>Latitude <input data-dialog-field="latitude" inputmode="decimal" /></label>
-  <label>Longitude <input data-dialog-field="longitude" inputmode="decimal" /></label>
-</p>
-<ul data-dialog-rows></ul>
-<button data-dialog-action="add" type="button">Add object without a box</button>
-<ul data-dialog-existing></ul>
-<div data-dialog-warnings role="status"></div>
-<p>
-  <button data-dialog-action="submit" type="button">Publish</button>
-  <button data-dialog-action="cancel" type="button">Cancel</button>
-</p>
+<div data-dialog-controls>
+  <div data-dialog-bar>
+    <button data-dialog-action="prev" type="button">&larr; Previous</button>
+    <span data-dialog-position></span>
+    <button data-dialog-action="next" type="button">Next &rarr;</button>
+    <label>Lat <input data-dialog-field="latitude" inputmode="decimal" /></label>
+    <label>Lon <input data-dialog-field="longitude" inputmode="decimal" /></label>
+    <button data-dialog-action="add" type="button">Add object without a box</button>
+    <button data-dialog-action="submit" type="button">Publish</button>
+    <button data-dialog-action="cancel" type="button">Cancel</button>
+  </div>
+  <ul data-dialog-rows></ul>
+  <ul data-dialog-existing></ul>
+  <div data-dialog-warnings role="status"></div>
+</div>
+<div data-dialog-canvas>
+  <div data-dialog-stage><img data-dialog-image alt="" /><div data-dialog-overlay></div></div>
+</div>
 <template data-dialog-row-template>
   <li data-dialog-row>
     <span data-dialog-swatch></span>
@@ -255,8 +280,58 @@ export async function runDialog(
   }
 }
 
-/** Wires DialogIo to node:http, esbuild, sharp and the real clock. */
 /* v8 ignore start -- real sockets, child processes and signal handlers */
+
+/**
+ * How to ask each platform for a *focused* window on the dialog.
+ *
+ * `xdg-open` typically drops the URL into a background tab of whatever window
+ * already exists, which is exactly the "where did my dialog go" problem; a
+ * browser asked for `--new-window` raises and focuses that window itself. So
+ * the real browsers are tried first and `xdg-open` is only the last resort.
+ * `$BROWSER` leads, because a user who set it means it.
+ */
+function browserCommands(url: string): Array<[string, string[]]> {
+  if (process.platform === 'darwin') {
+    // `open -n` makes a fresh instance, which macOS brings to the front.
+    return [['open', ['-n', url]]];
+  }
+  if (process.platform === 'win32') {
+    return [['cmd', ['/c', 'start', '', url]]];
+  }
+  const browser = process.env.BROWSER?.trim();
+  return [
+    // $BROWSER is often a wrapper script that takes a bare URL and nothing
+    // else, so it is the one candidate not handed a --new-window it may choke on.
+    ...(browser ? [[browser, [url]] as [string, string[]]] : []),
+    ['firefox', ['--new-window', url]],
+    ['google-chrome', ['--new-window', url]],
+    ['chromium', ['--new-window', url]],
+    ['x-www-browser', ['--new-window', url]],
+    ['xdg-open', [url]],
+  ];
+}
+
+/**
+ * Walks the candidate commands until one launches. A missing binary surfaces
+ * as an async 'error' event rather than a throw, so each failure has to hand
+ * off to the next candidate from that listener.
+ */
+function launchBrowser(url: string, candidates = browserCommands(url)): void {
+  const [next, ...rest] = candidates;
+  // Out of candidates: headless, or nothing installed. The URL was printed,
+  // which is enough -- never fail a publish over a browser that won't open.
+  if (!next) return;
+  try {
+    const child = spawn(next[0], next[1], { detached: true, stdio: 'ignore' });
+    child.on('error', () => launchBrowser(url, rest));
+    child.unref();
+  } catch {
+    launchBrowser(url, rest);
+  }
+}
+
+/** Wires DialogIo to node:http, esbuild, sharp and the real clock. */
 export function createRealDialogIo(): DialogIo {
   return {
     clientSource: () => readFile(CLIENT_PATH, 'utf-8'),
@@ -282,14 +357,7 @@ export function createRealDialogIo(): DialogIo {
         });
       }),
     log: (msg) => console.log(msg),
-    openUrl: (url) => {
-      const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-      try {
-        spawn(command, [url], { detached: true, stdio: 'ignore' }).unref();
-      } catch {
-        // Headless or no opener: the URL was printed, which is enough.
-      }
-    },
+    openUrl: (url) => launchBrowser(url),
     renderPreview: async (sourcePath) =>
       sharp(await readFile(sourcePath))
         .rotate()

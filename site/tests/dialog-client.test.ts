@@ -268,4 +268,31 @@ describe('initDialog', () => {
     action('cancel').click();
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith('/cancel', {}));
   });
+
+  // The dialog is finished the moment the server has the answer, so the page
+  // tears itself down: close() first, and this line for the browsers that
+  // refuse to close a window a script did not open.
+  it('replaces the page with a done line once the result is accepted', async () => {
+    const { root } = mount();
+    drag(40, 20, 200, 120);
+    action('submit').click();
+    await vi.waitFor(() => expect(root.textContent).toBe('Published. You can close this window.'));
+    expect(stage()).toBeNull();
+  });
+
+  it('replaces the page after a cancel', async () => {
+    const { root } = mount();
+    action('cancel').click();
+    await vi.waitFor(() => expect(root.textContent).toContain('Cancelled; nothing was published.'));
+  });
+
+  it('keeps the drawn work on screen when the post is rejected', async () => {
+    const send = vi.fn(async () => ({ json: async () => ({ errors: ['Row 1 needs a scientific name.'] }), status: 400 }));
+    mount([source()], send);
+    drag(40, 20, 200, 120);
+    action('submit').click();
+    await vi.waitFor(() => expect(q('[data-dialog-warnings]').textContent).toContain('scientific name'));
+    expect(stage()).toBeTruthy();
+    expect(rows()).toHaveLength(1);
+  });
 });

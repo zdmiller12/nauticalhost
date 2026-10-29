@@ -255,6 +255,17 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
     } (${duplicate.reason}).`;
 
   /**
+   * Ends the session in the browser. `close()` is the point -- the user is
+   * done, and the CLI has already stopped serving this page -- but a browser
+   * only honours it for script-opened windows, so the page is first replaced
+   * with a single line, leaving no half-live dialog if the close is refused.
+   */
+  const finish = (message: string) => {
+    root.textContent = message;
+    root.ownerDocument.defaultView?.close();
+  };
+
+  /**
    * Posts every photo. A 400 or a 409 leaves the page exactly as it is -- the
    * drawn boxes are the user's work, and both answers are recoverable; a 200
    * means the server has the result and is closing the dialog.
@@ -289,7 +300,14 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
       anyway.type = 'button';
       anyway.addEventListener('click', () => void submit(true));
       warnings.append(anyway);
+      return;
     }
+    finish('Published. You can close this window.');
+  };
+
+  const cancel = async () => {
+    await deps.send('/cancel', {});
+    finish('Cancelled; nothing was published. You can close this window.');
   };
 
   overlay.addEventListener('pointerdown', (event) => {
@@ -332,7 +350,7 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
   button('prev').addEventListener('click', () => go(-1));
   button('next').addEventListener('click', () => go(1));
   button('submit').addEventListener('click', () => void submit(false));
-  button('cancel').addEventListener('click', () => void deps.send('/cancel', {}));
+  button('cancel').addEventListener('click', () => void cancel());
 
   render();
 }

@@ -20,7 +20,7 @@ export interface PublishDeps {
   /** Reads a text file, or returns null if it doesn't exist. */
   readTextFile: (path: string) => Promise<string | null>;
   resizePhoto: (buffer: Buffer, thumbBox?: BoundingBox | null) => Promise<{ lightbox: Buffer; thumb: Buffer }>;
-  /** Writes a local copy of an iNaturalist crop. Omitted unless --save-crops is passed. */
+  /** Writes a local copy of a drawn box's crop. Omitted unless --save-crops is passed. */
   saveCrop?: (slug: string, photo: Buffer) => Promise<void>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
   writeFile: (path: string, contents: string) => Promise<void>;
@@ -170,6 +170,15 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
 
   const entries: PhotoObjectEntry[] = [];
   for (const input of inputs) {
+    // --save-crops is how the user checks what they drew, so it must not ride
+    // along with iNaturalist: crop every boxed object, landmarks included, and
+    // reuse that buffer below when there is an observation to upload.
+    const crop =
+      input.boundingBox && (deps.saveCrop || (input.objectType === 'organism' && runInaturalist))
+        ? await deps.cropToBox(source, input.boundingBox)
+        : null;
+    if (crop) await deps.saveCrop?.(args.slug, crop);
+
     if (input.objectType === 'landmark') {
       entries.push({
         boundingBox: input.boundingBox,
@@ -193,8 +202,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
       continue;
     }
     // Only the box is sent, so the observation photo shows the subject.
-    const photo = input.boundingBox ? await deps.cropToBox(source, input.boundingBox) : lightbox;
-    if (input.boundingBox) await deps.saveCrop?.(args.slug, photo);
+    const photo = crop ?? lightbox;
     let inat;
     try {
       inat = await deps.publishToInaturalist!({

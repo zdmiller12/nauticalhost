@@ -133,7 +133,7 @@ export function parseObjectFlags(flagArgs: string[]): { objects: ObjectInput[] }
   };
 }
 
-/** Where `--save-crops` writes a local copy of each iNaturalist crop. */
+/** Where `--save-crops` writes a local copy of each drawn box's crop. */
 const CROP_DIR = 'scripts/usage/cropped-photos';
 
 /**
@@ -142,17 +142,22 @@ const CROP_DIR = 'scripts/usage/cropped-photos';
  *
  * Keyed per slug: one saveCrop serves a whole CSV batch, so a single counter
  * would number crops across photos rather than within one.
+ *
+ * Each write is logged: a crop nobody can find is a crop nobody can check,
+ * and the path is relative to site/, not to wherever npm was invoked.
  */
 export function createSaveCrop(
-  io: Pick<CliIo, 'mkdir' | 'writeBinaryFile'>
+  io: Pick<CliIo, 'log' | 'mkdir' | 'writeBinaryFile'>
 ): (slug: string, photo: Buffer) => Promise<void> {
   const counts = new Map<string, number>();
   return async (slug, photo) => {
     const n = (counts.get(slug) ?? 0) + 1;
     counts.set(slug, n);
     const suffix = n > 1 ? `-${n}` : '';
+    const path = `${CROP_DIR}/${slug}-cropped${suffix}.JPG`;
     await io.mkdir(CROP_DIR);
-    await io.writeBinaryFile(`${CROP_DIR}/${slug}-cropped${suffix}.JPG`, photo);
+    await io.writeBinaryFile(path, photo);
+    io.log(`Saved crop to site/${path}`);
   };
 }
 
