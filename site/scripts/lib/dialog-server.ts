@@ -1,5 +1,5 @@
 import { createServer as createHttpServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
 import sharp from 'sharp';
@@ -283,13 +283,33 @@ export async function runDialog(
 /* v8 ignore start -- real sockets, child processes and signal handlers */
 
 /**
+ * The desktop's configured browser, as a binary name: `xdg-settings` answers
+ * with a desktop-entry id (`brave-browser.desktop`), and for every mainstream
+ * browser that id is its executable. Snap-style ids (`firefox_firefox`) are
+ * not, which costs nothing -- an unspawnable name just falls through to
+ * `xdg-open` below.
+ */
+function defaultBrowserBinary(): string | null {
+  try {
+    const id = execFileSync('xdg-settings', ['get', 'default-web-browser'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return id.endsWith('.desktop') ? id.slice(0, -'.desktop'.length) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * How to ask each platform for a *focused* window on the dialog.
  *
- * `xdg-open` typically drops the URL into a background tab of whatever window
- * already exists, which is exactly the "where did my dialog go" problem; a
- * browser asked for `--new-window` raises and focuses that window itself. So
- * the real browsers are tried first and `xdg-open` is only the last resort.
- * `$BROWSER` leads, because a user who set it means it.
+ * Every candidate is the user's own browser, never a guess: naming specific
+ * browsers here once opened the dialog in a Firefox that was installed but
+ * not wanted (and not working), while the real default sat unused. So the
+ * only thing tried before plain `xdg-open` is that same default browser with
+ * a `--new-window` on it -- which is the whole point, since `xdg-open` tends
+ * to drop the URL into a background tab the user then has to hunt for.
  */
 function browserCommands(url: string): Array<[string, string[]]> {
   if (process.platform === 'darwin') {
@@ -299,35 +319,40 @@ function browserCommands(url: string): Array<[string, string[]]> {
   if (process.platform === 'win32') {
     return [['cmd', ['/c', 'start', '', url]]];
   }
-  const browser = process.env.BROWSER?.trim();
+  const browser = process.env.BROWSER?.trim() || defaultBrowserBinary();
   return [
-    // $BROWSER is often a wrapper script that takes a bare URL and nothing
-    // else, so it is the one candidate not handed a --new-window it may choke on.
-    ...(browser ? [[browser, [url]] as [string, string[]]] : []),
-    ['firefox', ['--new-window', url]],
-    ['google-chrome', ['--new-window', url]],
-    ['chromium', ['--new-window', url]],
-    ['x-www-browser', ['--new-window', url]],
+    ...(browser ? [[browser, ['--new-window', url]] as [string, string[]]] : []),
     ['xdg-open', [url]],
   ];
 }
 
+/** A browser that bails out slower than this was working, not failing. */
+const LAUNCH_GRACE_MS = 5000;
+
 /**
- * Walks the candidate commands until one launches. A missing binary surfaces
- * as an async 'error' event rather than a throw, so each failure has to hand
- * off to the next candidate from that listener.
+ * Walks the candidate commands until one takes the URL. "Takes it" cannot be
+ * observed directly, so two kinds of failure hand off to the next candidate:
+ * a binary that is not installed (an async 'error' event, never a throw) and
+ * one that starts and immediately gives up -- a browser rejecting a flag, or
+ * failing to reach a display. The grace window is what separates that from a
+ * browser the user simply closes later, which must not reopen anything.
  */
 function launchBrowser(url: string, candidates = browserCommands(url)): void {
   const [next, ...rest] = candidates;
   // Out of candidates: headless, or nothing installed. The URL was printed,
   // which is enough -- never fail a publish over a browser that won't open.
   if (!next) return;
+  const startedAt = Date.now();
+  const fallback = () => launchBrowser(url, rest);
   try {
     const child = spawn(next[0], next[1], { detached: true, stdio: 'ignore' });
-    child.on('error', () => launchBrowser(url, rest));
+    child.on('error', fallback);
+    child.on('exit', (code) => {
+      if (code !== 0 && Date.now() - startedAt < LAUNCH_GRACE_MS) fallback();
+    });
     child.unref();
   } catch {
-    launchBrowser(url, rest);
+    fallback();
   }
 }
 
