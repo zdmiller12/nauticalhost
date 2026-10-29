@@ -34,6 +34,8 @@ export interface PublishCsvResult {
 /** Everything publishCsv needs besides argv/exit/prompt-style CLI concerns. `log` is kept so phase 1 can print the dialog URL. */
 export type PublishCsvDeps = Omit<CliIo, 'argv' | 'error' | 'exit' | 'prompt'> & {
   now: () => Date;
+  /** Resolves after `ms` milliseconds; paces phase 2 against iNaturalist's rate limit. */
+  sleep: (ms: number) => Promise<void>;
 };
 
 export function parseCsvRows(csvContents: string): CsvRowInput[] {
@@ -180,20 +182,27 @@ export async function publishCsv(
     pending.push({ args: built.args, row, rowNumber });
   }
 
-  // Phase 1: one dialog for every row with no objects yet. Collecting all the
-  // drawing up front means a phase-2 failure at row 6 does not throw away the
-  // work done for rows 7 and 8.
-  // `buildRowArgs` always populates `objects` (empty array when the column is blank),
-  // so this never needs the `?? []` fallback that type alone would suggest.
+  // Phase 1: one dialog for every row that isn't already fully boxed.
+  // Collecting all the drawing up front means a phase-2 failure at row 6 does
+  // not throw away the work done for rows 7 and 8.
+  // "Fully boxed" means at least one object, and every one of them already
+  // has a boundingBox. A blank `species` column produces zero objects (needs
+  // the dialog to supply one from scratch); a `species` column with no `box`
+  // produces one object with `boundingBox: null` (needs the dialog to draw
+  // it). Checking only `objects.length === 0` would wrongly skip the dialog
+  // for that second, far more common case.
   // Objects only matter for iNaturalist and the YAML's `objects` entry, so an
   // r2-only run needs no dialog -- mirroring the same gate in cli.ts. Without
   // it, `--only-r2` (the box-backfill workflow) would make the operator draw
   // every row's boxes only for `publishPhoto` to discard them.
+  const isFullyBoxed = (objects: ObjectInput[]) =>
+    objects.length > 0 && objects.every((object) => object.boundingBox !== null);
   const needsInput =
     useDialog && (actions.inaturalist || actions.yaml)
-      ? pending.filter((entry) => entry.args.objects!.length === 0)
+      ? pending.filter((entry) => !isFullyBoxed(entry.args.objects!))
       : [];
   if (needsInput.length > 0) {
+    deps.log(`Reading ${needsInput.length} photo(s) for the drawing dialog...`);
     const queue = buildQueue(
       await Promise.all(
         needsInput.map(async (entry) => ({
@@ -226,22 +235,34 @@ export async function publishCsv(
   }
 
   // Phase 2: unattended. Failures are logged per row exactly as before.
-  for (const entry of pending) {
+  // Paced to at most 1 row/second -- phase 1 can hand phase 2 a whole batch of
+  // freshly-boxed organisms, and running those back-to-back would hammer
+  // iNaturalist's rate limit instead of a human's natural drawing pace.
+  for (const [index, entry] of pending.entries()) {
+    deps.log(`[${index + 1}/${pending.length}] Publishing ${entry.args.slug}...`);
+    const rowStarted = deps.now().getTime();
     try {
       await publishPhoto(publishDeps, entry.args);
       succeeded++;
     } catch (err) {
+      deps.log(`[${index + 1}/${pending.length}] Failed: ${(err as Error).message}`);
       failures.push({ error: err as Error, input: entry.row, rowNumber: entry.rowNumber });
     }
+    const elapsedMs = deps.now().getTime() - rowStarted;
+    if (elapsedMs < 1000) await deps.sleep(1000 - elapsedMs);
   }
 
   return { failures, logPath: await writeLog(), succeeded, total: rows.length };
 }
 
-export type CsvIo = CliIo & { now: () => Date };
+export type CsvIo = CliIo & { now: () => Date; sleep: (ms: number) => Promise<void> };
 
 export function createRealCsvIo(): CsvIo {
-  return { ...createRealCliIo(), now: () => new Date() };
+  return {
+    ...createRealCliIo(),
+    now: () => new Date(),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  };
 }
 
 export async function runPublishCsv(io: CsvIo): Promise<void> {

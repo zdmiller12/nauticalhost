@@ -57,6 +57,7 @@ function makeDeps(overrides: Partial<PublishCsvDeps> = {}): PublishCsvDeps {
     readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
     readTextFile: vi.fn().mockResolvedValue(null),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
+    sleep: vi.fn().mockResolvedValue(undefined),
     uploadObject: vi.fn().mockResolvedValue(undefined),
     writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
@@ -510,13 +511,15 @@ describe('publishCsv with the drawing dialog', () => {
     expect(queue.map((photo) => photo.slug)).toEqual(['b']);
   });
 
-  it('does not open a dialog when every row carries a species', async () => {
+  it('opens a dialog when a row carries a species but no box', async () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix,species\n/tmp/a.jpg,prefix/a,Species A\n/tmp/b.jpg,prefix/b,Species B\n';
 
     await publishCsv(deps, csv, YAML_ONLY, false, true, 'cmd');
 
-    expect(deps.openDialog).not.toHaveBeenCalled();
+    expect(deps.openDialog).toHaveBeenCalledOnce();
+    const queue = (deps.openDialog as ReturnType<typeof vi.fn>).mock.calls[0][0] as { slug: string }[];
+    expect(queue.map((photo) => photo.slug)).toEqual(['a', 'b']);
   });
 
   it('does not open a dialog when useDialog is false', async () => {
@@ -801,6 +804,7 @@ function makeIo(overrides: Partial<CsvIo> = {}): CsvIo {
     readFile: vi.fn().mockResolvedValue(Buffer.from('source-bytes')),
     readTextFile: vi.fn().mockResolvedValue(null),
     resizePhoto: vi.fn().mockResolvedValue({ thumb: Buffer.from('t'), lightbox: Buffer.from('l') }),
+    sleep: vi.fn().mockResolvedValue(undefined),
     uploadObject: vi.fn().mockResolvedValue(undefined),
     writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
