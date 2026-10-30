@@ -87,6 +87,32 @@ slug: 2026-06-14-gull-dock
 tier: E
 `;
 
+const TWO_ORGANISM_BACKFILL_YAML = `---
+camera: "Sony A7 IV"
+datetime: 2026-06-14T12:00:00
+file: ospreys/osprey-nest-01
+latitude: 38.9784
+lens: "100-400mm GM"
+longitude: -76.4922
+notes: # optional
+objects:
+  - details:
+      commonName: ""
+      description: null
+      inaturalistObservationId: null
+      scientificName: "Pandion haliaetus"
+    objectType: organism
+  - details:
+      commonName: ""
+      description: null
+      inaturalistObservationId: null
+      scientificName: "Larus argentatus"
+    objectType: organism
+other: {}
+slug: 2026-06-14-osprey-nest
+tier: E
+`;
+
 const LANDMARK_YAML = `---
 camera: null
 datetime: 2026-05-20T10:00:00
@@ -244,6 +270,28 @@ describe('syncInaturalist', () => {
     expect(writeFile).toHaveBeenCalledWith(
       'photos/gull.yaml',
       expect.stringContaining('commonName: "American Herring Gull"')
+    );
+  });
+
+  it('persists each organism to disk immediately, so a later failure in the same file does not orphan an already-created observation', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] })) // resolveTaxon (osprey)
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-123' })) // fetchAccessToken (osprey)
+      .mockResolvedValueOnce(jsonResponse({ api_token: 'jwt-abc' })) // fetchJwt (osprey)
+      .mockResolvedValueOnce(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] })) // createObservation (osprey) succeeds
+      .mockResolvedValueOnce(jsonResponse({}, false, 500)); // resolveTaxon (gull) fails
+
+    const { deps, writeFile } = makeDeps({ 'photos/osprey.yaml': TWO_ORGANISM_BACKFILL_YAML }, fetchMock);
+
+    await expect(syncInaturalist(deps, credentials, 'photos/*.yaml')).rejects.toThrow();
+
+    // Even though the whole file's organisms were not all processed, the osprey's
+    // newly-created observation id must already be on disk -- otherwise the next
+    // run would create a second, orphaned observation for the same organism.
+    expect(writeFile).toHaveBeenCalledWith(
+      'photos/osprey.yaml',
+      expect.stringContaining('inaturalistObservationId: 999')
     );
   });
 

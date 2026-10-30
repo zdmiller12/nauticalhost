@@ -8,9 +8,9 @@ longitude:
 notes: Second shot!
 objects:
   - details:
-      commonName: "Black Walnut"
+      commonName: "eastern black walnut"
       description: Hammock swing for scale...
-      inaturalistObservationId: null
+      inaturalistObservationId: 411678879
       scientificName: "Juglans nigra"
     objectType: organism
 slug: 5G7A0002

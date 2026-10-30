@@ -8,9 +8,9 @@ longitude:
 notes: First shot!
 objects:
   - details:
-      commonName: "Littleleaf Box[wood]"
+      commonName: "Small-leaved Box"
       description: Topiary style.
-      inaturalistObservationId: null
+      inaturalistObservationId: 411678877
       scientificName: "Buxus microphylla"
     objectType: organism
 slug: 5G7A0001

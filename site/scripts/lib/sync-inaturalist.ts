@@ -73,52 +73,69 @@ export async function syncInaturalist(
     const organisms = parseOrganisms(yaml);
     if (organisms.length === 0) continue;
 
+    console.log(`[sync-inaturalist] ${file}: ${organisms.length} organism(s)`);
     let updated = yaml;
-    let changed = false;
+    let fileChanged = false;
 
     for (const organism of organisms) {
-      if (organism.inaturalistObservationId === null) {
-        // Backfill: no observation yet, create one from the stored scientificName.
-        const { commonName, taxonId } = await resolveTaxon(deps, organism.scientificName);
-        const accessToken = await fetchAccessToken(deps, credentials);
-        const jwt = await fetchJwt(deps, accessToken);
-        const observation = await createObservation(deps, jwt, {
-          latitude: null,
-          longitude: null,
-          observedOn: null,
-          taxonId,
-        });
-        updated = replaceOrganism(updated, organism, {
-          commonName,
-          description: organism.description,
-          inaturalistObservationId: observation.id,
-          scientificName: organism.scientificName,
-        });
-        changed = true;
-      } else {
-        // Refresh: compare the community's current taxon against what's stored.
-        const taxon = await getObservationTaxon(deps, organism.inaturalistObservationId);
-        if (
-          taxon &&
-          (taxon.scientificName !== organism.scientificName || taxon.commonName !== organism.commonName)
-        ) {
-          updated = replaceOrganism(updated, organism, {
-            commonName: taxon.commonName,
-            description: organism.description,
-            inaturalistObservationId: organism.inaturalistObservationId,
-            scientificName: taxon.scientificName,
+      try {
+        if (organism.inaturalistObservationId === null) {
+          // Backfill: no observation yet, create one from the stored scientificName.
+          console.log(`[sync-inaturalist] ${file}: backfilling "${organism.scientificName}"`);
+          const { commonName, taxonId } = await resolveTaxon(deps, organism.scientificName);
+          const accessToken = await fetchAccessToken(deps, credentials);
+          const jwt = await fetchJwt(deps, accessToken);
+          const observation = await createObservation(deps, jwt, {
+            latitude: null,
+            longitude: null,
+            observedOn: null,
+            taxonId,
           });
-          changed = true;
+          updated = replaceOrganism(updated, organism, {
+            commonName,
+            description: organism.description,
+            inaturalistObservationId: observation.id,
+            scientificName: organism.scientificName,
+          });
+          // Persisted immediately: the observation now exists on iNaturalist, so its
+          // id must be written to disk before touching the next organism -- otherwise
+          // a later failure in this same file would orphan it and a future run would
+          // create a duplicate.
+          await deps.writeFile(file, updated);
+          fileChanged = true;
+          console.log(`[sync-inaturalist] ${file}: created observation ${observation.id} for "${organism.scientificName}"`);
+        } else {
+          // Refresh: compare the community's current taxon against what's stored.
+          console.log(`[sync-inaturalist] ${file}: refreshing observation ${organism.inaturalistObservationId} ("${organism.scientificName}")`);
+          const taxon = await getObservationTaxon(deps, organism.inaturalistObservationId);
+          if (
+            taxon &&
+            (taxon.scientificName !== organism.scientificName || taxon.commonName !== organism.commonName)
+          ) {
+            updated = replaceOrganism(updated, organism, {
+              commonName: taxon.commonName,
+              description: organism.description,
+              inaturalistObservationId: organism.inaturalistObservationId,
+              scientificName: taxon.scientificName,
+            });
+            await deps.writeFile(file, updated);
+            fileChanged = true;
+            console.log(
+              `[sync-inaturalist] ${file}: observation ${organism.inaturalistObservationId} updated to "${taxon.scientificName}" ("${taxon.commonName}")`
+            );
+          } else {
+            console.log(`[sync-inaturalist] ${file}: observation ${organism.inaturalistObservationId} unchanged`);
+          }
         }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`[sync-inaturalist] ${file} / "${organism.scientificName}": ${message}`);
       }
+
+      await deps.sleep(1100);
     }
 
-    if (changed) {
-      await deps.writeFile(file, updated);
-      changedFiles.push(file);
-    }
-
-    await deps.sleep(1100);
+    if (fileChanged) changedFiles.push(file);
   }
 
   return { changedFiles };

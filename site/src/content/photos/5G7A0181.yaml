@@ -13,10 +13,10 @@ objects:
       right: 0.6652305520163728
       top: 0.4359241301561381
     details:
-      commonName: "Black-capped Chickadee"
+      commonName: "Carolina Chickadee"
       description: null
       inaturalistObservationId: 411505263
-      scientificName: "Poecile atricapillus"
+      scientificName: "Poecile carolinensis"
     objectType: organism
 other:
   ApertureValue: 3.375
