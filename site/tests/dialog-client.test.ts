@@ -370,6 +370,19 @@ describe('initDialog', () => {
     expect(box).toEqual({ bottom: 0.6, left: 0.35, right: 0.6, top: 0.3 });
   });
 
+  it('throws when a photo arrives with an invalid index', () => {
+    // mount() can't express this: buildQueue always assigns a valid index, so
+    // the bad value is spliced into the already-rendered queue payload before
+    // initDialog ever parses it.
+    document.documentElement.innerHTML = renderPage(buildQueue([source()])).match(/<body[\s\S]*<\/body>/)![0];
+    const root = q<HTMLElement>('[data-dialog]');
+    const queueElement = q<HTMLElement>('[data-dialog-queue]');
+    const queue = JSON.parse(queueElement.textContent!);
+    queue[0].index = -1;
+    queueElement.textContent = JSON.stringify(queue);
+    expect(() => initDialog(root, { rect: () => STAGE, send: vi.fn() })).toThrow('Invalid photo index');
+  });
+
   it('moves a box as a whole by dragging its body', () => {
     mount([
       source({
