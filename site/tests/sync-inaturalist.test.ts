@@ -314,4 +314,12 @@ describe('syncInaturalist', () => {
     expect(written).toContain('description: null');
     expect(written).not.toContain('description: "null"');
   });
+
+  it('stringifies a thrown non-Error value into the failure message', async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce('network down'); // resolveTaxon rejects with a plain string, not an Error
+
+    const { deps } = makeDeps({ 'photos/osprey.yaml': BACKFILL_YAML }, fetchMock);
+
+    await expect(syncInaturalist(deps, credentials, 'photos/*.yaml')).rejects.toThrow('network down');
+  });
 });

@@ -263,6 +263,20 @@ describe('publishCsv', () => {
     expect(deps.mkdir).not.toHaveBeenCalledWith('scripts/usage');
   });
 
+  it('skips the pacing sleep when publishing the row alone already took over a second', async () => {
+    // Each row calls now() twice (started, then elapsed); advancing the clock by 1100ms
+    // between those two reads simulates a slow publish that already ate the pacing budget.
+    let time = new Date(2026, 5, 14, 9, 30, 0).getTime();
+    const now = vi.fn(() => new Date((time += 1100)));
+    const deps = makeDeps({ now });
+    const csv = 'sourcePath,r2KeyPrefix\n/tmp/a.jpg,prefix/a\n';
+
+    const result = await publishCsv(deps, csv, { inaturalist: false, r2: false, yaml: true }, false, false, 'cmd');
+
+    expect(result).toEqual({ failures: [], logPath: undefined, succeeded: 1, total: 1 });
+    expect(deps.sleep).not.toHaveBeenCalled();
+  });
+
   it('records a row-validation failure, continues, and writes a log file', async () => {
     const deps = makeDeps();
     const csv = 'sourcePath,r2KeyPrefix\n,prefix/a\n/tmp/b.jpg,prefix/b\n';
@@ -788,6 +802,13 @@ describe('createRealCsvIo', () => {
     expect(io.argv).toBe(process.argv);
     expect(io.env).toBe(process.env);
     expect(io.now()).toBeInstanceOf(Date);
+  });
+
+  it('sleeps for the requested duration', async () => {
+    const io = createRealCsvIo();
+    const started = Date.now();
+    await io.sleep(10);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(10);
   });
 });
 
