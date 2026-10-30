@@ -176,6 +176,20 @@ describe('createObservation', () => {
     expect(sentBody.observation.observed_on_string).toBeUndefined();
   });
 
+  it('omits latitude/longitude keys (rather than sending null) when no coordinates are known', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [{ id: 999, uuid: 'obs-uuid' }] }));
+    await createObservation({ fetch: fetchMock }, 'jwt-abc', {
+      latitude: null,
+      longitude: null,
+      observedOn: null,
+      taxonId: 5,
+    });
+    const [, init] = fetchMock.mock.calls[0];
+    const sentBody = JSON.parse((init as { body: string }).body);
+    expect(sentBody.observation).not.toHaveProperty('latitude');
+    expect(sentBody.observation).not.toHaveProperty('longitude');
+  });
+
   it('throws when the request is not ok', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, false, 422));
     await expect(

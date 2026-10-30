@@ -129,8 +129,10 @@ export async function createObservation(
         observation: {
           // 'private' hides the coordinates from everyone but the observer; iNaturalist still stores them.
           geoprivacy: args.privateLocation ? 'private' : undefined,
-          latitude: args.latitude,
-          longitude: args.longitude,
+          // iNaturalist's v2 schema requires `number` for these fields and rejects an explicit
+          // `null` -- coalesce to `undefined` so JSON.stringify omits the key entirely.
+          latitude: args.latitude ?? undefined,
+          longitude: args.longitude ?? undefined,
           observed_on_string: args.observedOn ? args.observedOn.toISOString() : undefined,
           taxon_id: args.taxonId,
         },

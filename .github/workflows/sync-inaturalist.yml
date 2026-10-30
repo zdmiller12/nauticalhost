@@ -22,7 +22,9 @@ jobs:
         run: npm ci
 
       - name: Run sync
+        id: sync
         working-directory: site
+        continue-on-error: true
         env:
           INATURALIST_APP_ID: ${{ secrets.INATURALIST_APP_ID }}
           INATURALIST_APP_SECRET: ${{ secrets.INATURALIST_APP_SECRET }}
@@ -30,7 +32,12 @@ jobs:
           INATURALIST_PASSWORD: ${{ secrets.INATURALIST_PASSWORD }}
         run: npm run sync-inaturalist
 
+      # Runs even if "Run sync" failed partway through, so any observation IDs
+      # it already wrote to disk (and thus already created on iNaturalist) get
+      # committed rather than discarded -- otherwise the next scheduled run
+      # would recreate them as duplicates.
       - name: Commit changes
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -41,3 +48,9 @@ jobs:
             git commit -m "sync: refresh iNaturalist observation data"
             git push
           fi
+
+      - name: Fail job if sync errored
+        if: always() && steps.sync.outcome == 'failure'
+        run: |
+          echo "Sync step failed -- any successfully-written changes above were still committed." >&2
+          exit 1
