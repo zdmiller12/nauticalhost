@@ -7,7 +7,11 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.104678
 notes: # optional
 objects:
-  - boundingBox: null
+  - boundingBox:
+      bottom: 0.3662897139345621
+      left: 0.14861728433084276
+      right: 0.4370394696998514
+      top: 0
     description: null
     details:
       commonName: "Dark-eyed Junco"
@@ -53,4 +57,4 @@ other:
   YCbCrPositioning: 2
   YResolution: 72
 slug: 5G7A0135
-tier: E
+tier: C

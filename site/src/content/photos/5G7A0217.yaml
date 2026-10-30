@@ -8,10 +8,10 @@ longitude: -82.094936
 notes: # optional
 objects:
   - boundingBox:
-      bottom: 0.9654194995707346
-      left: 0.01752857701010345
-      right: 0.7987052507408638
-      top: 0.15526688808324335
+      bottom: 0.7328200387458904
+      left: 0.033515391965440955
+      right: 0.7828987323792391
+      top: 0.14890517527500724
     description: null
     details:
       commonName: "Blue Ridge gentian"
