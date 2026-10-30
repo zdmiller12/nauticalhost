@@ -140,21 +140,24 @@ const CROP_DIR = 'scripts/usage/cropped-photos';
  * Builds the `saveCrop` dep for `--save-crops`. The directory is already
  * git-ignored via the existing `scripts/usage/` entry.
  *
- * Keyed per slug: one saveCrop serves a whole CSV batch, so a single counter
- * would number crops across photos rather than within one.
+ * Named after the R2 thumbnail key (`<r2KeyPrefix>-thumb.jpg`'s basename) so
+ * the local crop and the uploaded thumbnail are easy to match up by eye.
+ *
+ * Keyed per r2KeyPrefix: one saveCrop serves a whole CSV batch, so a single
+ * counter would number crops across photos rather than within one.
  *
  * Each write is logged: a crop nobody can find is a crop nobody can check,
  * and the path is relative to site/, not to wherever npm was invoked.
  */
 export function createSaveCrop(
   io: Pick<CliIo, 'log' | 'mkdir' | 'writeBinaryFile'>
-): (slug: string, photo: Buffer) => Promise<void> {
+): (r2KeyPrefix: string, photo: Buffer) => Promise<void> {
   const counts = new Map<string, number>();
-  return async (slug, photo) => {
-    const n = (counts.get(slug) ?? 0) + 1;
-    counts.set(slug, n);
+  return async (r2KeyPrefix, photo) => {
+    const n = (counts.get(r2KeyPrefix) ?? 0) + 1;
+    counts.set(r2KeyPrefix, n);
     const suffix = n > 1 ? `-${n}` : '';
-    const path = `${CROP_DIR}/${slug}-cropped${suffix}.JPG`;
+    const path = `${CROP_DIR}/${basename(r2KeyPrefix)}-thumb${suffix}.jpg`;
     await io.mkdir(CROP_DIR);
     await io.writeBinaryFile(path, photo);
     io.log(`Saved crop to site/${path}`);

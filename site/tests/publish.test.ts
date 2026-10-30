@@ -296,7 +296,7 @@ tier: E
       ],
     });
 
-    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+    expect(saveCrop).toHaveBeenCalledWith('ospreys/osprey-nest-01', Buffer.from('cropped'));
   });
 
   it('does not save a crop when the organism has no box', async () => {
@@ -325,7 +325,7 @@ tier: E
       ],
     });
 
-    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+    expect(saveCrop).toHaveBeenCalledWith('ospreys/osprey-nest-01', Buffer.from('cropped'));
     expect(deps.publishToInaturalist).not.toHaveBeenCalled();
   });
 
@@ -338,7 +338,7 @@ tier: E
       objects: [{ boundingBox, description: 'Thomas Point Light', objectType: 'landmark' }],
     });
 
-    expect(saveCrop).toHaveBeenCalledWith('osprey-nest', Buffer.from('cropped'));
+    expect(saveCrop).toHaveBeenCalledWith('ospreys/osprey-nest-01', Buffer.from('cropped'));
   });
 
   it('crops once per boxed organism, reusing that buffer for the observation', async () => {
