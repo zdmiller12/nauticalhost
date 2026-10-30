@@ -150,6 +150,19 @@ describe('initDialog', () => {
     expect(rows()[0].querySelector<HTMLInputElement>('[data-dialog-field="scientificName"]')!.hidden).toBe(true);
   });
 
+  it('seeds a landmark row from a pre-known object, with no scientific name field', () => {
+    mount([
+      source({
+        objects: [{ boundingBox: null, description: 'Old stone bridge', objectType: 'landmark' }],
+      }),
+    ]);
+    expect(rows()[0].querySelector<HTMLSelectElement>('[data-dialog-field="objectType"]')!.value).toBe('landmark');
+    expect(rows()[0].querySelector<HTMLInputElement>('[data-dialog-field="description"]')!.value).toBe(
+      'Old stone bridge'
+    );
+    expect(rows()[0].querySelector<HTMLInputElement>('[data-dialog-field="scientificName"]')!.hidden).toBe(true);
+  });
+
   it('reorders rows, and the first row is the primary box', () => {
     mount();
     drag(40, 20, 200, 120);
@@ -342,6 +355,19 @@ describe('initDialog', () => {
     expect(box).toEqual({ bottom: 0.9, left: 0.4, right: 0.875, top: 0.4 });
     // The species name survives the resize -- it is only the box that changed.
     expect(q<HTMLInputElement>('[data-dialog-field="scientificName"]').value).toBe('Pandion haliaetus');
+  });
+
+  it('resizes a box by dragging the opposite corner handle, holding the other corner fixed', () => {
+    mount([
+      source({
+        objects: [{ boundingBox: null, description: null, objectType: 'organism', scientificName: 'Pandion haliaetus' }],
+      }),
+    ]);
+    // DEFAULT_BOX (0.4..0.6 both axes) on the 400x200 stage spans pixels (160,80)-(240,120).
+    // Dragging the "nw" handle to (140,60) keeps the opposite ("se") corner fixed, the mirror of the "se" case above.
+    dragFrom(q('[data-dialog-handle="nw"]'), 160, 80, 140, 60);
+    const box = JSON.parse(q<HTMLElement>('[data-dialog-box]').dataset.box!);
+    expect(box).toEqual({ bottom: 0.6, left: 0.35, right: 0.6, top: 0.3 });
   });
 
   it('moves a box as a whole by dragging its body', () => {

@@ -76,28 +76,30 @@ const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text
   {notes && <p class="mt-6 text-lg">{notes}</p>}
 
   <div class="mt-10 grid gap-10 border-t border-line pt-8 sm:grid-cols-2">
-    <section aria-labelledby="subjects-heading">
+    <section aria-labelledby="subjects-heading" class="flex flex-col">
       <h2 id="subjects-heading" class={sectionHeadingClass}>{objects.length === 1 ? 'Subject' : 'Subjects'}</h2>
-      <ul class="mt-4 space-y-5">
+      <ul class="mt-4 flex flex-1 flex-col gap-5">
         {objects.map((obj) => (
-          <li>
+          <li class="flex flex-1 flex-col">
             {obj.objectType === 'organism' ? (
-              <>
-                <p class="font-semibold">{obj.details.commonName}</p>
-                <p class="italic text-ink-muted">{obj.details.scientificName}</p>
-                {obj.description && <p class="mt-1 text-sm text-ink-muted">{obj.description}</p>}
+              <div class="flex h-full flex-col justify-between gap-3">
+                <div>
+                  <p class="font-semibold">{obj.details.commonName}</p>
+                  <p class="italic text-ink-muted">{obj.details.scientificName}</p>
+                  {obj.description && <p class="mt-1 text-sm text-ink-muted">{obj.description}</p>}
+                </div>
                 {obj.details.inaturalistObservationId && (
                   <a
                     href={`https://www.inaturalist.org/observations/${obj.details.inaturalistObservationId}`}
                     target="_blank"
                     rel="noopener"
-                    class="mt-3 inline-flex items-center gap-2 rounded-full bg-[#74ac00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#669b00]"
+                    class="inline-flex items-center gap-2 self-start rounded-full bg-[#74ac00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#669b00]"
                   >
                     <img src="/images/inaturalist-bird-white.png" alt="" class="h-5 w-5" />
                     View iNaturalist observation
                   </a>
                 )}
-              </>
+              </div>
             ) : (
               <>
                 <p class="font-semibold">{obj.description}</p>
