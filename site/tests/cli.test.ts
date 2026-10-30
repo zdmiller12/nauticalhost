@@ -152,7 +152,7 @@ describe('parseObjectFlags', () => {
 });
 
 describe('createSaveCrop', () => {
-  it('mkdirs the crop directory then writes the un-suffixed filename on the first call for a slug', async () => {
+  it('mkdirs the crop directory then writes a filename matching the R2 thumbnail key on the first call', async () => {
     const io = {
       log: vi.fn(),
       mkdir: vi.fn().mockResolvedValue(undefined),
@@ -160,22 +160,24 @@ describe('createSaveCrop', () => {
     };
     const saveCrop = createSaveCrop(io);
 
-    await saveCrop('osprey-nest', Buffer.from('a'));
+    await saveCrop('photos/osprey-nest.JPG', Buffer.from('a'));
 
     expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
     expect(io.writeBinaryFile).toHaveBeenCalledWith(
-      'scripts/usage/cropped-photos/osprey-nest-cropped.JPG',
+      'scripts/usage/cropped-photos/osprey-nest.JPG-thumb.jpg',
       Buffer.from('a')
     );
     // The path is relative to site/, so the message says so: a crop the user
     // cannot locate is the same as no crop at all.
-    expect(io.log).toHaveBeenCalledWith('Saved crop to site/scripts/usage/cropped-photos/osprey-nest-cropped.JPG');
+    expect(io.log).toHaveBeenCalledWith(
+      'Saved crop to site/scripts/usage/cropped-photos/osprey-nest.JPG-thumb.jpg'
+    );
     const mkdirOrder = io.mkdir.mock.invocationCallOrder[0];
     const writeOrder = io.writeBinaryFile.mock.invocationCallOrder[0];
     expect(mkdirOrder).toBeLessThan(writeOrder);
   });
 
-  it('suffixes the second and third crop for the same slug, keeping the first unsuffixed', async () => {
+  it('suffixes the second and third crop for the same r2KeyPrefix, keeping the first unsuffixed', async () => {
     const io = {
       log: vi.fn(),
       mkdir: vi.fn().mockResolvedValue(undefined),
@@ -183,28 +185,28 @@ describe('createSaveCrop', () => {
     };
     const saveCrop = createSaveCrop(io);
 
-    await saveCrop('multi', Buffer.from('a'));
-    await saveCrop('multi', Buffer.from('b'));
-    await saveCrop('multi', Buffer.from('c'));
+    await saveCrop('photos/multi.JPG', Buffer.from('a'));
+    await saveCrop('photos/multi.JPG', Buffer.from('b'));
+    await saveCrop('photos/multi.JPG', Buffer.from('c'));
 
     expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
       1,
-      'scripts/usage/cropped-photos/multi-cropped.JPG',
+      'scripts/usage/cropped-photos/multi.JPG-thumb.jpg',
       Buffer.from('a')
     );
     expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
       2,
-      'scripts/usage/cropped-photos/multi-cropped-2.JPG',
+      'scripts/usage/cropped-photos/multi.JPG-thumb-2.jpg',
       Buffer.from('b')
     );
     expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
       3,
-      'scripts/usage/cropped-photos/multi-cropped-3.JPG',
+      'scripts/usage/cropped-photos/multi.JPG-thumb-3.jpg',
       Buffer.from('c')
     );
   });
 
-  it('keeps per-slug counters independent, so two different slugs each get an unsuffixed first file', async () => {
+  it('keeps per-r2KeyPrefix counters independent, so two different keys each get an unsuffixed first file', async () => {
     const io = {
       log: vi.fn(),
       mkdir: vi.fn().mockResolvedValue(undefined),
@@ -212,17 +214,17 @@ describe('createSaveCrop', () => {
     };
     const saveCrop = createSaveCrop(io);
 
-    await saveCrop('alpha', Buffer.from('a'));
-    await saveCrop('beta', Buffer.from('b'));
+    await saveCrop('photos/alpha.JPG', Buffer.from('a'));
+    await saveCrop('photos/beta.JPG', Buffer.from('b'));
 
     expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
       1,
-      'scripts/usage/cropped-photos/alpha-cropped.JPG',
+      'scripts/usage/cropped-photos/alpha.JPG-thumb.jpg',
       Buffer.from('a')
     );
     expect(io.writeBinaryFile).toHaveBeenNthCalledWith(
       2,
-      'scripts/usage/cropped-photos/beta-cropped.JPG',
+      'scripts/usage/cropped-photos/beta.JPG-thumb.jpg',
       Buffer.from('b')
     );
   });
@@ -776,7 +778,7 @@ describe('runCli with --box', () => {
     );
     expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
     expect(io.writeBinaryFile).toHaveBeenCalledWith(
-      'scripts/usage/cropped-photos/a-cropped.JPG',
+      'scripts/usage/cropped-photos/a.JPG-thumb.jpg',
       expect.any(Buffer)
     );
     expect(io.exit).not.toHaveBeenCalled();

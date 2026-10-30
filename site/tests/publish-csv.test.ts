@@ -467,7 +467,7 @@ describe('publishCsv', () => {
     expect(result.failures).toEqual([]);
     expect(deps.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
     expect(deps.writeBinaryFile).toHaveBeenCalledWith(
-      'scripts/usage/cropped-photos/osprey-cropped.JPG',
+      'scripts/usage/cropped-photos/osprey.jpg-thumb.jpg',
       expect.any(Buffer)
     );
   });
@@ -984,7 +984,7 @@ describe('runPublishCsv', () => {
     expect(io.log).toHaveBeenCalledWith('Published 1/1.');
     expect(io.mkdir).toHaveBeenCalledWith('scripts/usage/cropped-photos');
     expect(io.writeBinaryFile).toHaveBeenCalledWith(
-      'scripts/usage/cropped-photos/a-cropped.JPG',
+      'scripts/usage/cropped-photos/a.jpg-thumb.jpg',
       expect.any(Buffer)
     );
   });

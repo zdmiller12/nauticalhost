@@ -21,7 +21,7 @@ export interface PublishDeps {
   readTextFile: (path: string) => Promise<string | null>;
   resizePhoto: (buffer: Buffer, thumbBox?: BoundingBox | null) => Promise<{ lightbox: Buffer; thumb: Buffer }>;
   /** Writes a local copy of a drawn box's crop. Omitted unless --save-crops is passed. */
-  saveCrop?: (slug: string, photo: Buffer) => Promise<void>;
+  saveCrop?: (r2KeyPrefix: string, photo: Buffer) => Promise<void>;
   uploadObject: (bucket: string, key: string, body: Buffer, contentType: string) => Promise<void>;
   writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -177,7 +177,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
       input.boundingBox && (deps.saveCrop || (input.objectType === 'organism' && runInaturalist))
         ? await deps.cropToBox(source, input.boundingBox)
         : null;
-    if (crop) await deps.saveCrop?.(args.slug, crop);
+    if (crop) await deps.saveCrop?.(args.r2KeyPrefix, crop);
 
     if (input.objectType === 'landmark') {
       entries.push({
