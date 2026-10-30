@@ -98,9 +98,9 @@ describe('buildQueue', () => {
 
 const gull = (box: BoundingBox | null): PhotoObjectEntry => ({
   boundingBox: box,
+  description: null,
   details: {
     commonName: 'Herring Gull',
-    description: null,
     inaturalistObservationId: 7,
     scientificName: 'Larus argentatus',
   },
@@ -164,7 +164,7 @@ describe('findDuplicates', () => {
   it('flags a landmark with the same description', () => {
     const existing: PhotoObjectEntry = {
       boundingBox: null,
-      details: { description: 'Bass Harbor Head Light' },
+      description: 'Bass Harbor Head Light',
       objectType: 'landmark',
     };
     expect(

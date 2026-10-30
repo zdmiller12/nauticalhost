@@ -12,9 +12,9 @@ objects:
       left: 0.3290360867173405
       right: 0.5290360867173406
       top: 0.4870582280906672
+    description: null
     details:
       commonName: "Autumn Meadowhawk"
-      description: null
       inaturalistObservationId: 411505394
       scientificName: "Sympetrum vicinum"
     objectType: organism

@@ -191,9 +191,9 @@ describe('initDialog', () => {
     const existingYaml = [
       'objects:',
       '  - boundingBox: null',
+      '    description: null',
       '    details:',
       '      commonName: "Herring Gull"',
-      '      description: null',
       '      inaturalistObservationId: 7',
       '      scientificName: "Larus argentatus"',
       '    objectType: organism',
@@ -201,6 +201,19 @@ describe('initDialog', () => {
     ].join('\n');
     mount([source({ existingYaml })]);
     expect(q<HTMLElement>('[data-dialog-existing]').textContent).toContain('Larus argentatus');
+    expect(all('[data-dialog-existing] input')).toHaveLength(0);
+  });
+
+  it('renders an already-published landmark read-only, which has no details to list', () => {
+    const existingYaml = [
+      'objects:',
+      '  - boundingBox: null',
+      '    description: "Old stone bridge"',
+      '    objectType: landmark',
+      '',
+    ].join('\n');
+    mount([source({ existingYaml })]);
+    expect(q<HTMLElement>('[data-dialog-existing]').textContent).toContain('Old stone bridge');
     expect(all('[data-dialog-existing] input')).toHaveLength(0);
   });
 

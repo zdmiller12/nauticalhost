@@ -4,14 +4,14 @@ import type { BoundingBox } from '../../src/lib/bounding-box';
 export type PhotoObjectEntry =
   | {
       boundingBox: BoundingBox | null;
-      details: { description: string };
+      description: string;
       objectType: 'landmark';
     }
   | {
       boundingBox: BoundingBox | null;
+      description: string | null;
       details: {
         commonName: string;
-        description: string | null;
         inaturalistObservationId: number | null;
         scientificName: string;
       };
@@ -33,29 +33,32 @@ function renderBoundingBox(box: BoundingBox | null): string[] {
 }
 
 function renderDescription(description: string | null): string {
-  return `      description: ${description === null ? 'null' : JSON.stringify(description)}`;
+  return `    description: ${description === null ? 'null' : JSON.stringify(description)}`;
 }
 
 /**
  * One `objects:` list item. The organism rendering is load-bearing beyond this
- * file: sync-inaturalist.ts:28 matches `commonName`/`description`/
- * `inaturalistObservationId`/`scientificName` as four consecutive 6-space
- * indented lines, so that shape must not drift.
+ * file: sync-inaturalist.ts:28 matches `description`/`commonName`/
+ * `inaturalistObservationId`/`scientificName` at their respective indents, so
+ * that shape must not drift.
  */
 export function renderObject(entry: PhotoObjectEntry): string {
-  const lines = [...renderBoundingBox(entry.boundingBox), '    details:'];
+  const lines = [
+    ...renderBoundingBox(entry.boundingBox),
+    // sync-inaturalist.ts captures and echoes this value back verbatim, so a
+    // non-null description here round-trips through the nightly job.
+    renderDescription(entry.description),
+  ];
   if (entry.objectType === 'organism') {
     lines.push(
+      '    details:',
       `      commonName: ${JSON.stringify(entry.details.commonName)}`,
-      // sync-inaturalist.ts captures and echoes this value back verbatim, so a
-      // non-null description here round-trips through the nightly job.
-      renderDescription(entry.details.description),
       `      inaturalistObservationId: ${entry.details.inaturalistObservationId ?? 'null'}`,
       `      scientificName: ${JSON.stringify(entry.details.scientificName)}`,
       '    objectType: organism'
     );
   } else {
-    lines.push(`      description: ${JSON.stringify(entry.details.description)}`, '    objectType: landmark');
+    lines.push('    objectType: landmark');
   }
   return lines.join('\n');
 }
@@ -64,9 +67,9 @@ export function renderObjectsBlock(entries: PhotoObjectEntry[]): string {
   if (entries.length === 0) {
     return `objects:
   # - boundingBox: null
+  #   description: null
   #   details:
   #     commonName: ""
-  #     description: null
   #     inaturalistObservationId: null
   #     scientificName: ""
   #   objectType: organism`;

@@ -12,9 +12,9 @@ objects:
       left: 0.2840012668659283
       right: 0.5873049495914001
       top: 0.26620752280999727
+    description: null
     details:
       commonName: "Wood Frog"
-      description: null
       inaturalistObservationId: 411505271
       scientificName: "Lithobates sylvaticus"
     objectType: organism

@@ -12,9 +12,9 @@ objects:
       left: 0.47937850481090727
       right: 0.5710708740467046
       top: 0.30163219906881655
+    description: null
     details:
       commonName: "Northern Cardinal"
-      description: null
       inaturalistObservationId: 411505374
       scientificName: "Cardinalis cardinalis"
     objectType: organism

@@ -12,9 +12,9 @@ objects:
       left: 0.25938943129970166
       right: 0.5561138922122796
       top: 0.3719765229268347
+    description: null
     details:
       commonName: "Eastern Gray Squirrel"
-      description: null
       inaturalistObservationId: 411505333
       scientificName: "Sciurus carolinensis"
     objectType: organism

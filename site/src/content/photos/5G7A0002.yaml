@@ -7,9 +7,9 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude:
 notes: Second shot!
 objects:
-  - details:
+  - description: Hammock swing for scale...
+    details:
       commonName: "eastern black walnut"
-      description: Hammock swing for scale...
       inaturalistObservationId: 411678879
       scientificName: "Juglans nigra"
     objectType: organism

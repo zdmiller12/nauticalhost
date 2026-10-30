@@ -12,9 +12,9 @@ objects:
       left: 0.4588317528728863
       right: 0.5524966475284565
       top: 0.31074615996241906
+    description: null
     details:
       commonName: "Pileated Woodpecker"
-      description: null
       inaturalistObservationId: 411505365
       scientificName: "Dryocopus pileatus"
     objectType: organism

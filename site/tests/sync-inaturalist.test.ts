@@ -16,9 +16,9 @@ lens: "100-400mm GM"
 longitude: -76.4922
 notes: # optional
 objects:
-  - details:
+  - description: null
+    details:
       commonName: ""
-      description: null
       inaturalistObservationId: null
       scientificName: "Pandion haliaetus"
     objectType: organism
@@ -36,9 +36,9 @@ lens: "100-400mm GM"
 longitude: -76.4922
 notes: # optional
 objects:
-  - details:
+  - description: null
+    details:
       commonName: "Osprey"
-      description: null
       inaturalistObservationId: 999
       scientificName: "Pandion haliaetus"
     objectType: organism
@@ -56,9 +56,9 @@ lens: "100-400mm GM"
 longitude: -76.4922
 notes: # optional
 objects:
-  - details:
+  - description: "seen from the north jetty"
+    details:
       commonName: ""
-      description: "seen from the north jetty"
       inaturalistObservationId: null
       scientificName: "Larus argentatus"
     objectType: organism
@@ -76,9 +76,9 @@ lens: "100-400mm GM"
 longitude: -76.4922
 notes: # optional
 objects:
-  - details:
+  - description: "seen from the north jetty"
+    details:
       commonName: "Herring Gull"
-      description: "seen from the north jetty"
       inaturalistObservationId: 99
       scientificName: "Larus argentatus"
     objectType: organism
@@ -96,15 +96,15 @@ lens: "100-400mm GM"
 longitude: -76.4922
 notes: # optional
 objects:
-  - details:
+  - description: null
+    details:
       commonName: ""
-      description: null
       inaturalistObservationId: null
       scientificName: "Pandion haliaetus"
     objectType: organism
-  - details:
+  - description: null
+    details:
       commonName: ""
-      description: null
       inaturalistObservationId: null
       scientificName: "Larus argentatus"
     objectType: organism
@@ -122,8 +122,7 @@ lens: null
 longitude: null
 notes: # optional
 objects:
-  - details:
-      description: "Cape Charles Lighthouse"
+  - description: "Cape Charles Lighthouse"
     objectType: landmark
 other: {}
 slug: 2026-05-20-lighthouse
@@ -237,9 +236,11 @@ describe('syncInaturalist', () => {
     const result = await syncInaturalist(deps, credentials, 'photos/*.yaml');
 
     expect(result.changedFiles).toEqual(['photos/gull.yaml']);
+    // description now lives outside the block ORGANISM_BLOCK matches, so it
+    // is never read or rewritten -- it simply survives untouched in the text.
     expect(writeFile).toHaveBeenCalledWith(
       'photos/gull.yaml',
-      expect.stringContaining('      description: "seen from the north jetty"')
+      expect.stringContaining('description: "seen from the north jetty"')
     );
     expect(writeFile).toHaveBeenCalledWith(
       'photos/gull.yaml',
@@ -261,7 +262,7 @@ describe('syncInaturalist', () => {
     expect(result.changedFiles).toEqual(['photos/gull.yaml']);
     expect(writeFile).toHaveBeenCalledWith(
       'photos/gull.yaml',
-      expect.stringContaining('      description: "seen from the north jetty"')
+      expect.stringContaining('description: "seen from the north jetty"')
     );
     expect(writeFile).toHaveBeenCalledWith(
       'photos/gull.yaml',
@@ -295,7 +296,7 @@ describe('syncInaturalist', () => {
     );
   });
 
-  it('leaves a null description as the bare literal null, not "null"', async () => {
+  it('leaves a null description as the bare literal null, untouched', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] })) // resolveTaxon
@@ -307,8 +308,10 @@ describe('syncInaturalist', () => {
 
     await syncInaturalist(deps, credentials, 'photos/*.yaml');
 
+    // description sits outside the block ORGANISM_BLOCK rewrites, so it is
+    // carried through as plain surrounding text, never touched at all.
     const written = writeFile.mock.calls[0][1] as string;
-    expect(written).toContain('      description: null');
-    expect(written).not.toContain('      description: "null"');
+    expect(written).toContain('description: null');
+    expect(written).not.toContain('description: "null"');
   });
 });

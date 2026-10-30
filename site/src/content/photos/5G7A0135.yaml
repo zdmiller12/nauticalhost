@@ -8,9 +8,9 @@ longitude: -82.104678
 notes: # optional
 objects:
   - boundingBox: null
+    description: null
     details:
       commonName: "Dark-eyed Junco"
-      description: null
       inaturalistObservationId: 411499109
       scientificName: "Junco hyemalis"
     objectType: organism

@@ -7,9 +7,9 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude:
 notes: Spikey boy
 objects:
-  - details:
+  - description: "Full name: Dr. Spike Jones Rodgers Miller"
+    details:
       commonName: "Domestic Dog"
-      description: "Full name: Dr. Spike Jones Rodgers Miller"
       inaturalistObservationId: 411678885
       scientificName: "Canis familiaris"
     objectType: organism

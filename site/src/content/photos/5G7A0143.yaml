@@ -8,9 +8,9 @@ longitude: -82.090907
 notes: # optional
 objects:
   - boundingBox: null
+    description: null
     details:
       commonName: "Isabella Tiger Moth"
-      description: null
       inaturalistObservationId: 411499133
       scientificName: "Pyrrharctia isabella"
     objectType: organism

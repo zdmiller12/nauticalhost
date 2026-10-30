@@ -12,9 +12,9 @@ objects:
       left: 0.3382295410748295
       right: 0.5663304120566472
       top: 0.15416095260711044
+    description: null
     details:
       commonName: "Marbled Orbweaver"
-      description: null
       inaturalistObservationId: 411505304
       scientificName: "Araneus marmoreus"
     objectType: organism

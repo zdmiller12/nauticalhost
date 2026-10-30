@@ -8,9 +8,9 @@ longitude: -82.090907
 notes: # optional
 objects:
   - boundingBox: null
+    description: null
     details:
       commonName: "common sneezeweed"
-      description: null
       inaturalistObservationId: 411499058
       scientificName: "Helenium autumnale"
     objectType: organism

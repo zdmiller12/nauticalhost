@@ -12,9 +12,9 @@ objects:
       left: 0.3187026368945512
       right: 0.5654611655143558
       top: 0.347913539658704
+    description: null
     details:
       commonName: "White-tailed Deer"
-      description: null
       inaturalistObservationId: 411505344
       scientificName: "Odocoileus virginianus"
     objectType: organism

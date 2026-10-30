@@ -182,7 +182,7 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
     if (input.objectType === 'landmark') {
       entries.push({
         boundingBox: input.boundingBox,
-        details: { description: input.description },
+        description: input.description,
         objectType: 'landmark',
       });
       continue;
@@ -191,9 +191,9 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
       // Species known but iNaturalist skipped: keep the name, leave it unlinked.
       entries.push({
         boundingBox: input.boundingBox,
+        description: input.description,
         details: {
           commonName: '',
-          description: input.description,
           inaturalistObservationId: null,
           scientificName: input.scientificName,
         },
@@ -227,9 +227,9 @@ export async function publishPhoto(deps: PublishDeps, args: PublishArgs): Promis
     result.observationIds.push(inat.observationId);
     entries.push({
       boundingBox: input.boundingBox,
+      description: input.description,
       details: {
         commonName: inat.commonName,
-        description: input.description,
         inaturalistObservationId: inat.observationId,
         scientificName: input.scientificName,
       },
