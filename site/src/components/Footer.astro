@@ -5,7 +5,12 @@ import { socialLinks } from '../data/social-links';
   <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-ink-muted">
     <nav class="flex gap-4">
       {socialLinks.map((link) => (
-        <a href={link.url} class="hover:text-clay">{link.label}</a>
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-clay">{link.label}
+        </a>
       ))}
     </nav>
     <p>&copy; {new Date().getFullYear()} Zack Miller</p>
