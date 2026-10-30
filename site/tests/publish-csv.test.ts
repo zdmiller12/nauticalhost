@@ -805,10 +805,22 @@ describe('createRealCsvIo', () => {
   });
 
   it('sleeps for the requested duration', async () => {
-    const io = createRealCsvIo();
-    const started = Date.now();
-    await io.sleep(10);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(10);
+    vi.useFakeTimers();
+    try {
+      const io = createRealCsvIo();
+      let resolved = false;
+      io.sleep(10).then(() => {
+        resolved = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(9);
+      expect(resolved).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(resolved).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
