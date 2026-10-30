@@ -12,9 +12,9 @@ objects:
       left: 0.24944377529724057
       right: 0.635318524730949
       top: 0.07724740036857192
+    description: null
     details:
       commonName: "Banded Tussock Moth"
-      description: null
       inaturalistObservationId: 411505321
       scientificName: "Halysidota tessellaris"
     objectType: organism

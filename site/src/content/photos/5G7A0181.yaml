@@ -12,9 +12,9 @@ objects:
       left: 0.46523055201637276
       right: 0.6652305520163728
       top: 0.4359241301561381
+    description: null
     details:
       commonName: "Carolina Chickadee"
-      description: null
       inaturalistObservationId: 411505263
       scientificName: "Poecile carolinensis"
     objectType: organism

@@ -1,7 +1,7 @@
 import type { PhotoObject } from '../content/schema';
 
 export function objectName(obj: PhotoObject): string {
-  return obj.objectType === 'organism' ? obj.details.commonName : obj.details.description;
+  return obj.objectType === 'organism' ? obj.details.commonName : obj.description;
 }
 
 export function photoTitle(objects: PhotoObject[]): string {

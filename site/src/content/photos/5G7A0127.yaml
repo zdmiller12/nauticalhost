@@ -8,9 +8,9 @@ longitude: -82.090907
 notes: # optional
 objects:
   - boundingBox: null
+    description: null
     details:
       commonName: "Eastern Towhee"
-      description: null
       inaturalistObservationId: 411499080
       scientificName: "Pipilo erythrophthalmus"
     objectType: organism

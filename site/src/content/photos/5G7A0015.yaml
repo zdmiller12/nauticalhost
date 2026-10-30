@@ -7,9 +7,9 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.100112
 notes: Tom Gray (STORYBOOK) Trail
 objects:
-  - details:
+  - description: With bud.
+    details:
       commonName: "great rhododendron"
-      description: With bud.
       inaturalistObservationId: 411678891
       scientificName: "Rhododendron maximum"
     objectType: organism

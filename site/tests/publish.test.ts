@@ -192,8 +192,7 @@ describe('publishPhoto with bounding boxes', () => {
 notes: # optional
 objects:
   - boundingBox: null
-    details:
-      description: "A"
+    description: "A"
     objectType: landmark
 other: {}
 slug: osprey-nest
@@ -228,8 +227,7 @@ objects:
       left: ${existingBox.left}
       right: ${existingBox.right}
       top: ${existingBox.top}
-    details:
-      description: "Existing first object"
+    description: "Existing first object"
     objectType: landmark
 other: {}
 slug: osprey-nest
@@ -264,9 +262,9 @@ tier: E
     const existing = `---
 objects:
   # - boundingBox: null
+  #   description: null
   #   details:
   #     commonName: ""
-  #     description: null
   #     scientificName: ""
   #   objectType: organism
 slug: osprey-nest
@@ -818,7 +816,8 @@ describe('buildMetadataYaml round-trip through the schema', () => {
     parsed.tier = 'B';
     parsed.objects = [
       {
-        details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+        description: null,
+        details: { commonName: 'Osprey', scientificName: 'Pandion haliaetus' },
         objectType: 'organism',
       },
     ];
@@ -843,7 +842,7 @@ describe('buildMetadataYaml round-trip through the schema', () => {
 
     parsed.tier = 'A';
     parsed.objects = [
-      { details: { description: 'Cape Charles Lighthouse' }, objectType: 'landmark' },
+      { description: 'Cape Charles Lighthouse', objectType: 'landmark' },
     ];
 
     const result = photoSchema.safeParse(parsed);

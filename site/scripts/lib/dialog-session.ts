@@ -62,7 +62,7 @@ const normalizeName = (value: string): string => value.trim().toLowerCase();
 /** The identifying text of an object: the species for an organism, the description for a landmark. */
 function identity(entry: ObjectInput | PhotoObjectEntry): string {
   if (entry.objectType === 'landmark') {
-    return normalizeName('details' in entry ? entry.details.description : entry.description);
+    return normalizeName(entry.description);
   }
   return normalizeName('details' in entry ? entry.details.scientificName : entry.scientificName);
 }

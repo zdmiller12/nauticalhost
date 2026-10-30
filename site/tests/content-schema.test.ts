@@ -50,9 +50,9 @@ describe('photoSchema', () => {
       ...basePhoto,
       objects: [
         {
+          description: null,
           details: {
             commonName: 'Osprey',
-            description: null,
             scientificName: 'Pandion haliaetus',
           },
           objectType: 'organism',
@@ -68,9 +68,9 @@ describe('photoSchema', () => {
       ...basePhoto,
       objects: [
         {
+          description: null,
           details: {
             commonName: 'Osprey',
-            description: null,
             inaturalistObservationId: 123456,
             scientificName: 'Pandion haliaetus',
           },
@@ -86,7 +86,8 @@ describe('photoSchema', () => {
       ...basePhoto,
       objects: [
         {
-          details: { commonName: 'Osprey', description: null, scientificName: 'Pandion haliaetus' },
+          description: null,
+          details: { commonName: 'Osprey', scientificName: 'Pandion haliaetus' },
           objectType: 'organism',
         },
       ],
@@ -100,9 +101,9 @@ describe('photoSchema', () => {
       ...basePhoto,
       objects: [
         {
+          description: null,
           details: {
             commonName: 'Osprey',
-            description: null,
             inaturalistObservationId: 'not-a-number',
             scientificName: 'Pandion haliaetus',
           },
@@ -117,7 +118,7 @@ describe('photoSchema', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       objects: [
-        { details: { description: 'Osprey platform, Chesapeake Bay' }, objectType: 'landmark' },
+        { description: 'Osprey platform, Chesapeake Bay', objectType: 'landmark' },
       ],
     });
     expect(result.success).toBe(true);
@@ -126,7 +127,7 @@ describe('photoSchema', () => {
   it('rejects a tier value outside S-F', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
-      objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
+      objects: [{ description: 'x', objectType: 'landmark' }],
       tier: 'Z',
     });
     expect(result.success).toBe(false);
@@ -141,7 +142,7 @@ describe('photoSchema', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       objects: [
-        { details: { commonName: 'Osprey', description: null }, objectType: 'organism' },
+        { description: null, details: { commonName: 'Osprey' }, objectType: 'organism' },
       ],
     });
     expect(result.success).toBe(false);
@@ -151,15 +152,15 @@ describe('photoSchema', () => {
     const result = photoSchema.safeParse({
       ...basePhoto,
       latitude: 200,
-      objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
+      objects: [{ description: 'x', objectType: 'landmark' }],
     });
     expect(result.success).toBe(false);
   });
 
   const organismObject = {
+    description: null,
     details: {
       commonName: 'Osprey',
-      description: null,
       inaturalistObservationId: null,
       scientificName: 'Pandion haliaetus',
     },
@@ -188,7 +189,7 @@ describe('photoSchema', () => {
       objects: [
         {
           boundingBox: { bottom: 1, left: 0, right: 1, top: 0 },
-          details: { description: 'The lighthouse at Portland Head.' },
+          description: 'The lighthouse at Portland Head.',
           objectType: 'landmark',
         },
       ],
@@ -227,7 +228,7 @@ describe('photoSchema camera and lens', () => {
     file: 'compendium/alpha/5G7A0001.JPG',
     latitude: null,
     longitude: null,
-    objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
+    objects: [{ description: 'x', objectType: 'landmark' }],
     slug: '5G7A0001',
     tier: 'D',
   };
@@ -249,7 +250,7 @@ describe('photoSchema other', () => {
     file: 'compendium/alpha/5G7A0001.JPG',
     latitude: null,
     longitude: null,
-    objects: [{ details: { description: 'x' }, objectType: 'landmark' }],
+    objects: [{ description: 'x', objectType: 'landmark' }],
     slug: '5G7A0001',
     tier: 'D',
   };

@@ -12,9 +12,9 @@ objects:
       left: 0.4305224592322337
       right: 0.6490118009066871
       top: 0.2269867349952731
+    description: null
     details:
       commonName: "Coprinopsis sect. Picaceae"
-      description: null
       inaturalistObservationId: 411505356
       scientificName: "Picaceae"
     objectType: organism

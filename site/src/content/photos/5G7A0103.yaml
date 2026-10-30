@@ -7,9 +7,9 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.090907
 notes: A good boy.
 objects:
-  - details:
+  - description: null
+    details:
       commonName: "Domestic Dog"
-      description: null
       inaturalistObservationId: 408634407
       scientificName: "Canis familiaris"
     objectType: organism

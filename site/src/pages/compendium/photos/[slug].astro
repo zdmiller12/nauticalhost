@@ -85,7 +85,7 @@ const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text
               <>
                 <p class="font-semibold">{obj.details.commonName}</p>
                 <p class="italic text-ink-muted">{obj.details.scientificName}</p>
-                {obj.details.description && <p class="mt-1 text-sm text-ink-muted">{obj.details.description}</p>}
+                {obj.description && <p class="mt-1 text-sm text-ink-muted">{obj.description}</p>}
                 {obj.details.inaturalistObservationId && (
                   <a
                     href={`https://www.inaturalist.org/observations/${obj.details.inaturalistObservationId}`}
@@ -100,7 +100,7 @@ const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wider text
               </>
             ) : (
               <>
-                <p class="font-semibold">{obj.details.description}</p>
+                <p class="font-semibold">{obj.description}</p>
                 <p class="text-sm text-ink-muted">Landmark</p>
               </>
             )}

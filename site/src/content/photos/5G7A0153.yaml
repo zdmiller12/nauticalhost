@@ -12,9 +12,9 @@ objects:
       left: 0.314872866947245
       right: 0.5878713446166071
       top: 0.23874048800797112
+    description: null
     details:
       commonName: "Buttercup Oil Beetle"
-      description: null
       inaturalistObservationId: 411505255
       scientificName: "Meloe americanus"
     objectType: organism

@@ -27,16 +27,14 @@ const boundingBoxSchema = z
 export const photoObjectSchema = z.discriminatedUnion('objectType', [
   z.object({
     boundingBox: boundingBoxSchema.nullable().default(null),
-    details: z.object({
-      description: z.string(),
-    }),
+    description: z.string(),
     objectType: z.literal('landmark'),
   }),
   z.object({
     boundingBox: boundingBoxSchema.nullable().default(null),
+    description: z.string().nullable(),
     details: z.object({
       commonName: z.string(),
-      description: z.string().nullable(),
       inaturalistObservationId: z.number().nullable().default(null),
       scientificName: z.string(),
     }),

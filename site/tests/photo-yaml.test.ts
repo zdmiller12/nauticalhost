@@ -9,9 +9,9 @@ import {
 
 const organism: PhotoObjectEntry = {
   boundingBox: { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 },
+  description: null,
   details: {
     commonName: 'Osprey',
-    description: null,
     inaturalistObservationId: 12345,
     scientificName: 'Pandion haliaetus',
   },
@@ -20,7 +20,7 @@ const organism: PhotoObjectEntry = {
 
 const landmark: PhotoObjectEntry = {
   boundingBox: null,
-  details: { description: 'Portland Head Light' },
+  description: 'Portland Head Light',
   objectType: 'landmark',
 };
 
@@ -34,9 +34,9 @@ longitude: -82.102822
 notes: # optional
 objects:
   - boundingBox: null
+    description: null
     details:
       commonName: "Common Buckeye"
-      description: null
       inaturalistObservationId: null
       scientificName: "Junonia coenia"
     objectType: organism
@@ -54,9 +54,9 @@ describe('renderObject', () => {
       left: 0.25
       right: 0.6
       top: 0.4
+    description: null
     details:
       commonName: "Osprey"
-      description: null
       inaturalistObservationId: 12345
       scientificName: "Pandion haliaetus"
     objectType: organism`);
@@ -64,24 +64,23 @@ describe('renderObject', () => {
 
   it('renders a null box and a landmark', () => {
     expect(renderObject(landmark)).toBe(`  - boundingBox: null
-    details:
-      description: "Portland Head Light"
+    description: "Portland Head Light"
     objectType: landmark`);
   });
 
   it('quotes a description that is present', () => {
-    expect(
-      renderObject({ ...organism, details: { ...organism.details, description: 'Perched on a piling.' } })
-    ).toContain('description: "Perched on a piling."');
+    expect(renderObject({ ...organism, description: 'Perched on a piling.' })).toContain(
+      'description: "Perched on a piling."'
+    );
   });
 
   it('renders an organism with null inaturalistObservationId', () => {
     expect(
       renderObject({
         boundingBox: null,
+        description: null,
         details: {
           commonName: 'Osprey',
-          description: null,
           inaturalistObservationId: null,
           scientificName: 'Pandion haliaetus',
         },
@@ -90,7 +89,7 @@ describe('renderObject', () => {
     ).toContain('inaturalistObservationId: null');
   });
 
-  // Guards sync-inaturalist.ts:28. Its ORGANISM_BLOCK regex matches four
+  // Guards sync-inaturalist.ts:28. Its ORGANISM_BLOCK regex matches three
   // consecutive lines INSIDE `details`; if this rendering ever drifts, the
   // observation backfill silently stops matching anything. Keep this pattern
   // character-for-character identical to the one in sync-inaturalist.ts --
@@ -99,12 +98,11 @@ describe('renderObject', () => {
   // interleaved matchAll/exec calls across modules.
   it('stays matchable by sync-inaturalist ORGANISM_BLOCK', () => {
     const ORGANISM_BLOCK =
-      /commonName: "(?<commonName>[^"]*)"\n\s+description: (?<description>[^\n]*)\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
+      /commonName: "(?<commonName>[^"]*)"\n\s+inaturalistObservationId: (?<id>null|\d+)\n\s+scientificName: "(?<scientificName>[^"]*)"/g;
     const matches = [...renderObject(organism).matchAll(ORGANISM_BLOCK)];
     expect(matches).toHaveLength(1);
     expect(matches[0].groups).toMatchObject({
       commonName: 'Osprey',
-      description: 'null',
       id: '12345',
       scientificName: 'Pandion haliaetus',
     });
@@ -124,16 +122,16 @@ describe('renderObjectsBlock', () => {
     expect(block).toContain('#     inaturalistObservationId: null');
   });
 
-  it('places the placeholder\'s inaturalistObservationId line alphabetically, between description and scientificName', () => {
+  it("places the placeholder's inaturalistObservationId line alphabetically, between commonName and scientificName", () => {
     const lines = renderObjectsBlock([])
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.startsWith('#') && line.includes(':'));
-    const descriptionIndex = lines.indexOf('#     description: null');
+    const commonNameIndex = lines.findIndex((line) => line.startsWith('#     commonName'));
     const idIndex = lines.indexOf('#     inaturalistObservationId: null');
     const scientificNameIndex = lines.findIndex((line) => line.startsWith('#     scientificName'));
-    expect(descriptionIndex).toBeGreaterThanOrEqual(0);
-    expect(idIndex).toBeGreaterThan(descriptionIndex);
+    expect(commonNameIndex).toBeGreaterThanOrEqual(0);
+    expect(idIndex).toBeGreaterThan(commonNameIndex);
     expect(scientificNameIndex).toBeGreaterThan(idIndex);
   });
 
@@ -151,8 +149,7 @@ describe('appendObjects', () => {
 
     expect(updated).toContain(`    objectType: organism
   - boundingBox: null
-    details:
-      description: "Portland Head Light"
+    description: "Portland Head Light"
     objectType: landmark
 other:`);
     // Hand-edited values and the inline comment must survive untouched.
@@ -185,8 +182,7 @@ tier: E
 slug: x
 objects:
   - boundingBox: null
-    details:
-      description: "A"
+    description: "A"
     objectType: landmark
 `;
     const updated = appendObjects(trailing, [landmark]);

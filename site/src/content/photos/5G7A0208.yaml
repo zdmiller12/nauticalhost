@@ -12,9 +12,9 @@ objects:
       left: 0.23880263012582817
       right: 0.4388026301258281
       top: 0.30650507553242856
+    description: null
     details:
       commonName: "Wood Thrush"
-      description: null
       inaturalistObservationId: 411505291
       scientificName: "Hylocichla mustelina"
     objectType: organism

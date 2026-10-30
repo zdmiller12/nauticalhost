@@ -243,8 +243,9 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
   const describeExisting = (object: QueuePhoto['existingObjects'][number]): string => {
     // Every text detail, whichever object type it is: the published entry is
     // only ever read here, so there is nothing to gain from naming the fields.
-    const details = Object.values(object.details as Record<string, unknown>);
-    return [object.objectType, ...details.filter((value) => typeof value === 'string')].join(' — ');
+    const details = 'details' in object ? Object.values(object.details as Record<string, unknown>) : [];
+    const fields = [object.description, ...details];
+    return [object.objectType, ...fields.filter((value) => typeof value === 'string')].join(' — ');
   };
 
   const render = () => {

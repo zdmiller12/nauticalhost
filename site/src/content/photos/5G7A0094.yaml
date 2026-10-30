@@ -7,9 +7,9 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.102822
 notes: On the Appalachian Trail near Roan Mountain, NC
 objects:
-  - details:
+  - description: null
+    details:
       commonName: "Common Buckeye"
-      description: null
       inaturalistObservationId: 411678896
       scientificName: "Junonia coenia"
     objectType: organism

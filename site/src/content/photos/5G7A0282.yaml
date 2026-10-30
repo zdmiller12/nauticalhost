@@ -12,9 +12,9 @@ objects:
       left: 0.21602750308011376
       right: 1
       top: 0.0005384686171039887
+    description: null
     details:
       commonName: "Hemlock Woolly Adelgid"
-      description: null
       inaturalistObservationId: 411505386
       scientificName: "Adelges tsugae"
     objectType: organism

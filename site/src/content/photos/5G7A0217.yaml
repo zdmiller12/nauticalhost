@@ -12,9 +12,9 @@ objects:
       left: 0.01752857701010345
       right: 0.7987052507408638
       top: 0.15526688808324335
+    description: null
     details:
       commonName: "Blue Ridge gentian"
-      description: null
       inaturalistObservationId: 411505316
       scientificName: "Gentiana austromontana"
     objectType: organism
