@@ -8,9 +8,9 @@ longitude:
 notes: Spikey boy
 objects:
   - details:
-      commonName: "Domestic dog"
+      commonName: "Domestic Dog"
       description: "Full name: Dr. Spike Jones Rodgers Miller"
-      inaturalistObservationId: null
+      inaturalistObservationId: 411678885
       scientificName: "Canis familiaris"
     objectType: organism
 slug: 5G7A0007

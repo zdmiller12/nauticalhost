@@ -16,7 +16,7 @@ objects:
       commonName: "Wood Frog"
       description: null
       inaturalistObservationId: 411505271
-      scientificName: "Lithobates sylvatica"
+      scientificName: "Lithobates sylvaticus"
     objectType: organism
 other:
   ApertureValue: 3
