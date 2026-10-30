@@ -7,7 +7,11 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.090907
 notes: # optional
 objects:
-  - boundingBox: null
+  - boundingBox:
+      bottom: 0.5050833302027352
+      left: 0.3736042956224289
+      right: 0.604401491463422
+      top: 0.16854156463501765
     description: null
     details:
       commonName: "Eastern Towhee"

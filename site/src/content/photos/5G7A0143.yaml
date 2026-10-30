@@ -7,7 +7,11 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -82.090907
 notes: # optional
 objects:
-  - boundingBox: null
+  - boundingBox:
+      bottom: 0.6493213868561063
+      left: 0.36254185777200526
+      right: 0.5604966691332093
+      top: 0.41317256017555243
     description: null
     details:
       commonName: "Isabella Tiger Moth"
