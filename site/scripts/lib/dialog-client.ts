@@ -250,7 +250,11 @@ export function initDialog(root: HTMLElement, deps: DialogClientDeps): void {
 
   const render = () => {
     const photo = queue[current];
-    image.setAttribute('src', `/photo/${photo.index}`);
+    const photoIndex = Number(photo.index);
+    if (!Number.isFinite(photoIndex) || !Number.isInteger(photoIndex) || photoIndex < 0) {
+      throw new Error('Invalid photo index');
+    }
+    image.setAttribute('src', `/photo/${photoIndex}`);
     position.textContent = `${photo.slug} — ${current + 1} of ${queue.length}`;
     button('prev').disabled = current === 0;
     button('next').disabled = current === queue.length - 1;
