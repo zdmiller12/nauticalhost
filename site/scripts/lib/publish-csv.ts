@@ -277,7 +277,7 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
   const [csvPath, ...flagArgs] = io.argv.slice(2);
   if (!csvPath) {
     io.error(
-      'Usage: npm run publish-photo-csv -- <csvPath> [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
+      'Usage: npm run publish-photo-csv -- <csvPath> [--no-save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]'
     );
     io.exit(1);
     return;
@@ -320,7 +320,7 @@ export async function runPublishCsv(io: CsvIo): Promise<void> {
     }
   }
 
-  const saveCrops = flagArgs.includes('--save-crops');
+  const saveCrops = !flagArgs.includes('--no-save-crops');
   const invocationCommand = `npm run publish-photo-csv -- ${[csvPath, ...flagArgs].join(' ')}`;
   const result = await publishCsv(
     io,

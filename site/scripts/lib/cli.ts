@@ -142,12 +142,12 @@ export function parseObjectFlags(flagArgs: string[]): { objects: ObjectInput[] }
   };
 }
 
-/** Where `--save-crops` writes a local copy of each drawn box's crop. */
+/** Where crops are saved by default, local copies of each drawn box's crop. */
 const CROP_DIR = 'scripts/usage/cropped-photos';
 
 /**
- * Builds the `saveCrop` dep for `--save-crops`. The directory is already
- * git-ignored via the existing `scripts/usage/` entry.
+ * Builds the `saveCrop` dep, used unless `--no-save-crops` is passed. The
+ * directory is already git-ignored via the existing `scripts/usage/` entry.
  *
  * Named after the R2 thumbnail key (`<r2KeyPrefix>-thumb.jpg`'s basename) so
  * the local crop and the uploaded thumbnail are easy to match up by eye.
@@ -215,7 +215,7 @@ export function parseActionFlags(flagArgs: string[]): { actions: PublishActions 
 export async function runCli(io: CliIo): Promise<void> {
   const [rawSourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
   if (!rawSourcePath || !r2KeyPrefixArg) {
-    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
+    io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--no-save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
     io.exit(1);
     return;
   }
@@ -350,7 +350,7 @@ export async function runCli(io: CliIo): Promise<void> {
       readFile: io.readFile,
       readTextFile: io.readTextFile,
       resizePhoto: io.resizePhoto,
-      saveCrop: flagArgs.includes('--save-crops') ? createSaveCrop(io) : undefined,
+      saveCrop: flagArgs.includes('--no-save-crops') ? undefined : createSaveCrop(io),
       uploadObject: (b, key, body, contentType) => io.uploadObject(client!, b, key, body, contentType),
       writeFile: io.writeFile,
     },
