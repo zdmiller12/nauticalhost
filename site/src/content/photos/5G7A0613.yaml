@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-08-24T18:33:43Z
+file: compendium/gamma/5G7A0613.JPG
+latitude: 39.026195
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -79.316501
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.3851270339266075
+      left: 0.5044716781801996
+      right: 0.6159886490007974
+      top: 0.22591694069452406
+    description: null
+    details:
+      commonName: "Yellow Garden Spider"
+      inaturalistObservationId: 415483050
+      scientificName: "Argiope aurantia"
+    objectType: organism
+other:
+  ApertureValue: 5
+  ColorSpace: 1
+  CreateDate: "2026-08-24T18:33:43.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Aperture priority"
+  ExposureTime: 0.0025
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 5.6
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 640
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-08-24T18:33:43.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 640
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 8.625
+  SubSecTime: "00"
+  SubSecTimeDigitized: "00"
+  SubSecTimeOriginal: "00"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0613
+tier: E

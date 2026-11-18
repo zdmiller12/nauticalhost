@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-07-17T23:00:59Z
+file: compendium/gamma/5G7A0586.JPG
+latitude: 36.105886
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.090907
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 1
+      left: 0.0009862339801620104
+      right: 0.6330364824980242
+      top: 0
+    description: null
+    details:
+      commonName: "coral honeysuckle"
+      inaturalistObservationId: 415483001
+      scientificName: "Lonicera semperviren"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2026-07-17T23:00:59.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 320
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-07-17T23:00:59.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 320
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "18"
+  SubSecTimeDigitized: "18"
+  SubSecTimeOriginal: "18"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0586
+tier: E

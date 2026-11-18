@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-01-23T21:35:38Z
+file: compendium/gamma/5G7A0417.JPG
+latitude: 36.105886
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.090907
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.5205188302890709
+      left: 0.3929560461647599
+      right: 0.5107347178838743
+      top: 0.3247909938034837
+    description: null
+    details:
+      commonName: "Hairy Woodpecker"
+      inaturalistObservationId: 415482822
+      scientificName: "Leuconotopicus villosus"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2026-01-23T22:35:38.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.00125
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 400
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-01-23T22:35:38.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 400
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.625
+  SubSecTime: "25"
+  SubSecTimeDigitized: "25"
+  SubSecTimeOriginal: "25"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0417
+tier: E

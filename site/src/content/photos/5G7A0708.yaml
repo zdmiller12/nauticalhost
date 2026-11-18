@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-08-26T00:00:14Z
+file: compendium/gamma/5G7A0708.JPG
+latitude: 39.026195
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -79.316501
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.34327938709667416
+      left: 0.6145297938159613
+      right: 0.7989497044803086
+      top: 0.02999057546367033
+    description: null
+    details:
+      commonName: "Monarch"
+      inaturalistObservationId: 415483128
+      scientificName: "Danaus plexippus"
+    objectType: organism
+other:
+  ApertureValue: 3
+  ColorSpace: 1
+  CreateDate: "2026-08-26T00:00:14.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.004
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 2.8
+  FocalLength: 111
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 6400
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-08-26T00:00:14.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 6400
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 8
+  SubSecTime: "56"
+  SubSecTimeDigitized: "56"
+  SubSecTimeOriginal: "56"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0708
+tier: E

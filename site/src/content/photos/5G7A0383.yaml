@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-01-01T16:24:41Z
+file: compendium/gamma/5G7A0383.JPG
+latitude: 36.105886
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.090907
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.5474444152255288
+      left: 0.46505796106984437
+      right: 0.5813287244726343
+      top: 0.37910024198087244
+    description: null
+    details:
+      commonName: "Blue Jay"
+      inaturalistObservationId: 415482767
+      scientificName: "Cyanocitta cristata"
+    objectType: organism
+other:
+  ApertureValue: 3.375
+  ColorSpace: 1
+  CreateDate: "2026-01-01T17:24:41.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 3.2
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 200
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-01-01T17:24:41.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 200
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "21"
+  SubSecTimeDigitized: "21"
+  SubSecTimeOriginal: "21"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0383
+tier: E
