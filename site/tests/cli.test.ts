@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   createRealCliIo,
   createSaveCrop,
+  expandHome,
   parseBoundingBox,
   parseObjectFlags,
   runCli,
@@ -59,6 +60,28 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     ...overrides,
   };
 }
+
+describe('expandHome', () => {
+  it('expands a leading ~/ to the home directory', () => {
+    expect(expandHome('~/mnt/nas-photos/a.JPG', '/home/user')).toBe('/home/user/mnt/nas-photos/a.JPG');
+  });
+
+  it('expands a leading $HOME/ to the home directory', () => {
+    expect(expandHome('$HOME/mnt/nas-photos/a.JPG', '/home/user')).toBe('/home/user/mnt/nas-photos/a.JPG');
+  });
+
+  it('leaves an absolute path unchanged', () => {
+    expect(expandHome('/tmp/a.JPG', '/home/user')).toBe('/tmp/a.JPG');
+  });
+
+  it('leaves a ~/ path unchanged when home is unset', () => {
+    expect(expandHome('~/mnt/nas-photos/a.JPG', undefined)).toBe('~/mnt/nas-photos/a.JPG');
+  });
+
+  it('does not expand ~ without a following slash', () => {
+    expect(expandHome('~user/a.JPG', '/home/user')).toBe('~user/a.JPG');
+  });
+});
 
 describe('parseBoundingBox', () => {
   it('parses four normalized values', () => {

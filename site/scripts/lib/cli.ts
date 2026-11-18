@@ -86,7 +86,9 @@ export function createRealCliIo(): CliIo {
  * (e.g. `~/mnt/nas-photos/5G7A0292.JPG`) into an absolute path.
  */
 export function expandHome(rawPath: string, home: string | undefined): string {
-  // TODO: decide which abbreviations to accept and what to do when `home` is unset.
+  if (!home) return rawPath;
+  if (rawPath.startsWith('~/')) return `${home}${rawPath.slice(1)}`;
+  if (rawPath.startsWith('$HOME/')) return `${home}${rawPath.slice('$HOME'.length)}`;
   return rawPath;
 }
 
