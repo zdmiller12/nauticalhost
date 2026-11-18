@@ -349,6 +349,8 @@ describe('runCli with --species', () => {
         'ospreys/osprey-nest-01',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
       ],
       env: {
         R2_ACCESS_KEY_ID: 'key',
@@ -382,6 +384,8 @@ describe('runCli with --species', () => {
         'ospreys/osprey-nest-01',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
       ],
       env: {
         INATURALIST_APP_ID: 'app-id',
@@ -724,6 +728,8 @@ describe('runCli with --species', () => {
         '--no-inaturalist',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
         '--lat',
         '1.5',
         '--lon',
@@ -753,6 +759,8 @@ describe('runCli with --species', () => {
         '--no-r2',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
         '--lat',
         '1.5',
         '--lon',
@@ -1012,7 +1020,7 @@ describe('runCli action flags', () => {
     // must not be reported as a bare "Skipped" with no other evidence that
     // anything was written.
     const io = makeIo({
-      argv: [...argvBase, '--only-yaml', '--species', 'Pandion haliaetus'],
+      argv: [...argvBase, '--only-yaml', '--species', 'Pandion haliaetus', '--box', '0.25,0.4,0.6,0.75'],
       env: {},
       readTextFile: vi.fn().mockResolvedValue(
         '---\nobjects:\n  # - boundingBox: null\n  #   details:\n  #     commonName: ""\n  #     description: null\n  #     scientificName: ""\n  #   objectType: organism\nother: {}\nslug: photo\ntier: E\n'
