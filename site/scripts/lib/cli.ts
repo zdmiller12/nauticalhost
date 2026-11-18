@@ -81,6 +81,15 @@ export function createRealCliIo(): CliIo {
   };
 }
 
+/**
+ * Resolves a filesystem path that may abbreviate the user's home directory
+ * (e.g. `~/mnt/nas-photos/5G7A0292.JPG`) into an absolute path.
+ */
+export function expandHome(rawPath: string, home: string | undefined): string {
+  // TODO: decide which abbreviations to accept and what to do when `home` is unset.
+  return rawPath;
+}
+
 /** Collects every occurrence of `--<name> <value>` in CLI-argument order. */
 function parseRepeatedFlag(flagArgs: string[], name: string): (string | undefined)[] {
   return flagArgs.flatMap((arg, index) => (arg === `--${name}` ? [flagArgs[index + 1]] : []));
@@ -204,8 +213,8 @@ export function parseActionFlags(flagArgs: string[]): { actions: PublishActions 
 }
 
 export async function runCli(io: CliIo): Promise<void> {
-  const [sourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
-  if (!sourcePath || !r2KeyPrefixArg) {
+  const [rawSourcePath, r2KeyPrefixArg, ...flagArgs] = io.argv.slice(2);
+  if (!rawSourcePath || !r2KeyPrefixArg) {
     io.error('Usage: npm run publish-photo -- <sourcePath> <r2KeyPrefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]');
     io.exit(1);
     return;
@@ -234,6 +243,7 @@ export async function runCli(io: CliIo): Promise<void> {
     return;
   }
 
+  const sourcePath = expandHome(rawSourcePath, io.env.HOME);
   const fileName = basename(sourcePath);
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
   const r2KeyPrefix = `${r2KeyPrefixArg.replace(/\/+$/, '')}/${fileName}`;

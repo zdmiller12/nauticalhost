@@ -4,7 +4,7 @@ import { buildQueue } from './dialog-session';
 import { createIsWithin } from './private-geometry';
 import { publishToInaturalist as corePublishToInaturalist } from './inaturalist';
 import { publishPhoto, type ObjectInput, type PublishActions, type PublishArgs, type PublishDeps } from './publish';
-import { createRealCliIo, createSaveCrop, parseActionFlags, parseBoundingBox, type CliIo } from './cli';
+import { createRealCliIo, createSaveCrop, expandHome, parseActionFlags, parseBoundingBox, type CliIo } from './cli';
 import type { BoundingBox } from '../../src/lib/bounding-box';
 
 /** A single parsed CSV data row; column names match the single-photo CLI's param names. */
@@ -47,7 +47,8 @@ export function buildRowArgs(
   row: CsvRowInput,
   actions: PublishActions,
   bucket: string,
-  contentDir: string
+  contentDir: string,
+  home?: string
 ): { args: PublishArgs } | { error: string } {
   if (!row.sourcePath) return { error: 'Missing required column "sourcePath".' };
   if (!row.r2KeyPrefix) return { error: 'Missing required column "r2KeyPrefix".' };
@@ -73,7 +74,8 @@ export function buildRowArgs(
     boundingBox = parsed.box;
   }
 
-  const fileName = basename(row.sourcePath);
+  const sourcePath = expandHome(row.sourcePath, home);
+  const fileName = basename(sourcePath);
   const slug = fileName.slice(0, fileName.length - extname(fileName).length);
   const r2KeyPrefix = `${row.r2KeyPrefix.replace(/\/+$/, '')}/${fileName}`;
 
@@ -91,7 +93,7 @@ export function buildRowArgs(
       objects,
       r2KeyPrefix,
       slug,
-      sourcePath: row.sourcePath,
+      sourcePath,
     },
   };
 }
@@ -174,7 +176,7 @@ export async function publishCsv(
   const pending: Pending[] = [];
   for (const [index, row] of rows.entries()) {
     const rowNumber = index + 1;
-    const built = buildRowArgs(row, actions, bucket, contentDir);
+    const built = buildRowArgs(row, actions, bucket, contentDir, deps.env.HOME);
     if ('error' in built) {
       failures.push({ error: new Error(built.error), input: row, rowNumber });
       continue;
