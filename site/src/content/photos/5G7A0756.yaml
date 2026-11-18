@@ -7,7 +7,11 @@ lens: "RF70-200mm F2.8 L IS USM"
 longitude: -79.316501
 notes: # optional
 objects:
-  - boundingBox: null
+  - boundingBox:
+      bottom: 0.73
+      left: 0.34
+      right: 0.65
+      top: 0.26
     description: null
     details:
       commonName: "Swamp Sparrow"
