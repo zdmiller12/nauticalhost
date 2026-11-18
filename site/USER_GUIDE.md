@@ -32,7 +32,7 @@ Astro 7 + Tailwind 4 static site (personal/portfolio + photo "Compendium"). Depl
 ## Publishing a photo
 
 ```
-npm run publish-photo -- <path-to-image> <r2-key-prefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
+npm run publish-photo -- <path-to-image> <r2-key-prefix> [--species "<scientific name>"] [--box <left>,<top>,<right>,<bottom>] [--lat <deg> --lon <deg>] [--no-save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
 ```
 
 **Standard usage** — publish a new wildlife photo to iNaturalist, R2, and generate its YAML in one shot:
@@ -71,7 +71,7 @@ npm run publish-photo -- ~/photos/scenery/sunset.jpg landscapes --no-inaturalist
 - `--box <left>,<top>,<right>,<bottom>` marks where an object sits in the photo, as fractions (0–1) of the displayed image measured from the top-left. The Nth `--box` pairs with the Nth `--species`; boxes are optional, so a species can go unboxed. A box has three effects: only that box's crop is sent to iNaturalist as the observation photo, the Compendium thumbnail crops to the first object's box (expanded to the photo's own aspect ratio), and the photo page opens zoomed to the first box.
 - If no `--species`/`--box` is given and `inaturalist` or `yaml` is running, a drawing dialog opens in your default browser so you can identify species and draw boxes interactively instead. `--no-dialog` skips this and leaves `objects` empty for you to fill in by hand afterward.
 - `--lat <deg> --lon <deg>` overrides the coordinates (EXIF GPS, or whatever the dialog resolves) with an explicit value — useful for cameras without GPS. Both or neither must be given.
-- `--save-crops` writes a local copy of each cropped photo sent to iNaturalist to `scripts/usage/cropped-photos/<slug>-cropped.JPG` (additional organisms on the same photo get `-2`, `-3`, ... suffixes). Off by default; that directory is already git-ignored.
+- Each cropped photo sent to iNaturalist is also saved locally to `scripts/usage/cropped-photos/<slug>-cropped.JPG` (additional organisms on the same photo get `-2`, `-3`, ... suffixes); that directory is already git-ignored. Pass `--no-save-crops` to skip this.
 - Existing YAML is never overwritten (an `other:` EXIF block is appended if missing — re-run with `--only-yaml` to backfill it on older photos).
 - Then edit `src/content/photos/<slug>.yaml`: set `tier` (S/A/B/C/D/E/F), `objects`, optional `notes`; `latitude`/`longitude` may be `null`. `camera`/`lens` are scaffolded from EXIF automatically and shown on the photo page; edit or clear them if EXIF got them wrong.
 - Commit and push to `main` — Cloudflare deploys.
@@ -79,7 +79,7 @@ npm run publish-photo -- ~/photos/scenery/sunset.jpg landscapes --no-inaturalist
 ## Publishing a photo batch (CSV)
 
 ```
-npm run publish-photo-csv -- <path-to-csv> [--save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
+npm run publish-photo-csv -- <path-to-csv> [--no-save-crops] [--no-dialog] [--no-inaturalist|--no-r2|--no-yaml] [--only-inaturalist|--only-r2|--only-yaml]
 ```
 
 Publishes every row in a CSV in one run: a drawing-dialog pass first (for any rows missing a `species`), then an unattended publish pass over all rows.
@@ -102,7 +102,7 @@ sourcePath,r2KeyPrefix,species,box,lat,lon
 
 - `sourcePath`, `r2KeyPrefix` — **required**. Same meaning as the positional args to `publish-photo` (R2 key = `<r2KeyPrefix>/<filename>`, trailing slashes on the prefix are stripped).
 - `species`, `box`, `lat`, `lon` — **optional**, same format and pairing rules as the `publish-photo` flags of the same name (one organism per row; `box` requires `species` in that row; `lat`/`lon` must both be set or both empty). Leave a cell **empty** (not `null`, not a space) to omit it.
-- Rows with no `species` are queued into the same drawing dialog as `publish-photo` (skip with `--no-dialog`); other flags (`--save-crops`, `--no-<action>`/`--only-<action>`) apply to every row.
+- Rows with no `species` are queued into the same drawing dialog as `publish-photo` (skip with `--no-dialog`); other flags (`--no-save-crops`, `--no-<action>`/`--only-<action>`) apply to every row.
 - Per-row failures don't stop the batch — a log of what failed and why is written to `scripts/usage/publish-photo-csv-<timestamp>.log`.
 - Each row still scaffolds its own YAML — go edit `tier`/`notes` on each afterward, same as a single `publish-photo` run.
 

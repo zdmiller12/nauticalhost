@@ -1,0 +1,71 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-01-21T14:49:47Z
+file: compendium/gamma/5G7A0391.JPG
+latitude: 36.105886
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -82.090907
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.5828921487701575
+      left: 0.3924947042498962
+      right: 0.5144020672070997
+      top: 0.39352801977205343
+    description: null
+    details:
+      commonName: "House Finch"
+      inaturalistObservationId: 415482792
+      scientificName: "Haemorhous mexicanus"
+    objectType: organism
+  - boundingBox:
+      bottom: 0.549118696425845
+      left: 0.7998923841982378
+      right: 0.9179316345179133
+      top: 0.3668331800201898
+    description: null
+    details:
+      commonName: "Eastern Bluebird"
+      inaturalistObservationId: 415482809
+      scientificName: "Sialia sialis"
+    objectType: organism
+other:
+  ApertureValue: 4.625
+  ColorSpace: 1
+  CreateDate: "2026-01-21T15:49:47.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.00125
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 5
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 100
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-01-21T15:49:47.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 100
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.625
+  SubSecTime: "49"
+  SubSecTimeDigitized: "49"
+  SubSecTimeOriginal: "49"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0391
+tier: E

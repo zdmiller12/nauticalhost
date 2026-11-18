@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-05-03T19:24:30Z
+file: compendium/gamma/5G7A0557.JPG
+latitude: 37.280614
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.468925
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.5075548799590828
+      left: 0.34565268705090413
+      right: 0.4905156571826782
+      top: 0.327327639895515
+    description: null
+    details:
+      commonName: "Western Fence Lizard"
+      inaturalistObservationId: 415482921
+      scientificName: "Sceloporus undulatus"
+    objectType: organism
+other:
+  ApertureValue: 4
+  ColorSpace: 1
+  CreateDate: "2026-05-03T19:24:30.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 4
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 200
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-05-03T19:24:30.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 200
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "97"
+  SubSecTimeDigitized: "97"
+  SubSecTimeOriginal: "97"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0557
+tier: E

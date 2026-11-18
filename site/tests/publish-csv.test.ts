@@ -156,6 +156,20 @@ describe('buildRowArgs', () => {
       },
     });
   });
+
+  it('expands a ~/ sourcePath against the given home directory', () => {
+    const result = buildRowArgs(
+      { r2KeyPrefix: 'prefix', sourcePath: '~/mnt/nas-photos/a.jpg' },
+      ALL_ACTIONS,
+      'photos',
+      'src/content/photos',
+      '/home/user'
+    );
+
+    expect(result).toEqual({
+      args: expect.objectContaining({ sourcePath: '/home/user/mnt/nas-photos/a.jpg' }),
+    });
+  });
 });
 
 describe('buildRowArgs with a box column', () => {

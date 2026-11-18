@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-05-03T20:19:51Z
+file: compendium/gamma/5G7A0561.JPG
+latitude: 37.280614
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.468925
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.7513135587524802
+      left: 0.45102699571318033
+      right: 0.6864644442654263
+      top: 0.4300768421099795
+    description: null
+    details:
+      commonName: "Wetland Giant Wolf Spider"
+      inaturalistObservationId: 415482942
+      scientificName: "Tigrosa helluo"
+    objectType: organism
+other:
+  ApertureValue: 3.625
+  ColorSpace: 1
+  CreateDate: "2026-05-03T20:19:51.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 3.5
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 200
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-05-03T20:19:51.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 200
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "93"
+  SubSecTimeDigitized: "93"
+  SubSecTimeOriginal: "93"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0561
+tier: E

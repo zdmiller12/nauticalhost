@@ -1,0 +1,60 @@
+---
+camera: "Canon: Canon EOS R7"
+datetime: 2026-04-12T16:15:47Z
+file: compendium/gamma/5G7A0502.JPG
+latitude: 37.280614
+lens: "RF70-200mm F2.8 L IS USM"
+longitude: -80.468925
+notes: # optional
+objects:
+  - boundingBox:
+      bottom: 0.7853327917685834
+      left: 0.22951685567186242
+      right: 0.6149891418879497
+      top: 0.4709639754896571
+    description: null
+    details:
+      commonName: "Painted Turtle"
+      inaturalistObservationId: 415482886
+      scientificName: "Chrysemys picta picta"
+    objectType: organism
+other:
+  ApertureValue: 4.625
+  ColorSpace: 1
+  CreateDate: "2026-04-12T16:15:47.000Z"
+  CustomRendered: "Normal"
+  ExifImageHeight: 4640
+  ExifImageWidth: 6960
+  ExifVersion: "2.3.1"
+  ExposureCompensation: 0
+  ExposureMode: "Auto"
+  ExposureProgram: "Normal program"
+  ExposureTime: 0.0015625
+  Flash: "Flash did not fire"
+  FlashpixVersion: "1.0"
+  FNumber: 5
+  FocalLength: 200
+  FocalPlaneResolutionUnit: "Inch"
+  FocalPlaneXResolution: 7936.145952109464
+  FocalPlaneYResolution: 7931.623931623932
+  GPSVersionID: "2.3.0.0"
+  ISO: 125
+  MeteringMode: "Pattern"
+  ModifyDate: "2026-04-12T16:15:47.000Z"
+  OffsetTime: "-04:00"
+  OffsetTimeDigitized: "-04:00"
+  Orientation: "Horizontal (normal)"
+  RecommendedExposureIndex: 125
+  ResolutionUnit: "inches"
+  SceneCaptureType: "Standard"
+  SensitivityType: 2
+  ShutterSpeedValue: 9.375
+  SubSecTime: "03"
+  SubSecTimeDigitized: "03"
+  SubSecTimeOriginal: "03"
+  WhiteBalance: "Auto"
+  XResolution: 72
+  YCbCrPositioning: 2
+  YResolution: 72
+slug: 5G7A0502
+tier: E

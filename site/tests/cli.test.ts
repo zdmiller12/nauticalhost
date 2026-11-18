@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   createRealCliIo,
   createSaveCrop,
+  expandHome,
   parseBoundingBox,
   parseObjectFlags,
   runCli,
@@ -59,6 +60,28 @@ function makeIo(overrides: Partial<CliIo> = {}): CliIo {
     ...overrides,
   };
 }
+
+describe('expandHome', () => {
+  it('expands a leading ~/ to the home directory', () => {
+    expect(expandHome('~/mnt/nas-photos/a.JPG', '/home/user')).toBe('/home/user/mnt/nas-photos/a.JPG');
+  });
+
+  it('expands a leading $HOME/ to the home directory', () => {
+    expect(expandHome('$HOME/mnt/nas-photos/a.JPG', '/home/user')).toBe('/home/user/mnt/nas-photos/a.JPG');
+  });
+
+  it('leaves an absolute path unchanged', () => {
+    expect(expandHome('/tmp/a.JPG', '/home/user')).toBe('/tmp/a.JPG');
+  });
+
+  it('leaves a ~/ path unchanged when home is unset', () => {
+    expect(expandHome('~/mnt/nas-photos/a.JPG', undefined)).toBe('~/mnt/nas-photos/a.JPG');
+  });
+
+  it('does not expand ~ without a following slash', () => {
+    expect(expandHome('~user/a.JPG', '/home/user')).toBe('~user/a.JPG');
+  });
+});
 
 describe('parseBoundingBox', () => {
   it('parses four normalized values', () => {
@@ -326,6 +349,8 @@ describe('runCli with --species', () => {
         'ospreys/osprey-nest-01',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
       ],
       env: {
         R2_ACCESS_KEY_ID: 'key',
@@ -359,6 +384,8 @@ describe('runCli with --species', () => {
         'ospreys/osprey-nest-01',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
       ],
       env: {
         INATURALIST_APP_ID: 'app-id',
@@ -467,7 +494,61 @@ describe('runCli with --species', () => {
     ]);
   });
 
-  it('skips the dialog when --species was given', async () => {
+  it('opens the dialog when --species was given without --box', async () => {
+    const openDialog = vi.fn().mockResolvedValue({
+      kind: 'completed',
+      photos: [
+        {
+          index: 0,
+          latitude: null,
+          longitude: null,
+          objects: [
+            {
+              boundingBox: { bottom: 0.75, left: 0.25, right: 0.6, top: 0.4 },
+              description: null,
+              objectType: 'organism',
+              scientificName: 'Pandion haliaetus',
+            },
+          ],
+          slug: 'osprey',
+          sourcePath: '/tmp/osprey.jpg',
+        },
+      ],
+    });
+    const io = makeIo({
+      argv: [
+        'node',
+        'publish-photo.ts',
+        '/tmp/osprey.jpg',
+        'ospreys/osprey-nest-01',
+        '--no-r2',
+        '--no-inaturalist',
+        '--species',
+        'Pandion haliaetus',
+      ],
+      openDialog,
+    });
+
+    await runCli(io);
+
+    expect(openDialog).toHaveBeenCalledOnce();
+    expect(openDialog).toHaveBeenCalledWith([
+      expect.objectContaining({
+        objects: [
+          expect.objectContaining({
+            boundingBox: null,
+            scientificName: 'Pandion haliaetus',
+          }),
+        ],
+      }),
+    ]);
+    expect(io.writeFile).toHaveBeenCalledWith(
+      'src/content/photos/osprey.yaml',
+      expect.stringContaining('scientificName: "Pandion haliaetus"')
+    );
+  });
+
+  it('skips the dialog when both --species and --box are given', async () => {
     const openDialog = vi.fn();
     const io = makeIo({
       argv: [
@@ -479,6 +560,8 @@ describe('runCli with --species', () => {
         '--no-inaturalist',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
       ],
       openDialog,
     });
@@ -645,6 +728,8 @@ describe('runCli with --species', () => {
         '--no-inaturalist',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
         '--lat',
         '1.5',
         '--lon',
@@ -674,6 +759,8 @@ describe('runCli with --species', () => {
         '--no-r2',
         '--species',
         'Pandion haliaetus',
+        '--box',
+        '0.25,0.4,0.6,0.75',
         '--lat',
         '1.5',
         '--lon',
@@ -784,7 +871,7 @@ describe('runCli with --box', () => {
     expect(io.exit).not.toHaveBeenCalled();
   });
 
-  it('does not save a crop when --save-crops is omitted', async () => {
+  it('does not save a crop when --no-save-crops is passed', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ results: [{ id: 5, preferred_common_name: 'Osprey' }] }))
@@ -804,6 +891,7 @@ describe('runCli with --box', () => {
         '--box',
         '0.25,0.4,0.6,0.75',
         '--no-r2',
+        '--no-save-crops',
       ],
       env: {
         INATURALIST_APP_ID: 'app-id',
@@ -932,7 +1020,7 @@ describe('runCli action flags', () => {
     // must not be reported as a bare "Skipped" with no other evidence that
     // anything was written.
     const io = makeIo({
-      argv: [...argvBase, '--only-yaml', '--species', 'Pandion haliaetus'],
+      argv: [...argvBase, '--only-yaml', '--species', 'Pandion haliaetus', '--box', '0.25,0.4,0.6,0.75'],
       env: {},
       readTextFile: vi.fn().mockResolvedValue(
         '---\nobjects:\n  # - boundingBox: null\n  #   details:\n  #     commonName: ""\n  #     description: null\n  #     scientificName: ""\n  #   objectType: organism\nother: {}\nslug: photo\ntier: E\n'
