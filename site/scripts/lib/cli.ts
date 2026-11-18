@@ -263,15 +263,17 @@ export async function runCli(io: CliIo): Promise<void> {
   }
 
   // Objects only matter for iNaturalist and the YAML's `objects` entry, so an
-  // r2-only run needs no dialog. --species/--box and --no-dialog are the
-  // non-interactive paths.
+  // r2-only run needs no dialog. --no-dialog bypasses it entirely. The dialog
+  // also opens if objects have no boxes yet, allowing interactive box drawing
+  // even when --species is provided via flags.
   let latitude = coords.latitude;
   let longitude = coords.longitude;
-  if (objects.length === 0 && !flagArgs.includes('--no-dialog') && (actions.inaturalist || actions.yaml)) {
+  const needsDialog = !flagArgs.includes('--no-dialog') && (actions.inaturalist || actions.yaml) && (objects.length === 0 || objects.some((obj) => obj.boundingBox === null));
+  if (needsDialog) {
     const existingYaml = await io.readTextFile(`src/content/photos/${slug}.yaml`);
     const source = await io.readFile(sourcePath);
     const outcome = await io.openDialog(
-      buildQueue([{ exif: await io.extractExif(source), existingYaml, latitude, longitude, slug, sourcePath }])
+      buildQueue([{ exif: await io.extractExif(source), existingYaml, latitude, longitude, objects, slug, sourcePath }])
     );
     if (outcome.kind !== 'completed') {
       io.error(
