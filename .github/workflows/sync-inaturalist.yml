@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -35,9 +36,12 @@ jobs:
       # Runs even if "Run sync" failed partway through, so any observation IDs
       # it already wrote to disk (and thus already created on iNaturalist) get
       # committed rather than discarded -- otherwise the next scheduled run
-      # would recreate them as duplicates.
+      # would recreate them as duplicates. main is a protected branch, so the
+      # changes go out via a branch + PR instead of a direct push.
       - name: Commit changes
         if: always()
+        env:
+          BRANCH_NAME: sync-inaturalist-${{ github.run_id }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -45,9 +49,24 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
+            git checkout -b "$BRANCH_NAME"
             git commit -m "sync: refresh iNaturalist observation data"
-            git push
+            git push -u origin "$BRANCH_NAME"
+            echo "branch=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
           fi
+        id: commit
+
+      - name: Open pull request
+        if: always() && steps.commit.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ steps.commit.outputs.branch }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "sync: refresh iNaturalist observation data" \
+            --body "Automated iNaturalist data refresh from the \`Sync iNaturalist\` workflow."
 
       - name: Fail job if sync errored
         if: always() && steps.sync.outcome == 'failure'
