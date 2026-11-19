@@ -149,6 +149,28 @@ describe('WIDGETS', () => {
     }
   });
 
+  // The box spans the whole column, which fits about this much 14px copy on one
+  // line. Muted text that long is fine for a line or two and turns into a slab
+  // past that, so intro copy gets a two-line budget: a brief note, not a
+  // paragraph. Narrow viewports wrap sooner, so this is a length budget rather
+  // than a promise about how many lines render.
+  const INTRO_CHARS_PER_LINE = 112;
+  const INTRO_MAX_LINES = 2;
+
+  it('keeps every widget intro short enough to stay a note', () => {
+    for (const { intro } of WIDGETS) {
+      if (!intro) continue;
+      // Count what renders: inline tags add no text, and HTML collapses runs of
+      // whitespace, so copy written across several source lines isn't charged
+      // for its own indentation.
+      const visible = intro
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      expect(visible.length).toBeLessThanOrEqual(INTRO_CHARS_PER_LINE * INTRO_MAX_LINES);
+    }
+  });
+
   // Intro copy goes through `set:html`, so a link without these two attributes
   // would open in-place or leak the referrer.
   it('opens every intro link safely in a new tab', () => {
