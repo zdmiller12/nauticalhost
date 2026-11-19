@@ -24,6 +24,12 @@ export interface Widget {
    * can hand it straight to `set:html`.
    */
   intro?: string;
+  /**
+   * Names the intro box for assistive tech, which announces it as a landmark.
+   * Each widget supplies its own, because what the box holds varies: an
+   * attribution here, a caveat or a worked example in the next widget.
+   */
+  introLabel?: string;
   name: string;
   summary: string;
 }
@@ -36,6 +42,7 @@ export const WIDGETS: Widget[] = [
     id: 'balance-accounts',
     intro:
       'Inspired by the financial strategy in <a href="https://www.hachettebookgroup.com/titles/sam-deep/yes-you-can/9780201479652/?lens=basic-books" target="_blank" rel="noopener noreferrer" class="underline hover:text-clay">Yes, You Can!</a> by Sam Deep and Lyle Sussman.',
+    introLabel: 'What this widget is based on',
     name: 'Balance Accounts',
     summary:
       'Distribute a sum across several accounts so their totals end up equal — or as close to equal as the money allows.',

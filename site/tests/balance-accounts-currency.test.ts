@@ -139,6 +139,16 @@ describe('WIDGETS', () => {
     );
   });
 
+  // WidgetPanel renders the intro as an <aside>, which assistive tech exposes
+  // as a landmark. An unnamed one is announced as a bare "complementary", so a
+  // widget that writes intro copy owes it a label.
+  it('names the intro box of every widget that has one', () => {
+    for (const { intro, introLabel } of WIDGETS) {
+      if (!intro) continue;
+      expect(introLabel?.trim()).toBeTruthy();
+    }
+  });
+
   // Intro copy goes through `set:html`, so a link without these two attributes
   // would open in-place or leak the referrer.
   it('opens every intro link safely in a new tab', () => {
