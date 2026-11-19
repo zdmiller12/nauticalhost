@@ -1,0 +1,137 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { DEFAULT_CURRENCY, WIDGETS, currencyOptions } from '../lib/balance-accounts';
+
+const currencies = currencyOptions();
+---
+<BaseLayout title="Widgets" description="Small calculation tools by Zack Miller.">
+  <h1 class="text-2xl font-semibold">Widgets</h1>
+  <p class="mt-2 text-ink-muted">Small, self-contained tools. Pick one to get started.</p>
+
+  <ul class="mt-6 divide-y divide-line border-y border-line">
+    {WIDGETS.map((widget, i) => (
+      <li>
+        <button
+          type="button"
+          data-widget-card={widget.id}
+          aria-expanded={i === 0 ? 'true' : 'false'}
+          aria-controls={`widget-panel-${widget.id}`}
+          class="flex w-full items-center justify-between gap-4 px-1 py-3 text-left hover:text-clay"
+        >
+          <span class="font-medium">{widget.name}</span>
+          <span data-widget-chevron aria-hidden="true" class="text-ink-muted">▸</span>
+        </button>
+        <p data-widget-summary={widget.id} class="px-1 pb-3 text-sm text-ink-muted" hidden={i !== 0}>
+          {widget.summary}
+        </p>
+      </li>
+    ))}
+  </ul>
+
+  <section
+    id="widget-panel-balance-accounts"
+    data-widget-panel="balance-accounts"
+    class="mt-8"
+  >
+    <h2 class="text-xl font-semibold">Balance Accounts</h2>
+
+    <div class="mt-4 flex flex-wrap gap-6 text-sm">
+      <label class="flex items-center gap-2">
+        Currency
+        <select id="currency" class="rounded border border-line bg-paper px-2 py-1 text-ink">
+          {currencies.map((option) => (
+            <option value={option.code} selected={option.code === DEFAULT_CURRENCY}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label class="flex items-center gap-2">
+        Amount to distribute
+        <input
+          id="amount"
+          type="text"
+          inputmode="decimal"
+          placeholder="0.00"
+          class="w-32 rounded border border-line bg-paper px-2 py-1 text-ink"
+        />
+      </label>
+    </div>
+
+    <table class="mt-6 w-full text-sm">
+      <thead class="text-left text-ink-muted">
+        <tr>
+          <th scope="col" class="py-2 font-normal">Account</th>
+          <th scope="col" class="py-2 font-normal">Balance</th>
+          <th scope="col" class="py-2 text-right font-normal">Distribution</th>
+          <th scope="col" class="py-2 text-right font-normal">New total</th>
+          <th scope="col" class="py-2"><span class="sr-only">Remove</span></th>
+        </tr>
+      </thead>
+      <tbody id="account-rows" class="divide-y divide-line border-y border-line"></tbody>
+    </table>
+
+    <button
+      id="add-account"
+      type="button"
+      class="mt-4 rounded border border-line px-3 py-1.5 text-sm hover:text-clay"
+    >
+      Add account
+    </button>
+
+    <dl class="mt-8 border-t border-line pt-4 text-sm">
+      <div class="flex justify-between py-1">
+        <dt class="text-ink-muted">Amount Distributed</dt>
+        <dd id="total-distributed" class="font-medium">—</dd>
+      </div>
+      <div class="flex justify-between py-1">
+        <dt class="text-ink-muted">Amount Not Distributed</dt>
+        <dd id="total-undistributed" class="font-medium">—</dd>
+      </div>
+    </dl>
+
+    <p id="balance-message" class="mt-4 text-sm text-ink-muted" role="status"></p>
+  </section>
+
+  <!--
+    The row is wrapped in a table so the fragment parses as a real <tr>: a bare
+    <tr> inside <template> is parsed in "in body" mode by some HTML parsers and
+    silently flattened to its text. The client script clones the <tr> out.
+  -->
+  <template id="account-row-template">
+    <table><tbody>
+    <tr>
+      <td class="py-2 pr-2">
+        <input
+          type="text"
+          data-account-name
+          class="w-full rounded border border-line bg-paper px-2 py-1 text-ink"
+        />
+      </td>
+      <td class="py-2 pr-2">
+        <input
+          type="text"
+          data-account-balance
+          inputmode="decimal"
+          placeholder="0.00"
+          class="w-28 rounded border border-line bg-paper px-2 py-1 text-ink"
+        />
+      </td>
+      <td data-account-share class="py-2 text-right tabular-nums">—</td>
+      <td data-account-total class="py-2 text-right tabular-nums text-ink-muted">—</td>
+      <td class="py-2 pl-2 text-right">
+        <button
+          type="button"
+          data-remove-account
+          aria-label="Remove account"
+          class="text-ink-muted hover:text-clay"
+        >
+          ✕
+        </button>
+      </td>
+    </tr>
+    </tbody></table>
+  </template>
+
+  <script src="../scripts/widgets-client.ts"></script>
+</BaseLayout>
