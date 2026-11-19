@@ -18,6 +18,12 @@ export interface CurrencyOption {
 
 export interface Widget {
   id: string;
+  /**
+   * Optional HTML rendered at the top of the widget's expanded panel, above
+   * its controls. Authored here, never user-supplied, so WidgetPanel.astro
+   * can hand it straight to `set:html`.
+   */
+  intro?: string;
   name: string;
   summary: string;
 }
@@ -28,6 +34,8 @@ export const DEFAULT_CURRENCY = 'USD';
 export const WIDGETS: Widget[] = [
   {
     id: 'balance-accounts',
+    intro:
+      'Inspired by the financial strategy in <a href="https://www.hachettebookgroup.com/titles/sam-deep/yes-you-can/9780201479652/?lens=basic-books" target="_blank" rel="noopener noreferrer" class="underline hover:text-clay">Yes, You Can!</a> by Sam Deep and Lyle Sussman.',
     name: 'Balance Accounts',
     summary:
       'Distribute a sum across several accounts so their totals end up equal — or as close to equal as the money allows.',

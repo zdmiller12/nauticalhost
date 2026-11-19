@@ -130,4 +130,23 @@ describe('WIDGETS', () => {
     const ids = WIDGETS.map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it('credits the motivating book in the balance-accounts intro', () => {
+    const intro = WIDGETS[0].intro ?? '';
+    expect(intro).toContain('Yes, You Can!');
+    expect(intro).toContain(
+      'https://www.hachettebookgroup.com/titles/sam-deep/yes-you-can/9780201479652/?lens=basic-books',
+    );
+  });
+
+  // Intro copy goes through `set:html`, so a link without these two attributes
+  // would open in-place or leak the referrer.
+  it('opens every intro link safely in a new tab', () => {
+    for (const { intro } of WIDGETS) {
+      for (const anchor of intro?.match(/<a\b[^>]*>/g) ?? []) {
+        expect(anchor).toContain('target="_blank"');
+        expect(anchor).toContain('rel="noopener noreferrer"');
+      }
+    }
+  });
 });

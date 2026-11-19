@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import WidgetPanel from '../components/WidgetPanel.astro';
 import { DEFAULT_CURRENCY, WIDGETS, currencyOptions } from '../lib/balance-accounts';
 
 const currencies = currencyOptions();
@@ -28,13 +29,7 @@ const currencies = currencyOptions();
     ))}
   </ul>
 
-  <section
-    id="widget-panel-balance-accounts"
-    data-widget-panel="balance-accounts"
-    class="mt-8"
-  >
-    <h2 class="text-xl font-semibold">Balance Accounts</h2>
-
+  <WidgetPanel widgetId="balance-accounts">
     <div class="mt-4 flex flex-wrap gap-6 text-sm">
       <label class="flex items-center gap-2">
         Currency
@@ -91,7 +86,7 @@ const currencies = currencyOptions();
     </dl>
 
     <p id="balance-message" class="mt-4 text-sm text-ink-muted" role="status"></p>
-  </section>
+  </WidgetPanel>
 
   <!--
     The row is wrapped in a table so the fragment parses as a real <tr>: a bare

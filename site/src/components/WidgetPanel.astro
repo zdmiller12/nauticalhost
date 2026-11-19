@@ -1,0 +1,27 @@
+---
+import { WIDGETS } from '../lib/balance-accounts';
+
+interface Props {
+  hidden?: boolean;
+  widgetId: string;
+}
+
+const { hidden = false, widgetId } = Astro.props;
+
+const widget = WIDGETS.find((entry) => entry.id === widgetId);
+
+// Fail the build rather than render a panel with no heading: a typo'd id would
+// otherwise only show up as missing copy on the live page.
+if (!widget) {
+  throw new Error(`WidgetPanel: no widget registered with id "${widgetId}"`);
+}
+---
+<section id={`widget-panel-${widget.id}`} data-widget-panel={widget.id} class="mt-8" hidden={hidden}>
+  <h2 class="text-xl font-semibold">{widget.name}</h2>
+
+  {widget.intro && (
+    <div data-widget-intro class="mt-3 text-sm text-ink-muted" set:html={widget.intro} />
+  )}
+
+  <slot />
+</section>
