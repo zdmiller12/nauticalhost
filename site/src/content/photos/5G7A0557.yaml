@@ -14,9 +14,9 @@ objects:
       top: 0.327327639895515
     description: null
     details:
-      commonName: "Western Fence Lizard"
+      commonName: "Spiny Lizards"
       inaturalistObservationId: 415482921
-      scientificName: "Sceloporus undulatus"
+      scientificName: "Sceloporus"
     objectType: organism
 other:
   ApertureValue: 4

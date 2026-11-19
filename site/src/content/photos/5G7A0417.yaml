@@ -14,9 +14,9 @@ objects:
       top: 0.3247909938034837
     description: null
     details:
-      commonName: "Hairy Woodpecker"
+      commonName: "Downy Woodpecker"
       inaturalistObservationId: 415482822
-      scientificName: "Leuconotopicus villosus"
+      scientificName: "Dryobates pubescens"
     objectType: organism
 other:
   ApertureValue: 3

@@ -16,7 +16,7 @@ objects:
     details:
       commonName: "Painted Turtle"
       inaturalistObservationId: 415482886
-      scientificName: "Chrysemys picta picta"
+      scientificName: "Chrysemys picta"
     objectType: organism
 other:
   ApertureValue: 4.625
