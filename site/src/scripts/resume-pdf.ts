@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 
-interface Job {
+export interface Job {
   bullets: string[];
   endDate: string | null;
   location?: string;
@@ -9,19 +9,19 @@ interface Job {
   title: string;
 }
 
-interface Education {
+export interface Education {
   degree: string;
   graduationDate: string;
   institution: string;
 }
 
-interface Certification {
+export interface Certification {
   dateEarned: string;
   issuer: string;
   name: string;
 }
 
-interface ResumeData {
+export interface ResumeData {
   certifications: Certification[];
   education: Education[];
   jobs: Job[];
@@ -30,7 +30,7 @@ interface ResumeData {
 
 const year = (iso: string) => new Date(iso).getUTCFullYear().toString();
 
-function buildPdf(data: ResumeData): jsPDF {
+export function buildPdf(data: ResumeData): jsPDF {
   const doc = new jsPDF({ unit: 'pt' });
   const left = 48;
   const right = 547;
