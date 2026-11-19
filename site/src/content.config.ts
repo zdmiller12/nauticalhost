@@ -1,10 +1,10 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
-import { projectSchema, photoSchema } from './content/schema';
+import { experienceEntrySchema, photoSchema } from './content/schema';
 
-const projects = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/projects' }),
-  schema: projectSchema,
+const experience = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/experience' }),
+  schema: experienceEntrySchema,
 });
 
 const photos = defineCollection({
@@ -12,4 +12,4 @@ const photos = defineCollection({
   schema: photoSchema,
 });
 
-export const collections = { projects, photos };
+export const collections = { experience, photos };

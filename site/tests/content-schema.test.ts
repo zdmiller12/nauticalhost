@@ -1,36 +1,56 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
-import { projectSchema } from '../src/content/schema';
+import { experienceEntrySchema } from '../src/content/schema';
 import { photoSchema } from '../src/content/schema';
 
-describe('projectSchema', () => {
-  it('accepts a valid project entry', () => {
-    const result = projectSchema.safeParse({
-      description: 'Transforming OpenStreetMap data.',
-      githubUrl: 'https://github.com/zdmiller12/osm-scene',
-      tags: ['python', 'gis'],
-      title: 'OSM Scene',
+describe('experienceEntrySchema', () => {
+  it('accepts a valid job entry', () => {
+    const result = experienceEntrySchema.safeParse({
+      bullets: ['Shipped things.'],
+      endDate: null,
+      location: 'Blacksburg, VA',
+      organization: 'Torc Robotics',
+      startDate: '2018-01-01',
+      title: 'Engineer',
+      type: 'job',
     });
     expect(result.success).toBe(true);
   });
 
-  it('rejects an entry missing a required title', () => {
-    const result = projectSchema.safeParse({
-      description: 'Missing a title.',
-      githubUrl: 'https://github.com/zdmiller12/example',
-      tags: [],
+  it('rejects a job entry missing a required organization', () => {
+    const result = experienceEntrySchema.safeParse({
+      bullets: [],
+      endDate: null,
+      startDate: '2018-01-01',
+      title: 'Engineer',
+      type: 'job',
     });
     expect(result.success).toBe(false);
   });
 
-  it('rejects an entry with an invalid githubUrl', () => {
-    const result = projectSchema.safeParse({
-      description: 'Has a non-URL githubUrl.',
-      githubUrl: 'not-a-url',
-      tags: [],
-      title: 'Bad URL',
+  it('accepts a valid education entry', () => {
+    const result = experienceEntrySchema.safeParse({
+      degree: 'M.S., Engineering Mechanics',
+      graduationDate: '2018-01-01',
+      institution: 'Virginia Tech',
+      type: 'education',
     });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a valid certification entry', () => {
+    const result = experienceEntrySchema.safeParse({
+      dateEarned: '2022-01-01',
+      issuer: 'Some Body',
+      name: 'Some Certification',
+      type: 'certification',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown entry type', () => {
+    const result = experienceEntrySchema.safeParse({ type: 'volunteering' });
     expect(result.success).toBe(false);
   });
 });
