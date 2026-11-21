@@ -1,15 +1,33 @@
 import { z } from 'zod';
 
-export const projectSchema = z.object({
-  demoUrl: z.string().url().optional(),
-  description: z.string(),
-  githubUrl: z.string().url(),
-  order: z.number().default(0),
-  tags: z.array(z.string()),
-  title: z.string(),
-});
+export const experienceEntrySchema = z.discriminatedUnion('type', [
+  z.object({
+    bullets: z.array(z.string()).default([]),
+    endDate: z.coerce.date().nullable(),
+    location: z.string().optional(),
+    order: z.number().default(0),
+    organization: z.string(),
+    startDate: z.coerce.date(),
+    title: z.string(),
+    type: z.literal('job'),
+  }),
+  z.object({
+    degree: z.string(),
+    graduationDate: z.coerce.date(),
+    institution: z.string(),
+    order: z.number().default(0),
+    type: z.literal('education'),
+  }),
+  z.object({
+    dateEarned: z.coerce.date(),
+    issuer: z.string(),
+    name: z.string(),
+    order: z.number().default(0),
+    type: z.literal('certification'),
+  }),
+]);
 
-export type Project = z.infer<typeof projectSchema>;
+export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
 
 const boundingBoxSchema = z
   .object({
