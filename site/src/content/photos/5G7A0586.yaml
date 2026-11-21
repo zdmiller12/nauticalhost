@@ -16,7 +16,7 @@ objects:
     details:
       commonName: "coral honeysuckle"
       inaturalistObservationId: 415483001
-      scientificName: "Lonicera semperviren"
+      scientificName: "Lonicera sempervirens"
     objectType: organism
 other:
   ApertureValue: 3

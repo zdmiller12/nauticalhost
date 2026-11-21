@@ -14,9 +14,9 @@ objects:
       top: 0.22591694069452406
     description: null
     details:
-      commonName: "Yellow Garden Spider"
+      commonName: "Orbweavers and Allies"
       inaturalistObservationId: 415483050
-      scientificName: "Argiope aurantia"
+      scientificName: "Araneoidea"
     objectType: organism
 other:
   ApertureValue: 5

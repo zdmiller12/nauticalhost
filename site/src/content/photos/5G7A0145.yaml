@@ -14,9 +14,9 @@ objects:
       top: 0.2781388065838374
     description: null
     details:
-      commonName: "Blue Ridge goldenrod"
+      commonName: "goldenrods"
       inaturalistObservationId: 411505244
-      scientificName: "Solidago spithamaea"
+      scientificName: "Solidago"
     objectType: organism
 other:
   ApertureValue: 5

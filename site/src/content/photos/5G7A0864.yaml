@@ -14,9 +14,9 @@ objects:
       top: 0.36273232628023944
     description: null
     details:
-      commonName: "Monarch"
+      commonName: "Viceroy"
       inaturalistObservationId: 415483326
-      scientificName: "Danaus plexippus"
+      scientificName: "Limenitis archippus"
     objectType: organism
 other:
   ApertureValue: 4

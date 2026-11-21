@@ -14,9 +14,9 @@ objects:
       top: 0.0005384686171039887
     description: null
     details:
-      commonName: "Hemlock Woolly Adelgid"
+      commonName: "Aphids and Allies"
       inaturalistObservationId: 411505386
-      scientificName: "Adelges tsugae"
+      scientificName: "Aphidomorpha"
     objectType: organism
 other:
   ApertureValue: 4.375

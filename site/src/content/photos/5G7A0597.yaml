@@ -14,9 +14,9 @@ objects:
       top: 0.09590326486341921
     description: null
     details:
-      commonName: "Five-spotted Hawk Moth"
+      commonName: ""
       inaturalistObservationId: 415483021
-      scientificName: "Manduca quinquemaculata"
+      scientificName: "Manduca"
     objectType: organism
   - boundingBox:
       bottom: 0.5978012344781213
