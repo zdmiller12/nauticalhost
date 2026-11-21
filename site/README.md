@@ -135,3 +135,87 @@ consistency between local and cloud builds.
 4. Each row scaffolds its own `src/content/photos/<slug>.yaml` — edit
    `tier`/`objects`/`notes` on each, same as step 5 above, then commit and
    push.
+
+## Professional page and résumé PDF
+
+`/professional` replaced the old `/resume` page and the committed
+`public/resume.pdf`. There is no résumé binary in the repo any more: the page
+reads the `experience` content collection, and the **Export as PDF** button
+builds the document in the visitor's browser with [jsPDF].
+
+[jsPDF]: https://github.com/parallax/jsPDF
+
+Why client-side rather than a checked-in PDF: the page and the PDF are generated
+from one source, so editing a content file updates both at once and they cannot
+disagree. The trade-off is that the PDF's layout lives in code
+(`src/scripts/resume-pdf.ts`) instead of a document editor — the layout is a
+deliberately plain single-column Helvetica résumé at 1pt units: an 18pt name,
+then `Experience`, `Education`, `Certifications`, `Skills`, each a 13pt bold
+heading with a rule under it. Long text is wrapped with `splitTextToSize` and a
+new page starts past `y > 760`, so a résumé that outgrows one page keeps its
+margins. The `Certifications` heading is omitted entirely when there are no
+certification entries, rather than printing an empty section.
+
+Entry shapes are the three arms of `experienceEntrySchema` (a Zod discriminated
+union on `type`) in `src/content/schema.ts`; see
+[USER_GUIDE.md](USER_GUIDE.md#professional-page) for the field lists. `order`
+sorts entries within each section ascending, and is independent per section.
+Dates are stored as full ISO dates but rendered as years only (`2018–present`),
+so a `startDate` only needs to be right to the year it will display.
+
+`src/data/skills.ts` is deliberately a plain module, not a content collection —
+it is a flat list of strings with no per-item metadata to validate, and it is
+consumed by both the page and the PDF. **It still holds placeholder values.**
+
+## Widgets
+
+`/widgets` is a 4th nav space for small, self-contained browser-side tools,
+rendered as an accordion with exactly one panel open at a time. Expansion state
+is intentionally not persisted — each visit opens the first widget.
+
+Adding a widget is three edits:
+
+1. An entry in the `WIDGETS` array (`src/lib/balance-accounts.ts`) — `id`,
+   `name`, `summary`, plus optional `intro`/`introLabel`.
+2. A `<WidgetPanel widgetId="<id>">…</WidgetPanel>` block in
+   `src/pages/widgets.astro` holding the widget's controls.
+3. Its behavior in `src/scripts/widgets-client.ts`.
+
+`WidgetPanel.astro` looks the id up in `WIDGETS` and **throws** if it's absent,
+which fails `npm run build` — a typo'd id can't reach production as a panel with
+a missing heading. `intro` is authored HTML (never user input) handed to
+`set:html` and rendered in a bordered `<aside>` box spanning the panel width;
+`introLabel` is its accessible name, per-widget because the box holds different
+kinds of context (an attribution for Balance Accounts, a caveat or worked
+example for a future widget).
+
+### Balance Accounts
+
+Distributes an amount across accounts so their ending totals are as equal as the
+money allows, via **water-filling**: find the level `L` where
+`sum(max(0, L - balance)) === amount`, then give each account `L - balance`. The
+implementation walks balances in ascending order and raises the waterline one
+tier at a time — `O(n log n)`, no numeric search, and tied balances cost nothing
+to absorb so they fold into the same tier. A surplus large enough to level every
+account needs no special case: the leftover simply splits evenly.
+
+Money correctness rules worth preserving if this code is touched:
+
+- Every amount is an integer count of the currency's **minor units**, so the
+  arithmetic cannot drift. Minor-unit digits come from `Intl.NumberFormat`
+  (`minorUnitDigits`), not a hardcoded table, so all of
+  `Intl.supportedValuesOf('currency')` behaves — 2 digits for USD, 0 for JPY,
+  3 for KWD. The picker lists every such currency, alphabetical by code.
+- `parseMoney` parses the typed digit string rather than multiplying a float
+  (so `8.165` can't land on `8164.999…`), accepts thousands separators, treats
+  empty input as `0`, returns `null` for anything that isn't a plain
+  non-negative number, and rounds half-up at a fraction finer than the
+  sub-unit.
+- Whatever cannot divide into whole minor units is surfaced as **Amount Not
+  Distributed** (always less than the account count) rather than being given to
+  some arbitrary account — the remainder is shown, never tie-broken.
+- Unnamed accounts display as `Account A`, `Account B`, … `Account Z`,
+  `Account AA` (`defaultAccountName`).
+
+Deferred to a phase 2: per-account priority weighting, i.e. distributing
+unevenly on purpose instead of filling every account toward one waterline.

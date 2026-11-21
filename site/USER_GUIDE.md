@@ -1,6 +1,6 @@
 # `site/` — User One-Pager
 
-Astro 7 + Tailwind 4 static site (personal/portfolio + photo "Compendium"). Deployed to Cloudflare Workers (static assets). All commands below run from `site/`.
+Astro 7 + Tailwind 4 static site. Four spaces: Home, the photo "Compendium", Professional (experience + résumé PDF export), and Widgets (small browser-side tools). Deployed to Cloudflare Workers (static assets). All commands below run from `site/`.
 
 ## Setup
 
@@ -23,11 +23,54 @@ Astro 7 + Tailwind 4 static site (personal/portfolio + photo "Compendium"). Depl
 
 ## Layout
 
-- `src/pages/` — `index`, `projects`, `resume`, `compendium` (+ per-photo routes)
-- `src/content/photos/*.yaml`, `src/content/projects/` — content; schemas in `src/content/schema.ts`
+- `src/pages/` — `index`, `compendium` (+ per-photo routes), `professional`, `widgets`
+- `src/content/photos/*.yaml`, `src/content/experience/*.md` — content; schemas in `src/content/schema.ts`, collections wired in `src/content.config.ts`
+- `src/data/` — hand-edited data that isn't a content collection (`skills.ts`)
 - `src/components/`, `src/layouts/`, `src/lib/`, `src/scripts/` (client JS), `src/styles/`
-- `scripts/` — CLI tools (`publish-photo`, `sync-inaturalist`); `tests/` — Vitest
-- `public/` — static files. **`public/resume.pdf` must exist** or the Resume link 404s (it currently does).
+- `scripts/` — CLI tools (`publish-photo`, `publish-photo-csv`, `sync-inaturalist`); `tests/` — Vitest
+- `public/` — static files. The résumé is **generated in the browser**, so no `resume.pdf` is committed here.
+
+## Professional page
+
+`/professional` renders experience from the `experience` content collection and
+offers an **Export as PDF** button.
+
+- One Markdown file per entry in `src/content/experience/`, each tagged with a
+  `type`: `job` (`title`, `organization`, optional `location`, `startDate`,
+  nullable `endDate`, `bullets`), `education` (`degree`, `institution`,
+  `graduationDate`), or `certification` (`name`, `issuer`, `dateEarned`). Every
+  type takes an `order` number — entries are sorted by it within their section,
+  ascending.
+- Skills are a plain list in `src/data/skills.ts` (not a collection).
+- The PDF is built client-side with [jsPDF](https://github.com/parallax/jsPDF)
+  in `src/scripts/resume-pdf.ts` from the *same* data the page renders (passed
+  through a JSON `<script id="resume-data">`), so the page and the PDF can't
+  drift apart. Download name: `<YYYY-MM-DD>_zdmiller12-resume.pdf`.
+- To change the résumé, edit the content files — not a binary. Nothing needs to
+  be re-exported or committed after an edit.
+
+## Widgets
+
+`/widgets` is an accordion of small, self-contained client-side tools: a list of
+widget names, exactly one expanded at a time (the first by default; state isn't
+persisted across loads).
+
+- The catalog is the `WIDGETS` array in `src/lib/balance-accounts.ts`. Each
+  entry has an `id`, `name`, `summary`, and optional `intro`/`introLabel` — the
+  intro is authored HTML rendered in a bordered info box at the top of the
+  expanded panel (`introLabel` names that box for screen readers).
+- Adding a widget = one `WIDGETS` entry + a `<WidgetPanel widgetId="...">`
+  block in `src/pages/widgets.astro` + its wiring in
+  `src/scripts/widgets-client.ts`. `WidgetPanel.astro` **throws at build time**
+  if the `widgetId` isn't registered, so a typo fails `npm run build` instead of
+  shipping a panel with no heading.
+- **Balance Accounts** (widget #1) distributes a sum across accounts so their
+  totals end up as equal as possible, using a water-filling algorithm. All money
+  is held in the currency's minor units (integers) so nothing drifts; the
+  currency picker covers every ISO currency the runtime knows, with minor-unit
+  digits read from `Intl` (2 for USD, 0 for JPY, 3 for KWD). Whatever can't be
+  split into whole units is reported as **Amount Not Distributed** rather than
+  being handed to an arbitrary account.
 
 ## Publishing a photo
 
@@ -115,5 +158,24 @@ sourcePath,r2KeyPrefix,species,box,lat,lon
 - Auto-builds on push to `main`. Project root dir `site`, build `npm run build`, deploy `npx wrangler versions upload`.
 - `wrangler.jsonc` (Worker name `nauticalhost`, assets `./dist`) is required for the deploy step.
 - `PUBLIC_R2_BASE_URL` must be set as a **build** env var in Cloudflare, or photo image URLs silently break in production.
+
+## Known gaps / next steps
+
+Current state, so nobody has to rediscover it:
+
+- **Skills are still placeholders.** `src/data/skills.ts` ships
+  `['Python', 'TypeScript']` behind a `TODO`. These show on `/professional` and
+  in the exported PDF, so this is the first thing to fill in.
+- **Experience bullets are empty.** `src/content/experience/torc-robotics.md`
+  has `bullets: []`, so the job renders as a title/organization/date line only.
+- **Widgets, phase 2:** per-account priority weighting (distribute unevenly on
+  purpose) is deliberately deferred — today every account is filled toward the
+  same waterline.
+- **Compendium "Sort by Camera":** `camera`/`lens` are on `photoSchema` and
+  shown on each photo's detail page, but the sort picker still offers only
+  `date` and `tier` (`SORT_KEYS` in `src/lib/photo-sort.ts`).
+- **EXIF `other` backfill:** photos published before the `other:` catch-all
+  existed don't have it. Re-run `npm run publish-photo -- <image> <prefix>
+  --only-yaml` per photo to append it.
 
 More detail: `README.md` (this directory). Agent instructions: `AGENTS.md`.
