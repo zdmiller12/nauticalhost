@@ -163,10 +163,13 @@ describe('WIDGETS', () => {
       // Count what renders: inline tags add no text, and HTML collapses runs of
       // whitespace, so copy written across several source lines isn't charged
       // for its own indentation.
-      const visible = intro
-        .replace(/<[^>]+>/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+      let stripped = intro;
+      let previous;
+      do {
+        previous = stripped;
+        stripped = stripped.replace(/<[^>]+>/g, '');
+      } while (stripped !== previous);
+      const visible = stripped.replace(/\s+/g, ' ').trim();
       expect(visible.length).toBeLessThanOrEqual(INTRO_CHARS_PER_LINE * INTRO_MAX_LINES);
     }
   });
