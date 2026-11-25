@@ -14,9 +14,9 @@ objects:
       top: 0.4998195741536442
     description: null
     details:
-      commonName: "Pine Warbler"
+      commonName: "Common Yellowthroat"
       inaturalistObservationId: 415483149
-      scientificName: "Setophaga pinus"
+      scientificName: "Geothlypis trichas"
     objectType: organism
 other:
   ApertureValue: 3.375
