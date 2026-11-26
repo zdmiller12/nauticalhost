@@ -14,9 +14,9 @@ objects:
       top: 0.36577333757486297
     description: null
     details:
-      commonName: "Sacred Lotus"
+      commonName: "lotuses"
       inaturalistObservationId: 415483372
-      scientificName: "Nelumbo nucifera"
+      scientificName: "Nelumbo"
     objectType: organism
 other:
   ApertureValue: 3
